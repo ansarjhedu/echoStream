@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Awesome Store</title>
+    
+    <!-- Client's own website styles (Widget should not break these) -->
+    <style>
+        body {
+            font-family: 'Georgia', serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 40px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        .product-image {
+            width: 100%;
+            height: 300px;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            color: #666;
+            font-family: sans-serif;
+        }
+    </style>
+
+</head>
+<body>
+
+    <div class="container">
+        <h1>Cyberpunk Smart Watch</h1>
+        <div class="product-image">Product Image Goes Here</div>
+        <p>This is the client's awesome product page. The reviews should seamlessly drop in below this text.</p>
+        
+        <hr style="margin: 40px 0; border: 1px solid #eee;">
+
+              <!-- 2. ADD THE WIDGET HTML TAG -->
+        <!-- Replace data-api-key with an actual API key generated from your database -->
+      <!-- 1. Add this to your HTML <head> -->
+    <!-- 1. Add this to your HTML <head> -->
+<script src="http://localhost:3000/widget/echo-widget.js" defer></script>
+
+<!-- 2. Place this where you want the reviews to appear -->
+<div 
+  class="echo-reviews-widget" 
+  data-api-key="b43f8e1af44ae0fe52385aec50808723" 
+  data-product-handle="smartwatch-x1" 
+  data-product-title="Cyberpunk Smart Watch"
+  data-customer-name="guest user"
+  data-customer-email="guest@gmail.com"
+ >
+</div>
+   </div>
+    
+  
+
+</body>
+</html>
