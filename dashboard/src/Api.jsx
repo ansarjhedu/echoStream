@@ -2,7 +2,7 @@ import axios from 'axios';
 
 
 const api = axios.create({
-  baseURL: 'http://localhost:3000/api' || 'https://echo-stream-pi.vercel.app/api', // Ensure this matches your backend port!
+  baseURL:  'https://echo-stream-pi.vercel.app/api', // Ensure this matches your backend port!
   withCredentials: true, 
 });
 
