@@ -29,7 +29,6 @@ cleanupCron.start(); // Start the cron job scheduler
 
 app.use(cors({
     origin: [
-        "http://localhost:5173",
         "https://echo-stream-5nch.vercel.app",
     ],
          credentials: true
