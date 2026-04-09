@@ -63,12 +63,12 @@ const HubLayout = ({ children }) => {
               )}
               <div className="overflow-hidden">
                 <p className="text-sm font-bold text-white truncate">Hello, {user?.userName}</p>
-               <div className='flex justify-between items-center gap-6'> 
+               {/* <div className='flex justify-between items-center gap-6'>  */}
                 <p className={`text-xs capitalize ${user?.role === 'admin' ? 'text-red-400' : 'text-cyan-400'}`}>{user?.role}</p>
                 {/* <span className={`text-xs capitalize ml-2 px-2 py-1 rounded-full ${user?.isActive === true ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
                   {user?.isActive === true ? 'Active' : 'Deleted'}
                 </span> */}
-               </div>
+               {/* </div> */}
               </div>
             </div>
           </div>
