@@ -12,7 +12,7 @@ export const WidgetProvider = ({ apiKey, productHandle, productTitle, customerNa
   const[isFormOpen, setIsFormOpen] = useState(false);
 
   // Change to your production URL later
-  const API_BASE = 'http://localhost:3000/api/public';
+  const API_BASE = 'https://echo-stream-pi.vercel.app/api/public';
 
   // Axios instance with default headers for cleaner API calls
   const api = axios.create({

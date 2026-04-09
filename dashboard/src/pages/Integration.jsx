@@ -7,7 +7,7 @@ export default function Integration() {
   const[copied, setCopied] = useState(false);
 
   const scriptCode = `<!-- 1. Add this to your HTML <head> -->
-<script src="http://localhost:3000/widget/echo-widget.js" defer></script>
+<script src="https://echo-stream-pi.vercel.app/widget/echo-widget.js" defer></script>
 
 <!-- 2. Place this where you want the reviews to appear update the fields with your values -->
 <div 
