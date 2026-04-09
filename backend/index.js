@@ -27,23 +27,31 @@ const port= process.env.PORT || 5000;
 connectDB();
 cleanupCron.start(); // Start the cron job scheduler
 
-
-// 1. Update CORS (We will add your live frontend URL later, use an array for now)
-const allowedOrigins =[
-  "http://localhost:5173", 
-  "https://echo-stream-5nch.vercel.app/" // You will change this later!
-];
-
 app.use(cors({
-    origin: function (origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    credentials: true
+    origin: [
+        "http://localhost:5173",
+        "https://echo-stream-5nch.vercel.app",
+    ],
+         credentials: true
 }));
+
+
+// // 1. Update CORS (We will add your live frontend URL later, use an array for now)
+// const allowedOrigins =[
+//   "http://localhost:5173", 
+//   "https://echo-stream-5nch.vercel.app/" // You will change this later!
+// ];
+
+// app.use(cors({
+//     origin: function (origin, callback) {
+//         if (!origin || allowedOrigins.includes(origin)) {
+//             callback(null, true);
+//         } else {
+//             callback(new Error('Not allowed by CORS'));
+//         }
+//     },
+//     credentials: true
+// }));
 app.use(express.json());
 app.use(cookieParser());
 
