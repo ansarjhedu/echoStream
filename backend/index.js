@@ -31,7 +31,7 @@ cleanupCron.start(); // Start the cron job scheduler
 // 1. Update CORS (We will add your live frontend URL later, use an array for now)
 const allowedOrigins =[
   "http://localhost:5173", 
-  "https://your-future-frontend-url.vercel.app" // You will change this later!
+  "https://echo-stream-5nch.vercel.app/" // You will change this later!
 ];
 
 app.use(cors({
