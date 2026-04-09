@@ -1,11 +1,15 @@
 import User from "../models/User.js";
 import Store from "../models/Store.js";
 import Review from "../models/Review.js";
+import Product from "../models/Product.js";
+import mongoose from "mongoose";
+import crypto from "crypto";
 
 const listUsers=async(req,res)=>{
 
     try {
         const allUsers= await User.find({role:"owner"}).sort({createdAt:-1});
+       
         if(!allUsers || allUsers.length===0){
             return res.status(404).json("Unable to find any user")
         }
@@ -35,12 +39,51 @@ const deleteUser=async(req,res)=>{
        if(!deletedUser){
         return res.status(500).json("Error while deleting user")
        }
+       const userStores=await Store.find({owner:userId});
+            //soft delete all stores of this user
+        await Store.updateMany({owner:userId},{$set:{isDeleted:true, deletedAt:Date.now(), status:"deleted", isActive:false}});
+            //soft delete all products of this user
+        await Product.updateMany({owner:userId},{$set:{isDeleted:true, deletedAt:Date.now()}});
+            //soft delete all reviews of this user
+        await Review.updateMany({owner:userId},{$set:{isDeleted:true, deletedAt:Date.now()}});
+        
          return res.status(200).json({
             data:deletedUser,
             message:"User deleted successfully, you can restore this user within 30 days from the deletedAt date, after that user will be permanently deleted from database"
         })
     } catch (error) {
          console.log(error)
+        return res.status(500).json("Internal Server Error ")
+    }
+}
+const restoreUser=async(req,res)=>{
+    try {
+        const userId=req.params.id;
+         const restoredUser=await User.findByIdAndUpdate(userId,
+        {
+            isDeleted:false,
+            deletedAt:null,
+            isActive:true
+        },
+        {new:true}
+       );
+         if(!restoredUser){
+        return res.status(500).json("Error while restoring user")
+         }
+         const userStores=await Store.find({owner:userId});
+            //restore all stores of this user
+        await Store.updateMany({owner:userId},{$set:{isDeleted:false, deletedAt:null, status:"live", isActive:true}});
+            //restore all products of this user
+        await Product.updateMany({owner:userId},{$set:{isDeleted:false, deletedAt:null}});
+            //restore all reviews of this user
+        await Review.updateMany({owner:userId},{$set:{isDeleted:false, deletedAt:null}});
+         
+            return res.status(200).json({
+            data:restoredUser,
+            message:"User restored successfully, all stores of this user will be reactivated immediately"
+        })
+        } catch (error) {
+            console.log(error)
         return res.status(500).json("Internal Server Error ")
     }
 }
@@ -68,36 +111,22 @@ const listStores=async(req,res)=>{
     }
 }
 
+
+
 const updateStore=async(req,res)=>{
     try {
         const storeId=req.params.id;
         const {status}=req.body;
-        if(!["live","suspended"].includes(status)){
-                return res.status(400).json("Invalid status value or you are not authorized to update this store")
+        if(!["live", "suspended"].includes(status)){
+            return res.status(400).json({message:"Invalid status value provided"})
         }
-        const store=await Store.findOneAndUpdate({ _id: storeId }, { status, isActive: status==="live"?true:false }, { new: true });
-        if(!store){
-            return res.status(404).json("Store not found")
-        }
-        return res.status(200).json({
-            data:store,
-            message:store.status==="suspended"?"Store has been suspended successfully":"Store has been activated successfully"
-        })
-    } catch (error) {
-         console.log(error)
-        return res.status(500).json("Internal Server Error ")
-    }
-}
 
-const deleteStore=async(req,res)=>{
-    try {
-        const storeId=req.params.id;
         const store=await Store.findByIdAndUpdate(storeId,
             {
-                isDeleted:true,
-                deletedAt:Date.now(),
-                status:"disabled",
-                isActive:false
+                status: status==="live"?"live":"suspended",
+                isActive: status==="live"?true:false,
+                apiKey: status === "live" ? crypto.randomBytes(16).toString("hex") : null // Generate API key if going live and doesn't have one, else nullify it
+
             },
             {new:true}
         );
@@ -177,84 +206,38 @@ const resolveDispute = async (req, res) => {
     }
 };
 
-const retreiveDeletedUsers = async (req, res) => {
-    try {
-        const deletedUsers = await User.find({ isDeleted: true, role: "owner" }).sort({ deletedAt: -1 });
-        if (!deletedUsers || deletedUsers.length === 0) {
-            return res.status(404).json("No deleted users found");
-        }
-        return res.status(200).json({
-            data: deletedUsers,
-            message: "Deleted users retrieved successfully"
-        });
-    }
-    catch (error) {
-        console.log(error);
-        return res.status(500).json("Internal Server Error");
-    }
-};
 
-const restoreDeletedUser = async (req, res) => {
-    try {
-        const userId = req.params.id;
-        const restoredUser = await User.findByIdAndUpdate(
-            userId,
-            {
-                isDeleted: false,
-                deletedAt: null,
-                isActive: true
-            },
-            { new: true }
-        );
-        if (!restoredUser) {
-            return res.status(404).json("User not found or cannot be restored");
-        }
-        return res.status(200).json({
-            data: restoredUser,
-            message: "User restored successfully"
-        });
-    }
-    catch (error) {
-        console.log(error);
-        return res.status(500).json("Internal Server Error");
-    }
-};
-
-const restoreDeletedStore = async (req, res) => {
+const restoreStore = async (req, res) => {
     try {
         const storeId = req.params.id;
-        const restoredStore = await Store.findByIdAndUpdate(
-            storeId,
-            {
-                isDeleted: false,
-                deletedAt: null,
-                status: "disabled", // Restored stores will be disabled by default, admin can activate after review
-                isActive: false
-            },
-            { new: true }
+
+        // 1. Un-delete the Store
+        // We use `.collection.findOneAndUpdate` to bypass any Mongoose pre('find') hooks that hide deleted items!
+        await Store.collection.findOneAndUpdate(
+            { _id: new mongoose.Types.ObjectId(storeId) },
+            { $set: { isDeleted: false, deletedAt: null, status: "live", isActive: true } }
         );
-        const restoredProducts = await Product.updateMany(
-            { store: storeId, isDeleted: true },
-            { isDeleted: false, deletedAt: null },
-            { new: true }
+
+        // 2. Cascade Restore: Recover all associated Products
+        await Product.collection.updateMany(
+            { store: new mongoose.Types.ObjectId(storeId) }, 
+            { $set: { isDeleted: false, deletedAt: null } }
         );
-        const restoredReviews = await Review.updateMany(
-            { store: storeId, isDeleted: true },
-            { isDeleted: false, deletedAt: null },
-            { new: true }
+
+        // 3. Cascade Restore: Recover all associated Reviews
+        // (We leave the reviews as "rejected" or whatever status they were, just remove the isDeleted flag)
+        await Review.collection.updateMany(
+            { store: new mongoose.Types.ObjectId(storeId) }, 
+            { $set: { isDeleted: false, deletedAt: null } }
         );
-        
-        if (!restoredStore) {
-            return res.status(404).json("Store not found or cannot be restored");
-        }
-        return res.status(200).json({
-            data: restoredStore,
-            message: "Store restored successfully"
-        });
-    }
-    catch (error) {
+
+        return res.status(200).json({ message: "Store and all associated products/reviews restored successfully." });
+    } catch (error) {
         console.log(error);
         return res.status(500).json("Internal Server Error");
     }
 };
-export { listUsers, deleteUser, listStores, updateStore, deleteStore, getPlatformAnalytics, getDisputedReviews, resolveDispute, retreiveDeletedUsers, restoreDeletedUser, restoreDeletedStore };
+
+
+// Add `restoreStore` to your exports!
+export { listUsers, deleteUser, listStores, updateStore, getPlatformAnalytics, getDisputedReviews, resolveDispute, restoreStore,restoreUser };

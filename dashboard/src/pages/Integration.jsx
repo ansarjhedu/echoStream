@@ -12,7 +12,7 @@ export default function Integration() {
 <!-- 2. Place this where you want the reviews to appear update the fields with your values -->
 <div 
   class="echo-reviews-widget" 
-  data-api-key="b43f8e1af44ae0fe52385aec50808723" 
+  data-api-key="${activeStore?.apiKey || 'YOUR_API_KEY'}" 
   data-product-handle="UNIQUE_PRODUCT_ID" 
   data-product-title="Product title here"
   data-customer-name="Customer Name Here"

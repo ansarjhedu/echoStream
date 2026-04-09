@@ -53,7 +53,7 @@ const HubLayout = ({ children }) => {
               EchoStream
             </h2>
             
-            <div className="flex items-center gap-4 bg-white/5 border border-white/10 p-4 rounded-2xl">
+            <div className="flex items-center gap-4 bg-white/5 border border-white/10 p-4 rounded-2xl w-full">
               {user?.profilePic ? (
                 <img src={user.profilePic} alt="Profile" className="w-12 h-12 rounded-full object-cover border border-cyan-500/50" />
               ) : (
@@ -63,7 +63,12 @@ const HubLayout = ({ children }) => {
               )}
               <div className="overflow-hidden">
                 <p className="text-sm font-bold text-white truncate">Hello, {user?.userName}</p>
+               <div className='flex justify-between items-center gap-6'> 
                 <p className={`text-xs capitalize ${user?.role === 'admin' ? 'text-red-400' : 'text-cyan-400'}`}>{user?.role}</p>
+                <span className={`text-xs capitalize ml-2 px-2 py-1 rounded-full ${user?.isActive === true ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
+                  {user?.isActive === true ? 'Active' : 'Deleted'}
+                </span>
+               </div>
               </div>
             </div>
           </div>

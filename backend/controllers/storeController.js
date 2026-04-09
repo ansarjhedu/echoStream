@@ -44,7 +44,10 @@ const createStore=async(req,res)=>{
 const myStores=async(req,res)=>{
     try {
         
-       const stores=await Store.find({owner:req.user._id}).sort({createdAt:-1});
+       const stores=await Store.find({
+        owner:req.user._id,
+        //isDeleted:false
+        }).sort({createdAt:-1});
      if(!stores || stores.length === 0){
             return res.status(200).json({ data:[], message: "You have not registered any store yet" });
        }
@@ -79,20 +82,22 @@ const getStoreById=async(req,res)=>{
 const updateStoreStatus=async(req,res)=>{
     try {
         const store=req.store; // This is set by authStore middleware
-        const {status}=req.body;
+        const {status,isDeleted}=req.body;
         //update store status to either live or disabled, user can only update status of their own store
-        if(!["live","disabled"].includes(status) || store.status==="suspended"){
+        if(!["live","disabled","disputed", "deleted"].includes(status) ){
             return res.status(400).json("Invalid status value or Store has been suspended by Admin, you can not update the status of this store")
         }
-
         //update status of the store and isActive field accordingly
-        store.status=status;
-        store.isActive=status==="live"?true:false;
+        store.status=status==="live"?"live":status==="disabled"?"disabled":status==="disputed"?"disputed":"deleted";
+        store.isActive=status==="live" && !isDeleted ?true:false; 
+        store.isDeleted=isDeleted;
+        store.deletedAt=isDeleted?Date.now():null;
+
         await store.save();
         
         return res.status(200).json({
             data:store,
-            message:store.status==="live" ? "Store has been activated successfully" : "Store has been disabled successfully"
+            message:store.status==="live" ? "Store has been activated successfully" : store.status==="disabled"?"Store has been disabled successfully":store.status==="disputed"?"Store is under dispute, please contact support":"Store has been deleted successfully"
         })
     } catch (error) {
         console.log(error)
@@ -103,10 +108,11 @@ const updateStoreStatus=async(req,res)=>{
 const deleteStore=async(req,res)=>{
     try {
         const store=req.store; // This is set by authStore middleware
+        const {status}=req.body;
         //user can only delete their own store
         store.isDeleted=true;
         store.deletedAt=Date.now();
-        store.status="disabled";
+        store.status="deleted";
         store.isActive=false;
         await store.save();
         //mark all products of this store as deleted

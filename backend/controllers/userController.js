@@ -39,6 +39,7 @@ const registerUser = async (req, res) => {
         email: user.email,
         userName: user.userName,
         role:user.role,
+        profilePic: user.profilePic,
         accessToken: {
           message:
             "copy this token and use it in the header for authentication in future requests",
@@ -86,6 +87,7 @@ const loginUser = async (req, res) => {
           email: user.email,
           userName: user.userName,
           role:user.role,
+          profilePic: user.profilePic,
           accessToken: {
               message:
               "copy this token and use it in the header for authentication in future requests",

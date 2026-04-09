@@ -2,17 +2,20 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../Api';
 import { useAuth } from '../context/AuthContext';
-import { Store, Plus, Server, ShoppingCart, ChevronRight, X, AlertCircle,LogOut } from 'lucide-react';
+import { 
+  Store, Plus, Server, ShoppingCart, ChevronRight, 
+  X, AlertCircle, Ban, CheckCircle, Trash, Clock, Lock 
+} from 'lucide-react';
 
 export default function StoresHub() {
   const [stores, setStores] = useState([]);
-  const[loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ storeName: '', storeType: 'ecommerce', storeHosting: 'shopify' });
+  const[formData, setFormData] = useState({ storeName: '', storeType: 'ecommerce', storeHosting: 'shopify' });
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const { user, setActiveStore ,logout} = useAuth();
+  const { user, setActiveStore } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -38,7 +41,7 @@ export default function StoresHub() {
       const res = await api.post('/store/create', formData);
       setStores([res.data.data, ...stores]);
       setIsModalOpen(false);
-      setFormData({ storeName: '', storeType: 'ecommerce' });
+      setFormData({ storeName: '', storeType: 'ecommerce', storeHosting: 'shopify' });
     } catch (err) {
       setError(err.response?.data || "Failed to create store");
     } finally {
@@ -46,13 +49,62 @@ export default function StoresHub() {
     }
   };
 
+  const updateStoreApi = async (storeId, payload) => {
+    try {
+      const res = await api.patch(`/store/${storeId}/status`, payload);
+      setStores(stores.map(s => s._id === storeId ? res.data.data : s));
+    } catch (error) {
+      alert(error.response?.data || "Failed to update store status");
+    }
+  };
+
+  const handleToggleStatus = (e, store) => {
+    e.stopPropagation(); 
+    if(!window.confirm(`Are you sure you want to ${store.status === 'live' ? 'DISABLE' : 'ACTIVATE'} this store?`)) return;
+    
+    updateStoreApi(store._id, { 
+      status: store.status === 'live' ? 'disabled' : 'live', 
+      isDeleted: false 
+    });
+  };
+
+  const handleDelete = (e, store) => {
+    e.stopPropagation();
+    if(!window.confirm("Soft delete this store? It will stop working and be permanently removed in 30 days.")) return;
+    
+    updateStoreApi(store._id, { 
+      status: 'deleted', 
+      isDeleted: true 
+    });
+  };
+
+  // 🚨 NEW: The Locked Restore Request Handler
+  const handleLockedRestoreRequest = (e, store) => {
+    e.stopPropagation();
+    let reason = "marked for deletion";
+    if (store.status === "suspended") reason = "suspended by a Platform Administrator";
+    if (store.status === "disputed") reason = "currently locked due to an active dispute";
+
+    alert(`🔒 RESTORE LOCKED\n\nThis store is ${reason}. \n\nYou must contact platform support to request restoration or resolve this issue.`);
+  };
+
   const handleStoreClick = (store) => {
-    setActiveStore(store);  // Set the active store in context
-    navigate('/workspace/analytics');  // Navigate to workspace
+    if (store.isDeleted || ["suspended", "disputed"].includes(store.status)) {
+      alert(`Store is currently locked (${store.isDeleted ? 'deleted' : store.status}). You cannot access the workspace.`);
+      return;
+    }
+    setActiveStore(store);  
+    navigate('/workspace/analytics');  
+  };
+
+  const getDaysLeft = (deletedAt) => {
+    if (!deletedAt) return 0;
+    const daysPassed = Math.floor((Date.now() - new Date(deletedAt).getTime()) / (1000 * 60 * 60 * 24));
+    return Math.max(0, 30 - daysPassed);
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0F1A] text-white p-4 md:p-12 relative overflow-y-auto selection:bg-cyan-500/30 overflow-hidden">
+    <div className="min-h-screen bg-[#0A0F1A] text-white p-4 md:p-12 relative overflow-y-auto selection:bg-cyan-500/30 overflow-hidden w-full">
       <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-cyan-500/20 blur-[120px] rounded-full pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-purple-600/20 blur-[120px] rounded-full pointer-events-none"></div>
 
@@ -68,7 +120,7 @@ export default function StoresHub() {
           </div>
           
           {user?.role === 'admin' ? (
-             <button onClick={() => navigate('/hub/admin')} className="flex items-center gap-2 bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30 px-6 py-3 rounded-xl font-bold transition-all">
+             <button onClick={() => navigate('/hub/admin/overview')} className="flex items-center gap-2 bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30 px-6 py-3 rounded-xl font-bold transition-all">
                Go to Admin Portal
              </button>
           ) : (
@@ -77,10 +129,11 @@ export default function StoresHub() {
             </button>
           )}
         </header>
+
         {loading ? (
           <div className="text-cyan-400 animate-pulse flex items-center gap-3"><Store /> Fetching your stores...</div>
         ) : stores.length === 0 ? (
-          <div className="text-center bg-white/[0.02] border border-white/10 p-10 md:p-16 rounded-[2rem] backdrop-blur-xl shadow-xl">
+          <div className="text-center bg-white/[0.02] border border-white/10 p-10 md:p-16 rounded-[2rem] backdrop-blur-xl shadow-xl animate-fade-in-down">
             <Store size={64} className="mx-auto mb-6 text-gray-600" />
             <h2 className="text-2xl font-bold mb-2">No Stores Found</h2>
             <p className="text-gray-400 mb-8 max-w-md mx-auto text-sm md:text-base">You haven't initialized any stores yet. Create one to generate your unique API key and start collecting reviews.</p>
@@ -90,37 +143,84 @@ export default function StoresHub() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-            {stores.map(store => (
-              <div 
-                key={store._id} 
-                onClick={() => handleStoreClick(store)}
-                className="group cursor-pointer bg-white/[0.02] border border-white/10 p-5 md:p-6 rounded-2xl backdrop-blur-xl hover:bg-white/[0.05] hover:border-cyan-500/50 hover:shadow-[0_0_30px_rgba(34,211,238,0.15)] transition-all duration-300 flex flex-col justify-between h-48"
-              >
-                <div>
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center border border-white/10 group-hover:border-cyan-500/50 transition-colors">
-                      <ShoppingCart className="text-cyan-400 w-5 h-5 md:w-6 md:h-6" />
+            {stores.map(store => {
+              // Determine if store is in a locked state
+              const isLocked = store.isDeleted ||["suspended", "disputed"].includes(store.status);
+
+              return (
+                <div 
+                  key={store._id} 
+                  className={`group bg-white/[0.02] border border-white/10 p-5 md:p-6 rounded-2xl backdrop-blur-xl transition-all duration-300 flex flex-col justify-between min-h-[260px] ${isLocked ? 'opacity-75 grayscale-[30%]' : 'hover:bg-white/[0.05] hover:border-cyan-500/50 hover:shadow-[0_0_30px_rgba(34,211,238,0.15)] cursor-pointer'}`}
+                >
+                  
+                  {/* TOP: Clickable Area to enter workspace */}
+                  <div onClick={() => handleStoreClick(store)}>
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center border border-white/10 group-hover:border-cyan-500/50 transition-colors">
+                        <ShoppingCart className="text-cyan-400 w-6 h-6" />
+                      </div>
+                      
+                      {/* STATUS BADGES */}
+                      <div className="flex flex-col items-end gap-1">
+                        {store.isDeleted ? (
+                          <span className="px-3 py-1 text-[10px] md:text-xs font-bold uppercase tracking-wider rounded-full border bg-red-500/10 text-red-400 border-red-500/20 flex items-center gap-1">
+                            <Clock size={12}/> {getDaysLeft(store.deletedAt)} Days Left
+                          </span>
+                        ) : ["suspended", "disputed"].includes(store.status) ? (
+                          <span className="px-3 py-1 text-[10px] md:text-xs font-bold uppercase tracking-wider rounded-full border bg-orange-500/10 text-orange-400 border-orange-500/20 flex items-center gap-1">
+                            <Lock size={12}/> {store.status}
+                          </span>
+                        ) : (
+                          <span className={`px-3 py-1 text-[10px] md:text-xs font-bold uppercase tracking-wider rounded-full border ${store.status === 'live' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-gray-500/10 text-gray-400 border-gray-500/20'}`}>
+                            {store.status}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <span className={`px-3 py-1 text-[10px] md:text-xs font-bold uppercase tracking-wider rounded-full border ${store.isActive ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
-                      {store.status}
-                    </span>
+
+                    <h3 className="text-xl font-bold text-white group-hover:text-cyan-300 transition-colors truncate">
+                      {store.storeName}
+                    </h3>
+                    
+                    <div className="flex justify-between items-center pt-2 mt-2 mb-4">
+                      <div className="flex items-center gap-2 text-sm text-gray-400 capitalize">
+                        <Server size={14} /> {store.storeHosting}
+                      </div>
+                      {!isLocked && (
+                        <ChevronRight className="text-gray-600 group-hover:text-cyan-400 transition-colors" />
+                      )}
+                    </div>
                   </div>
-                  <h3 className="text-lg md:text-xl font-bold text-white group-hover:text-cyan-300 transition-colors truncate">
-                    {store.storeName}
-                  </h3>
-                </div>
-                <div className="flex justify-between items-center pt-4 border-t border-white/5">
-                  <div className="flex items-center gap-2 text-xs md:text-sm text-gray-400 capitalize">
-                    <Server size={14} /> {store.storeType}
+
+                  {/* BOTTOM: Action Buttons */}
+                  <div className="pt-4 border-t border-white/5 flex items-center justify-between gap-2 mt-auto">
+                    {isLocked ? (
+                      // LOCKED STATE: Only one button allowing them to request support
+                      <button onClick={(e) => handleLockedRestoreRequest(e, store)} className="w-full px-4 py-2.5 rounded-lg text-xs font-bold inline-flex justify-center items-center gap-2 transition-all bg-gray-500/10 text-gray-400 hover:bg-gray-500/20 border border-gray-500/30">
+                        <Lock size={14} /> Request Restore
+                      </button>
+                    ) : (
+                      // UNLOCKED STATE: Normal Disable/Live and Trash buttons
+                      <>
+                        <button onClick={(e) => handleToggleStatus(e, store)} className={`flex-1 px-3 py-2.5 rounded-lg text-xs font-bold inline-flex justify-center items-center gap-2 transition-all ${store.status === 'live' ? 'bg-gray-500/10 text-gray-400 hover:bg-gray-500/20 border border-gray-500/30' : 'bg-green-500/10 text-green-400 hover:bg-green-500/20 border border-green-500/30'}`}>
+                          {store.status === 'live' ? <Ban size={14}/> : <CheckCircle size={14}/>}
+                          {store.status === 'live' ? 'Disable' : 'Go Live'}
+                        </button>
+                        <button onClick={(e) => handleDelete(e, store)} className="px-3 py-2.5 rounded-lg text-xs font-bold inline-flex justify-center items-center gap-2 transition-all bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30">
+                          <Trash size={14}/> Trash
+                        </button>
+                      </>
+                    )}
                   </div>
-                  <ChevronRight className="text-gray-600 group-hover:text-cyan-400 transition-colors" />
+
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
+      {/* MODAL CODE REMAINS THE SAME... */}
       {/* CREATE STORE MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
@@ -151,7 +251,15 @@ export default function StoresHub() {
                 </select>
               </div>
 
-              
+              <div>
+                <label className="block text-xs md:text-sm text-gray-400 mb-2">Hosting Platform</label>
+                <select value={formData.storeHosting} onChange={(e) => setFormData({...formData, storeHosting: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 md:py-3 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all appearance-none text-sm md:text-base">
+                  <option value="shopify">Shopify</option>
+                  <option value="wordpress">WordPress / WooCommerce</option>
+                  <option value="custom">Custom Built (React, HTML, etc)</option>
+                </select>
+              </div>
+
               <button type="submit" disabled={submitLoading} className="w-full bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 py-3 rounded-xl font-bold text-white shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all disabled:opacity-50 mt-2 text-sm md:text-base">
                 {submitLoading ? 'Deploying...' : 'Create Store'}
               </button>
@@ -159,7 +267,6 @@ export default function StoresHub() {
           </div>
         </div>
       )}
-     
     </div>
   );
 }

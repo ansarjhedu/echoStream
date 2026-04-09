@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../Api';
-import { Store, Ban, CheckCircle, Clock } from 'lucide-react';
+import { Store, Ban, CheckCircle, Clock, RefreshCcw } from 'lucide-react'; // <-- Added RefreshCcw
 
 export default function AdminStores() {
-  const[stores, setStores] = useState([]);
+  const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
-  const[storeFilter, setStoreFilter] = useState('all');
+  const [storeFilter, setStoreFilter] = useState('all');
 
   useEffect(() => {
     fetchStores();
@@ -33,6 +33,17 @@ export default function AdminStores() {
     }
   };
 
+  // 🚨 NEW: Restore Store Action
+  const restoreStoreAction = async (storeId) => {
+    if(!window.confirm("Restore this deleted store? It will go live immediately and all products/reviews will be recovered.")) return;
+    try {
+      await api.patch(`/admin/store/${storeId}/restore`);
+      setStores(stores.map(s => s._id === storeId ? { ...s, isDeleted: false, deletedAt: null, status: 'live', isActive: true } : s));
+    } catch (error) {
+      alert("Failed to restore store");
+    }
+  };
+
   const getDaysLeft = (deletedAt) => {
     if (!deletedAt) return 0;
     const daysPassed = Math.floor((Date.now() - new Date(deletedAt).getTime()) / (1000 * 60 * 60 * 24));
@@ -48,17 +59,16 @@ export default function AdminStores() {
   if (loading) return <div className="p-10 text-red-400 animate-pulse">Loading platform stores...</div>;
 
   return (
-    <div className="p-4 md:p-10 w-full animate-fade-in-down">
+    <div className="p-4 md:p-10 w-full animate-fade-in-down overflow-hidden">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <h1 className="text-3xl font-extrabold text-white flex items-center gap-3">
           <Store className="text-red-500" /> Platform Stores
         </h1>
         
-        {/* Dynamic Filter */}
         <select 
           value={storeFilter} 
           onChange={(e) => setStoreFilter(e.target.value)} 
-          className="bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-red-400 text-sm w-full sm:w-auto cursor-pointer"
+          className="bg-black border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-red-400 text-sm w-full sm:w-auto cursor-pointer"
         >
           <option value="all">All Statuses</option>
           <option value="live">Live & Active</option>
@@ -68,7 +78,7 @@ export default function AdminStores() {
         </select>
       </div>
 
-      <div className="bg-white/[0.02] border border-white/10 rounded-2xl overflow-x-auto shadow-2xl">
+      <div className="bg-white/[0.02] border border-white/10 rounded-2xl overflow-x-auto shadow-2xl max-w-full custom-scrollbar">
         <table className="w-full text-left min-w-[700px]">
           <thead className="bg-black/40 border-b border-white/10 text-gray-400 text-xs uppercase tracking-wider">
             <tr>
@@ -84,21 +94,22 @@ export default function AdminStores() {
             ) : null}
             
             {filteredStores.map(store => (
-              <tr key={store._id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+              <tr key={store._id} className={`border-b border-white/5 transition-colors ${store.isDeleted ? 'bg-red-900/10' : 'hover:bg-white/5'}`}>
                 <td className="p-5">
-                  <p className="font-bold text-white text-base">{store.storeName}</p>
+                  <p className={`font-bold text-base ${store.isDeleted ? 'text-gray-500 line-through' : 'text-white'}`}>{store.storeName}</p>
                   <p className="text-xs text-gray-500 font-mono mt-1">ID: {store._id.substring(0,8)}...</p>
                 </td>
                 <td className="p-5">
                   <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-gray-300 capitalize">
-                    {store.storeHosting}
+                    {store.storeType}
                   </span>
                 </td>
                 <td className="p-5">
                   {store.isDeleted ? (
-                    <span className="px-3 py-1 text-xs font-bold rounded-full border bg-gray-500/10 text-gray-400 border-gray-500/20 inline-flex items-center gap-1">
-                      <Clock size={12}/> {getDaysLeft(store.deletedAt)} days left
-                    </span>
+                    <div className="flex flex-col gap-1 items-start">
+                      <span className="px-3 py-1 text-xs font-bold rounded-full border bg-red-500/10 text-red-400 border-red-500/20">DELETED</span>
+                      <span className="text-xs text-gray-500 flex items-center gap-1"><Clock size={12}/> {getDaysLeft(store.deletedAt)} days until purge</span>
+                    </div>
                   ) : (
                     <span className={`px-3 py-1 text-xs font-bold rounded-full border uppercase tracking-wider ${
                       store.status === 'live' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 
@@ -110,7 +121,16 @@ export default function AdminStores() {
                   )}
                 </td>
                 <td className="p-5 text-right">
-                  {!store.isDeleted && (
+                  {store.isDeleted ? (
+                    // NEW: Restore Button for deleted stores!
+                    <button 
+                      onClick={() => restoreStoreAction(store._id)} 
+                      className="p-2 px-4 bg-green-500/10 text-green-400 hover:bg-green-500/30 rounded-lg border border-green-500/30 transition-all inline-flex items-center gap-2 text-xs font-bold"
+                    >
+                      <RefreshCcw size={14} /> Restore Store
+                    </button>
+                  ) : (
+                    // Existing: Suspend/Lift Suspension button for active stores
                     <button 
                       onClick={() => toggleStoreStatus(store._id, store.status)} 
                       className={`px-4 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-2 transition-all ${

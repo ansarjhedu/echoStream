@@ -10,7 +10,6 @@ const storeSchema=new Schema({
     storeType:{
         type:String,
         required:true,
-
     },
     owner:{
         type: mongoose.Schema.Types.ObjectId,
@@ -22,7 +21,7 @@ const storeSchema=new Schema({
     },
     status:{
         type:String,
-        enum:["suspended","live","disabled"],
+        enum:["suspended","live","disabled","disputed","deleted"],
         default:"live"
     },
     isActive:{
@@ -36,6 +35,10 @@ const storeSchema=new Schema({
     deletedAt:{
         type:Date,
         default:null
+    },
+    isUpdated:{
+        type:Boolean,
+        default:false
     }
 
 },{timestamps:true})
@@ -46,10 +49,10 @@ storeSchema.pre('save',async function(next){
     }
 })
 
-storeSchema.pre(/^find/, function(next){  // <-- Notice NO QUOTES around /^find/
-    this.find({isDeleted: {$ne: true}});
-    // next();
-});
+// storeSchema.pre(/^find/, function(next){  // <-- Notice NO QUOTES around /^find/
+//     this.find({isDeleted: {$ne: true}});
+//     // next();
+// });
 
 const Store=mongoose.model("Store",storeSchema);
 export default Store;

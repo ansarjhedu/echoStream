@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
-import { stringify } from "querystring";
+
 const Schema=mongoose.Schema;
 
 const userSchema=new Schema({
@@ -49,10 +48,10 @@ userSchema.pre("save",async function(next){
     this.password=await bcrypt.hash(this.password,salt);
 });
 
-userSchema.pre(/^find/, function(next){  // <-- Notice NO QUOTES around /^find/
-    this.find({isDeleted: {$ne: true}});
-   // next();
-});
+// userSchema.pre(/^find/, function(next){  // <-- Notice NO QUOTES around /^find/
+//     this.find({isDeleted: {$ne: true}});
+//    // next();
+// });
 
 userSchema.methods.matchPassword=async function(enteredPassword){
     return await bcrypt.compare(enteredPassword,this.password);

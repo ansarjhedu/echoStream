@@ -80,7 +80,7 @@ export default function AdminOverview() {
   if (loading) return <div className="p-12 text-red-400 animate-pulse flex gap-2"><Activity/> Gathering Platform Telemetry...</div>;
 
   return (
-    <div className="p-4 md:p-10 relative overflow-y-auto h-full z-10 w-full">
+    <div className="p-4 md:p-10 relative overflow-y-auto h-full z-10 w-full overflow-hidden">
       <div className="absolute top-[-10%] right-[-10%] w-96 h-96 bg-red-600/10 blur-[120px] rounded-full pointer-events-none -z-10"></div>
 
       <div className="mb-10">

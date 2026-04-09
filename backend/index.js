@@ -11,13 +11,13 @@ import cookieParser from "cookie-parser";
 import adminRouter from "./routes/adminRoutes.js";
 import publicRouter from "./routes/publicRoutes.js";
 import storeRouter from "./routes/storeRoutes.js";
-import { fileURLToPath } from "url";
-import path from "path";
+// import { fileURLToPath } from "url";
+// import path from "path";
 import cleanupCron from "./services/cronjobs.js";
 
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// const __filename = fileURLToPath(import.meta.url);
+// const __dirname = path.dirname(__filename);
 
 
 const app=express();
@@ -28,16 +28,28 @@ connectDB();
 cleanupCron.start(); // Start the cron job scheduler
 
 
+// 1. Update CORS (We will add your live frontend URL later, use an array for now)
+const allowedOrigins =[
+  "http://localhost:5173", 
+  "https://your-future-frontend-url.vercel.app" // You will change this later!
+];
+
 app.use(cors({
-    origin: ["http://127.0.0.1:5173", "http://127.0.0.1:5500", "https://9js4v3qv-5173.inc1.devtunnels.ms", "http://localhost:5173"],
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true
 }));
 app.use(express.json());
 app.use(cookieParser());
 
-// 2. HOST THE WIDGET (Local CDN)
-// This serves any file placed inside the "widget-dist" folder
-app.use("/widget", express.static(path.join(__dirname, "widget-dist")));
+// // 2. HOST THE WIDGET (Local CDN)
+// // This serves any file placed inside the "widget-dist" folder
+// app.use("/widget", express.static(path.join(__dirname, "widget-dist")));
 
 app.use("/api/users",userRouter);
 app.use("/api/admin",adminRouter);
@@ -52,7 +64,8 @@ app.get("/",(req,res)=>{
 
 
 
-app.listen(port,()=>{
-    console.log(`Server is running on port http://localhost:${port}`);
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(port, () => {
+        console.log(`Server is running on port http://localhost:${port}`);
+    });
 }
-);

@@ -10,6 +10,9 @@ const createReview=async(req,res)=>{
             return res.status(400).json({ message: "All fields are required" });
         }
 
+        if(["fuck", "shit", "damn"].includes(comment.toLowerCase())){
+            return res.status(400).json({ message: "Inappropriate language used in comment" });
+        }
         //get image paths from multer (if any)
          const imagePaths = req.files ? req.files.map(file => file.path) : [];
 
