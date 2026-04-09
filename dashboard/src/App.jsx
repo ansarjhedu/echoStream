@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import logo from './assets/logo.png'
+import logo from './assets/image.png'
 
 // Pages
 import AuthPage from './pages/AuthPage';
@@ -35,7 +35,7 @@ const HubLayout = ({ children }) => {
       {/* Mobile Top Bar */}
       <div className="md:hidden flex items-center justify-between p-4 border-b border-white/10 bg-[#0A0F1A] z-40 relative">
         <div className="flex items-center gap-2">
-          <img className='w-20 h-5' src={logo} alt=""/>
+          <img className='w-10' src={logo} alt=""/>
           {/* <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-cyan-400 to-purple-600 shadow-[0_0_10px_rgba(34,211,238,0.5)]"></span> */}
           <h2 className="text-xl font-black tracking-tighter">Echo Hub</h2>
         </div>
@@ -51,7 +51,7 @@ const HubLayout = ({ children }) => {
         <div>
           <div className="p-8 pb-4">
             <h2 className="text-2xl font-black tracking-tighter flex items-center gap-2 mb-8 hidden md:flex">
-              <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-purple-600 shadow-[0_0_15px_rgba(34,211,238,0.5)]"></span>
+             <img className='w-10' src={logo} alt=""/>
               EchoStream
             </h2>
             
