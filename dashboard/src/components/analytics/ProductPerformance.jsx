@@ -6,9 +6,9 @@ import { Link } from 'react-router-dom';
 export default function ProductPerformance({ products }) {
   
   const topProductsData = useMemo(() => {
-    return[...products]
+    return [...products]
       .sort((a, b) => (b.stats?.totalReviews || 0) - (a.stats?.totalReviews || 0))
-      .slice(0, 5) // Top 5 products
+      .slice(0, 5) 
       .map(p => ({
         name: p.productTitle.substring(0, 15) + (p.productTitle.length > 15 ? '...' : ''),
         fullName: p.productTitle,
@@ -30,9 +30,9 @@ export default function ProductPerformance({ products }) {
   };
 
   return (
-    <div className="animate-fade-in-down space-y-8">
+    <div className="animate-fade-in-down space-y-8 w-full">
       {/* Bar Chart: Top Products */}
-      <div className="bg-black/20 border border-white/5 p-6 rounded-xl">
+      <div className="bg-black/20 border border-white/5 p-4 md:p-6 rounded-xl w-full">
         <h3 className="text-sm font-bold text-gray-400 mb-6 flex items-center gap-2"><Star size={16} className="text-purple-400"/> Most Reviewed Products</h3>
         {topProductsData.length > 0 && topProductsData[0].reviews > 0 ? (
           <div className="h-[250px] w-full">
@@ -51,22 +51,27 @@ export default function ProductPerformance({ products }) {
         )}
       </div>
 
-      {/* Data Table: All Products */}
-      <div className="overflow-x-auto rounded-xl border border-white/5 bg-black/20 custom-scrollbar">
+      {/* Data Table: All Products - CHANGED custom-scrollbar to no-scrollbar */}
+      <div className="overflow-x-auto rounded-xl border border-white/5 bg-black/20 no-scrollbar w-full">
         <table className="w-full text-left min-w-[600px]">
           <thead className="bg-white/5 border-b border-white/10 text-gray-400 text-xs uppercase tracking-wider">
-            <tr><th className="p-4">Product Name</th><th className="p-4">Reviews</th><th className="p-4">Avg Rating</th><th className="p-4 text-right">Action</th></tr>
+            <tr>
+              <th className="p-4 md:p-5">Product Name</th>
+              <th className="p-4 md:p-5">Reviews</th>
+              <th className="p-4 md:p-5">Avg Rating</th>
+              <th className="p-4 md:p-5 text-right">Action</th>
+            </tr>
           </thead>
           <tbody className="text-sm">
             {products.length === 0 ? <tr><td colSpan="4" className="p-8 text-center text-gray-500">No products found.</td></tr> : null}
             {products.map(p => (
               <tr key={p._id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                <td className="p-4 font-bold text-white">{p.productTitle}</td>
-                <td className="p-4 text-gray-300">{p.stats?.totalReviews || 0}</td>
-                <td className="p-4 text-yellow-400 font-bold flex items-center gap-1 mt-3">
+                <td className="p-4 md:p-5 font-bold text-white">{p.productTitle}</td>
+                <td className="p-4 md:p-5 text-gray-300">{p.stats?.totalReviews || 0}</td>
+                <td className="p-4 md:p-5 text-yellow-400 font-bold flex items-center gap-1 mt-3">
                   <Star size={14} className="fill-yellow-400"/> {p.stats?.avgRating?.toFixed(1) || "0.0"}
                 </td>
-                <td className="p-4 text-right">
+                <td className="p-4 md:p-5 text-right">
                   <Link to="/workspace/reviews" className="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/30 transition-all inline-flex items-center gap-1">
                     View Reviews <ChevronRight size={14} />
                   </Link>
