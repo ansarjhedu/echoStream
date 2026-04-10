@@ -13,11 +13,11 @@ export const WidgetProvider = ({ apiKey, productHandle, productTitle, customerNa
 
   // 🎨 NEW: Default Design Configuration
   const[config, setConfig] = useState({
-    layout: 'glassmorphism',
-    primaryColor: '#06b6d4',
-    backgroundColor: '#0A0F1A',
-    textColor: '#ffffff',
-    fontFamily: 'system-ui, sans-serif'
+    layout: ' ',
+    primaryColor: ' ',
+    backgroundColor: ' ',
+    textColor: ' ',
+    fontFamily: ' '
   });
 
   const API_BASE = 'https://echo-stream-pi.vercel.app/api/public'; // Change to your live URL when deploying
@@ -41,7 +41,7 @@ export const WidgetProvider = ({ apiKey, productHandle, productTitle, customerNa
       // 🎨 Apply the Merchant's saved design settings!
       if (res.data.widgetConfig) {
         setConfig({
-          ...config, // Keep defaults just in case
+          // ...config, // Keep defaults just in case
           ...res.data.widgetConfig 
         });
       }
