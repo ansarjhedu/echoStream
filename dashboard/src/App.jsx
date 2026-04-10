@@ -184,8 +184,8 @@ const StoreLayout = ({ children }) => {
               </Link>
               
               {/* Smoothly glides open/closed based on the URL route */}
-              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isAnalyticsActive ? 'max-h-40 opacity-100 mt-1 mb-2' : 'max-h-0 opacity-0'}`}>
-                <div className="flex flex-col gap-1 pl-11 pr-2">
+              <div className={`overflow-hidden transition-all duration-300 ease-in-out  ${isAnalyticsActive ? 'max-h-40 opacity-100 mt-1 mb-2' : 'max-h-0 opacity-0'}`}>
+                <div className="flex flex-col gap-1 pr-2">
                   <Link 
                     to="/workspace/analytics/overview" 
                     onClick={closeMenu} 
