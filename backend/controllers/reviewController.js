@@ -6,6 +6,7 @@ const createReview=async(req,res)=>{
 
     try {
         const { productHandle, productTitle, customerName, customerEmail, rating, comment, }=req.body;
+        console.log(customerName)
         if(!productHandle || !productTitle || !customerName || !customerEmail || !rating || !comment){
             return res.status(400).json({ message: "All fields are required" });
         }
