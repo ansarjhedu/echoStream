@@ -108,8 +108,8 @@ const getPublicProductReviews = async (req, res) => {
         res.status(200).json({ 
             productTitle: product.productTitle,
             stats: [
-                ...product.stats,
-                 distribution
+                product.stats,
+                distribution
             ],
              widgetConfig: req.store.widgetConfig, 
             data: reviews ,
