@@ -123,20 +123,25 @@ const HubLayout = ({ children }) => {
   );
 };
 
-// 2. THE STORE WORKSPACE LAYOUT (Updated with Accordion)
+// ---------------------------------------------------------
+// 2. THE STORE WORKSPACE LAYOUT (Updated Nested Navigation)
 // ---------------------------------------------------------
 const StoreLayout = ({ children }) => {
   const { activeStore, setActiveStore } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false); // NEW STATE FOR ACCORDION
   const location = useLocation();
 
   const closeMenu = () => setIsMobileMenuOpen(false);
 
   if (!activeStore) return <Navigate to="/hub/stores" replace />;
 
+  // 🧠 ROUTE-AWARE STATE: Automatically opens if URL contains '/analytics'
+  const isAnalyticsActive = location.pathname.includes('/analytics');
+
   return (
     <div className="min-h-screen bg-[#0A0F1A] text-white flex flex-col md:flex-row font-sans selection:bg-cyan-500/30 overflow-hidden">
+      
+      {/* Mobile Top Bar */}
       <div className="md:hidden flex items-center justify-between p-4 border-b border-white/10 bg-[#0A0F1A] z-40 relative">
         <div className="flex items-center gap-2">
           <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-cyan-400 to-purple-600 shadow-[0_0_10px_rgba(34,211,238,0.5)]"></span>
@@ -149,6 +154,7 @@ const StoreLayout = ({ children }) => {
 
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden" onClick={closeMenu} />}
 
+      {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-72 border-r border-white/10 bg-[#0A0F1A] flex flex-col justify-between transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 md:bg-black/20 md:backdrop-blur-3xl ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div>
           <div className="p-8 hidden md:block">
@@ -164,41 +170,46 @@ const StoreLayout = ({ children }) => {
           
           <nav className="px-4 space-y-2 mt-4">
             
-            {/* NEW ACCORDION FOR ANALYTICS */}
+            {/* NESTED ANALYTICS NAVIGATION */}
             <div className="space-y-1">
-              <button 
-                onClick={() => {
-                  setIsAnalyticsOpen(!isAnalyticsOpen);
-                  // Optional: Automatically navigate to overview when clicking the main tab
-                  if (!isAnalyticsOpen && !location.pathname.includes('/analytics')) {
-                    window.history.pushState({}, '', '/workspace/analytics/overview');
-                    window.dispatchEvent(new PopStateEvent('popstate'));
-                  }
-                }} 
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/analytics') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+              <Link 
+                to="/workspace/analytics/overview" 
+                onClick={closeMenu}
+                className={`w-full flex items-center px-4 py-3 rounded-xl transition-all ${isAnalyticsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
               >
-                <div className="flex items-center gap-3"><BarChart3 size={20} className="text-green-400" /> Analytics</div>
-                <ChevronDown size={16} className={`transition-transform duration-200 ${isAnalyticsOpen ? 'rotate-180 text-white' : ''}`} />
-              </button>
+                <div className="flex items-center gap-3">
+                  <BarChart3 size={20} className={isAnalyticsActive ? "text-cyan-400" : ""} /> 
+                  Analytics
+                </div>
+              </Link>
               
-              {/* Dropdown Links */}
-              <div className={`overflow-hidden transition-all duration-300 ${isAnalyticsOpen ? 'max-h-40 opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
-                <div className="pl-11 pr-4 space-y-1 border-l-2 border-white/5 ml-6">
-                  <Link to="/workspace/analytics/overview" onClick={closeMenu} className={`block px-4 py-2 text-sm rounded-lg transition-colors ${location.pathname.includes('/analytics/overview') ? 'text-cyan-400 bg-white/5 font-bold' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}>
+              {/* Smoothly glides open/closed based on the URL route */}
+              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isAnalyticsActive ? 'max-h-40 opacity-100 mt-1 mb-2' : 'max-h-0 opacity-0'}`}>
+                <div className="flex flex-col gap-1 pl-11 pr-2">
+                  <Link 
+                    to="/workspace/analytics/overview" 
+                    onClick={closeMenu} 
+                    className={`px-4 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${location.pathname.includes('/analytics/overview') ? 'text-cyan-400 bg-white/5 font-bold shadow-sm' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.02]'}`}
+                  >
                     Overview
                   </Link>
-                  <Link to="/workspace/analytics/products" onClick={closeMenu} className={`block px-4 py-2 text-sm rounded-lg transition-colors ${location.pathname.includes('/analytics/products') ? 'text-cyan-400 bg-white/5 font-bold' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}>
+                  <Link 
+                    to="/workspace/analytics/products" 
+                    onClick={closeMenu} 
+                    className={`px-4 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${location.pathname.includes('/analytics/products') ? 'text-cyan-400 bg-white/5 font-bold shadow-sm' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.02]'}`}
+                  >
                     Products
                   </Link>
                 </div>
               </div>
             </div>
 
+            {/* OTHER MAIN TABS */}
             <Link to="/workspace/reviews" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/reviews') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-              <Package size={20} className="text-cyan-400" /> Moderation
+              <Package size={20} className={location.pathname.includes('/reviews') ? "text-cyan-400" : ""} /> Moderation
             </Link>
             <Link to="/workspace/integration" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/integration') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-              <Code size={20} className="text-purple-400" /> Integration
+              <Code size={20} className={location.pathname.includes('/integration') ? "text-purple-400" : ""} /> Integration
             </Link>
           </nav>
         </div>
@@ -210,7 +221,7 @@ const StoreLayout = ({ children }) => {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto relative z-0 h-[calc(100vh-65px)] md:h-screen">
+      <main className="flex-1 overflow-y-auto relative z-0 h-[calc(100vh-65px)] md:h-screen custom-scrollbar">
         {children}
       </main>
     </div>
