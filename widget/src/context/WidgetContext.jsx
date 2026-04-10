@@ -21,7 +21,6 @@ export const WidgetProvider = ({ apiKey, productHandle, productTitle, customerNa
   });
 
   const API_BASE = 'https://echo-stream-pi.vercel.app/api/public'; // Change to your live URL when deploying
-
   const api = axios.create({
     baseURL: API_BASE,
     headers: { 'x-api-key': apiKey }
@@ -47,7 +46,10 @@ export const WidgetProvider = ({ apiKey, productHandle, productTitle, customerNa
         });
       }
     } catch (error) {
-      setWidgetError(error.response?.data?.message || "Failed to load reviews.");
+      // THIS WILL PRINT THE EXACT ERROR ON THE SCREEN!
+      console.error("AXIOS ERROR:", error);
+      const exactError = error.response?.data?.message || error.message || "Unknown Error";
+      setWidgetError(`Error: ${exactError}`);
     } finally {
       setLoading(false);
     }

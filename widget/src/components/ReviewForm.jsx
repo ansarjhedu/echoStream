@@ -37,7 +37,7 @@ export default function ReviewForm() {
     try {
       await submitReview(formData);
       setStatus({ loading: false, message: 'Review submitted securely! 🚀', error: false });
-      setFormState({ name: customerName, rating: 5, comment: '', images: null });
+      setFormState({ name: customerName, rating: 5, comment: '', images: null,  });
       setTimeout(() => setIsFormOpen(false), 3000);
     } catch (err) {
       setStatus({ loading: false, message: err.message, error: true });

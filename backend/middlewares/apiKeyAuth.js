@@ -3,6 +3,7 @@ import Store from "../models/Store.js";
 
 const apiKeyAuth=async (req,res,next)=>{
     const apiKey=req.headers["x-api-key"] || req.query.apiKey;
+    console.log(apiKey)
   
     if(!apiKey){
         return res.status(401).json({message:"No API key provided, authorization denied"});
