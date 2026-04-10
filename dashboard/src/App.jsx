@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
+
 import { AuthProvider, useAuth } from './context/AuthContext';
 import logo from './assets/image.png'
 
@@ -18,7 +19,7 @@ import AdminStores from './pages/admin/AdminStores';
 import AdminUsers from './pages/admin/AdminUsers';
 
 // Icons
-import { Code, LogOut, Package, Menu, X, ArrowLeft, User as UserIcon, Store as StoreIcon, BarChart3, AlertOctagon, Activity, Users } from 'lucide-react';
+import {Code, LogOut, Package, Menu, X, ArrowLeft, User as UserIcon, Store as StoreIcon, BarChart3, AlertOctagon, Activity, Users, ChevronDown } from 'lucide-react';
 
 // ---------------------------------------------------------
 // 1. THE HUB LAYOUT (Sidebar dynamically switches based on Role!)
@@ -122,12 +123,12 @@ const HubLayout = ({ children }) => {
   );
 };
 
-// ---------------------------------------------------------
-// 2. THE STORE WORKSPACE LAYOUT (Same as before)
+// 2. THE STORE WORKSPACE LAYOUT (Updated with Accordion)
 // ---------------------------------------------------------
 const StoreLayout = ({ children }) => {
   const { activeStore, setActiveStore } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false); // NEW STATE FOR ACCORDION
   const location = useLocation();
 
   const closeMenu = () => setIsMobileMenuOpen(false);
@@ -162,9 +163,37 @@ const StoreLayout = ({ children }) => {
           </div>
           
           <nav className="px-4 space-y-2 mt-4">
-            <Link to="/workspace/analytics" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/analytics') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-              <BarChart3 size={20} className="text-green-400" /> Analytics
-            </Link>
+            
+            {/* NEW ACCORDION FOR ANALYTICS */}
+            <div className="space-y-1">
+              <button 
+                onClick={() => {
+                  setIsAnalyticsOpen(!isAnalyticsOpen);
+                  // Optional: Automatically navigate to overview when clicking the main tab
+                  if (!isAnalyticsOpen && !location.pathname.includes('/analytics')) {
+                    window.history.pushState({}, '', '/workspace/analytics/overview');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  }
+                }} 
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/analytics') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+              >
+                <div className="flex items-center gap-3"><BarChart3 size={20} className="text-green-400" /> Analytics</div>
+                <ChevronDown size={16} className={`transition-transform duration-200 ${isAnalyticsOpen ? 'rotate-180 text-white' : ''}`} />
+              </button>
+              
+              {/* Dropdown Links */}
+              <div className={`overflow-hidden transition-all duration-300 ${isAnalyticsOpen ? 'max-h-40 opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+                <div className="pl-11 pr-4 space-y-1 border-l-2 border-white/5 ml-6">
+                  <Link to="/workspace/analytics/overview" onClick={closeMenu} className={`block px-4 py-2 text-sm rounded-lg transition-colors ${location.pathname.includes('/analytics/overview') ? 'text-cyan-400 bg-white/5 font-bold' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}>
+                    Overview
+                  </Link>
+                  <Link to="/workspace/analytics/products" onClick={closeMenu} className={`block px-4 py-2 text-sm rounded-lg transition-colors ${location.pathname.includes('/analytics/products') ? 'text-cyan-400 bg-white/5 font-bold' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}>
+                    Products
+                  </Link>
+                </div>
+              </div>
+            </div>
+
             <Link to="/workspace/reviews" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/reviews') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
               <Package size={20} className="text-cyan-400" /> Moderation
             </Link>
@@ -187,7 +216,6 @@ const StoreLayout = ({ children }) => {
     </div>
   );
 };
-
 // Route Guards
 const ProtectedRoute = ({ children }) => {
   const { user } = useAuth();
@@ -235,15 +263,16 @@ export default function App() {
             </ProtectedRoute>
           } />
 
-          {/* THE STORE WORKSPACE ROUTES */}
+           {/* THE STORE WORKSPACE ROUTES */}
           <Route path="/workspace/*" element={
             <ProtectedRoute>
               <StoreLayout>
                 <Routes>
                   <Route path="reviews" element={<Reviews />} />
-                  <Route path="analytics" element={<Analytics />} />
+                  {/* Updated Analytics wildcard route */}
+                  <Route path="analytics/*" element={<Analytics />} />
                   <Route path="integration" element={<Integration />} />
-                  <Route path="*" element={<Navigate to="reviews" replace />} />
+                  <Route path="*" element={<Navigate to="analytics/overview" replace />} />
                 </Routes>
               </StoreLayout>
             </ProtectedRoute>

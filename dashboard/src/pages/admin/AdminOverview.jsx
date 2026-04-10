@@ -46,16 +46,21 @@ export default function AdminOverview() {
     });
   },[stores, users]);
 
-  const StoreTypeData = useMemo(() => {
-    const counts = { eCommerce: 0, 'Blog/Content': 0, Portfolio: 0, other: 0 };
-    stores.forEach(s => { if (counts[s.storeType] !== undefined) counts[s.storeType]++; });
+   const StoreTypeData = useMemo(() => {
+    const counts = { ecommerce: 0, blog: 0, portfolio: 0, other: 0 };
+    stores.forEach(s => { 
+      const type = s.storeType?.toLowerCase() || 'other';
+      if (counts[type] !== undefined) counts[type]++; 
+      else counts.other++;
+    });
     return[
-      { name: 'eCommerce', value: counts.eCommerce, color: '#10b981' },
-      { name: 'Blog/Content', value: counts['Blog/Content'], color: '#3b82f6' },
-      { name: 'Portfolio', value: counts.Portfolio, color: '#8b5cf6' },
-      { name: 'other', value: counts.other, color: '#f59e0b' }
+      { name: 'eCommerce', value: counts.ecommerce, color: '#06b6d4' }, // Cyan
+      { name: 'Blog', value: counts.blog, color: '#a855f7' }, // Purple
+      { name: 'Portfolio', value: counts.portfolio, color: '#10b981' }, // Green
+      { name: 'Other', value: counts.other, color: '#6b7280' }, // Gray
     ].filter(d => d.value > 0);
   }, [stores]);
+
 
   const topOwner = useMemo(() => {
     if (!stores.length || !users.length) return null;
