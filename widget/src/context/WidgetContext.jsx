@@ -20,7 +20,7 @@ export const WidgetProvider = ({ apiKey, productHandle, productTitle, customerNa
     fontFamily: 'system-ui, sans-serif'
   });
 
-  const API_BASE = 'http://localhost:5000/api/public'; // Change to your live URL when deploying
+  const API_BASE = 'https://echo-stream.pi.vercel.app/api/public'; // Change to your live URL when deploying
 
   const api = axios.create({
     baseURL: API_BASE,
