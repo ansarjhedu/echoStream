@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import { BarChart3 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
-// Import our cleaned up chart components!
 import StoreOverview from '../components/analytics/StoreOverview';
 import ProductPerformance from '../components/analytics/ProductPerformance';
 
@@ -15,7 +14,6 @@ export default function Analytics() {
   const[loading, setLoading] = useState(true);
   const location = useLocation();
 
-  // Read the URL to figure out which dropdown link the user clicked in the sidebar!
   const isProductsView = location.pathname.includes('/products');
 
   useEffect(() => {
@@ -25,11 +23,11 @@ export default function Analytics() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const[prodRes, revRes] = await Promise.all([
+      const [prodRes, revRes] = await Promise.all([
         api.get(`/store/${activeStore._id}/products`),
         api.get(`/store/${activeStore._id}/reviews`)
       ]);
-      setProducts(prodRes.data.data || []);
+      setProducts(prodRes.data.data ||[]);
       setReviews(revRes.data ||[]); 
     } catch (error) {
       console.error("Analytics fetch failed", error);
@@ -39,9 +37,11 @@ export default function Analytics() {
   };
 
   return (
-    <div className="p-4 md:p-10 lg:p-14 relative overflow-y-auto h-full z-10 w-full flex flex-col">
+    // Reduced padding to let the layout stretch wider, and added no-scrollbar
+    <div className="p-4 md:p-6 lg:p-8 relative overflow-y-auto h-full z-10 w-full flex flex-col no-scrollbar">
+      
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <div className="flex items-center gap-3 mb-2">
             <BarChart3 className="text-cyan-400" size={32} />
@@ -64,10 +64,9 @@ export default function Analytics() {
       ) : (
         <div className="flex flex-col flex-1 animate-fade-in-down min-h-0 w-full">
           
-          {/* THE GRAPHS CONTAINER - NOW TAKES UP 100% WIDTH */}
-          <div className="flex-1 bg-white/[0.02] border border-white/10 p-6 md:p-8 rounded-2xl backdrop-blur-xl overflow-y-auto custom-scrollbar w-full">
+          {/* THE GRAPHS CONTAINER - NOW TAKES UP 100% WIDTH WITH NO SCROLLBAR */}
+          <div className="flex-1 bg-white/[0.02] border border-white/10 p-4 md:p-6 lg:p-8 rounded-2xl backdrop-blur-xl overflow-y-auto no-scrollbar w-full shadow-2xl">
             
-            {/* Render the correct component based on the sidebar dropdown click */}
             {isProductsView ? (
               <ProductPerformance products={products} />
             ) : (
