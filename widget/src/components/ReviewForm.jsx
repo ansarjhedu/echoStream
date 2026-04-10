@@ -4,7 +4,7 @@ import StarRating from './StarRating';
 
 export default function ReviewForm() {
   const { isFormOpen, submitReview, setIsFormOpen, customerName, customerEmail } = useWidget();
-  const [formState, setFormState] = useState({ name: customerName || '', rating: 5, comment: '', images: null });
+  const [formState, setFormState] = useState({ customerName: customerName || '', rating: 5, comment: '', images: null });
   const [hoverRating, setHoverRating] = useState(0);
   const [status, setStatus] = useState({ loading: false, message: '', error: false });
 
@@ -26,7 +26,7 @@ export default function ReviewForm() {
     e.preventDefault();
     setStatus({ loading: true, message: '', error: false });
     const formData = new FormData();
-    formData.append('customerName', formState.name);
+    formData.append('customerName', formState.customerName);
     formData.append('rating', formState.rating);
     formData.append('comment', formState.comment);
     if (formState.images) {
