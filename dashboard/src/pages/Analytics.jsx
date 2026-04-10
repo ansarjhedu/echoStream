@@ -1,28 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import api from '../Api';
 import { useAuth } from '../context/AuthContext';
-import { BarChart3, Package, Activity, ChevronRight } from 'lucide-react';
+import { BarChart3 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 
-// Import our new clean components!
+// Import our cleaned up chart components!
 import StoreOverview from '../components/analytics/StoreOverview';
 import ProductPerformance from '../components/analytics/ProductPerformance';
 
 export default function Analytics() {
   const { activeStore } = useAuth();
-  const [products, setProducts] = useState([]);
+  const[products, setProducts] = useState([]);
   const [reviews, setReviews] = useState([]);
-  const [loading, setLoading] = useState(true);
-  
-  const [activeTab, setActiveTab] = useState('overview'); 
+  const[loading, setLoading] = useState(true);
+  const location = useLocation();
+
+  // Read the URL to figure out which dropdown link the user clicked in the sidebar!
+  const isProductsView = location.pathname.includes('/products');
 
   useEffect(() => {
     if (activeStore) fetchData();
-  },[activeStore]);
+  }, [activeStore]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [prodRes, revRes] = await Promise.all([
+      const[prodRes, revRes] = await Promise.all([
         api.get(`/store/${activeStore._id}/products`),
         api.get(`/store/${activeStore._id}/reviews`)
       ]);
@@ -36,7 +39,7 @@ export default function Analytics() {
   };
 
   return (
-    <div className="p-4 md:p-10 lg:p-14 relative overflow-y-auto h-full z-10 w-full flex flex-col ">
+    <div className="p-4 md:p-10 lg:p-14 relative overflow-y-auto h-full z-10 w-full flex flex-col">
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
@@ -46,40 +49,31 @@ export default function Analytics() {
               Store Analytics
             </h1>
           </div>
-          <p className="text-gray-400">Actionable insights for <strong className="text-cyan-400">{activeStore?.storeName}</strong>.</p>
+          <p className="text-gray-400">
+            Actionable insights for <strong className="text-cyan-400">{activeStore?.storeName}</strong>.
+          </p>
         </div>
       </div>
 
-      {/* CONTENT AREA */}
+      {/* FULL WIDTH CONTENT AREA */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 text-cyan-400 flex-1 overflow-hidden">
+        <div className="flex flex-col items-center justify-center py-20 text-cyan-400 flex-1">
           <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin mb-4"></div>
           <p className="font-mono text-sm tracking-widest animate-pulse">ANALYZING STORE DATA...</p>
         </div>
       ) : (
-        <div className="flex flex-col md:flex-row gap-8 flex-1 animate-fade-in-down min-h-0">
+        <div className="flex flex-col flex-1 animate-fade-in-down min-h-0 w-full">
           
-          {/* VERTICAL SUB-NAVIGATION */}
-          <div className="w-full md:w-64 shrink-0 flex flex-col gap-2">
-            {[
-              { id: 'overview', icon: <Activity size={18}/>, title: 'Store Overview' },
-              { id: 'products', icon: <Package size={18}/>, title: 'Product Performance' },
-            ].map(sub => (
-              <button 
-                key={sub.id} 
-                onClick={() => setActiveTab(sub.id)}
-                className={`flex items-center justify-between p-4 rounded-xl transition-all duration-300 ease-in-out ${activeTab === sub.id ? 'bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-500 text-white shadow-lg' : 'bg-white/[0.02] border border-transparent border-l-4 hover:border-white/10 text-gray-400 hover:text-white'}`}
-              >
-                <div className="flex items-center gap-3">{sub.icon} <span className="font-bold">{sub.title}</span></div>
-                {activeTab === sub.id && <ChevronRight size={16} className="text-cyan-400 animate-pulse" />}
-              </button>
-            ))}
-          </div>
-
-          {/* DYNAMIC RIGHT CONTENT SECTION */}
-          <div className="flex-1 bg-white/[0.02] border border-white/10 p-6 md:p-8 rounded-2xl backdrop-blur-xl overflow-y-auto custom-scrollbar">
-            {activeTab === 'overview' && <StoreOverview products={products} reviews={reviews} />}
-            {activeTab === 'products' && <ProductPerformance products={products} />}
+          {/* THE GRAPHS CONTAINER - NOW TAKES UP 100% WIDTH */}
+          <div className="flex-1 bg-white/[0.02] border border-white/10 p-6 md:p-8 rounded-2xl backdrop-blur-xl overflow-y-auto custom-scrollbar w-full">
+            
+            {/* Render the correct component based on the sidebar dropdown click */}
+            {isProductsView ? (
+              <ProductPerformance products={products} />
+            ) : (
+              <StoreOverview products={products} reviews={reviews} />
+            )}
+            
           </div>
         </div>
       )}
