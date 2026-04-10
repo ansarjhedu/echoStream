@@ -2,19 +2,26 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
 const WidgetContext = createContext();
-
 export const useWidget = () => useContext(WidgetContext);
 
 export const WidgetProvider = ({ apiKey, productHandle, productTitle, customerName, customerEmail, children }) => {
   const [reviews, setReviews] = useState([]);
-  const [stats, setStats] = useState({ avgRating: 0, totalReviews: 0 }); // <-- New state for DB stats
+  const [stats, setStats] = useState({ avgRating: 0, totalReviews: 0, distribution: {} }); 
   const [loading, setLoading] = useState(true);
-  const[isFormOpen, setIsFormOpen] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [widgetError, setWidgetError] = useState(null);
 
-  // Change to your production URL later
-  const API_BASE = 'https://echo-stream-pi.vercel.app/api/public';
+  // 🎨 NEW: Default Design Configuration
+  const[config, setConfig] = useState({
+    layout: 'glassmorphism',
+    primaryColor: '#06b6d4',
+    backgroundColor: '#0A0F1A',
+    textColor: '#ffffff',
+    fontFamily: 'system-ui, sans-serif'
+  });
 
-  // Axios instance with default headers for cleaner API calls
+  const API_BASE = 'http://localhost:5000/api/public'; // Change to your live URL when deploying
+
   const api = axios.create({
     baseURL: API_BASE,
     headers: { 'x-api-key': apiKey }
@@ -22,59 +29,49 @@ export const WidgetProvider = ({ apiKey, productHandle, productTitle, customerNa
 
   useEffect(() => {
     fetchReviews();
-  }, [productHandle]);
+  }, [productHandle, apiKey]);
 
   const fetchReviews = async () => {
+    setLoading(true);
+    setWidgetError(null);
     try {
-      setLoading(true);
       const res = await api.get(`/products/${productHandle}/reviews`);
-      
       setReviews(res.data.data ||[]);
+      if (res.data.stats) setStats(res.data.stats);
       
-      // Use the stats calculated by MongoDB!
-      if (res.data.stats) {
-        setStats(res.data.stats);
+      // 🎨 Apply the Merchant's saved design settings!
+      if (res.data.widgetConfig) {
+        setConfig({
+          ...config, // Keep defaults just in case
+          ...res.data.widgetConfig 
+        });
       }
     } catch (error) {
-      console.error("Failed to load reviews", error);
+      setWidgetError(error.response?.data?.message || "Failed to load reviews.");
     } finally {
       setLoading(false);
     }
   };
 
-  
   const submitReview = async (formData) => {
     formData.append('productHandle', productHandle);
     formData.append('productTitle', productTitle);
+    if (customerEmail) formData.append('customerEmail', customerEmail);
+    if (customerName) formData.append('customerName', customerName);
     
-    // Auto-attach the secure email if it exists
-    if (customerEmail) {
-     
-      formData.append('customerEmail', customerEmail);
-    }
-
     try {
       await api.post('/reviews/add', formData);
       return true;
     } catch (error) {
-      const errorMessage = error.response?.data?.message || 'Failed to submit review.';
-      throw new Error(errorMessage);
+      throw new Error(error.response?.data?.message || 'Failed to submit review.');
     }
   };
 
   return (
     <WidgetContext.Provider value={{
-      apiKey, 
-      productHandle,
-      productTitle,
-      customerName, 
-      customerEmail, 
-      reviews,
-      stats, 
-      loading, 
-      isFormOpen, 
-      setIsFormOpen, 
-      submitReview
+      apiKey, productHandle, productTitle, customerName, customerEmail,
+      reviews, stats, loading, isFormOpen, setIsFormOpen, submitReview, widgetError,
+      config // <--- Expose the config to the UI
     }}>
       {children}
     </WidgetContext.Provider>
