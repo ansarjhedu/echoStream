@@ -41,14 +41,15 @@ const allowedOrigins =[
   "http://localhost:5173", 
   "https://echo-stream-5nch.vercel.app/" // You will change this later!
 ];
-
+// Replace your old CORS config with this dynamic one:
 app.use(cors({
-    origin: [
-        "http://localhost:5173",
-        "https://echo-stream-5nch.vercel.app",
-        "http://127.0.0.1:5500"
-    ],
-         credentials: true
+    origin: function (origin, callback) {
+        // By passing the 'origin' directly back, we dynamically allow ANY website 
+        // to use the public widget, while still satisfying the browser's strict 
+        // requirement for credentials (cookies) in the Admin Dashboard!
+        callback(null, origin || '*');
+    },
+    credentials: true
 }));
 app.use(express.json());
 app.use(cookieParser());
