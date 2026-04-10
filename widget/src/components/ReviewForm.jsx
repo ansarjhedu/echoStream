@@ -22,28 +22,26 @@ export default function ReviewForm() {
     );
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setStatus({ loading: true, message: '', error: false });
-    const formData = new FormData();
-    formData.append('customerName', formState.customerName);
-    formData.append('rating', formState.rating);
-    formData.append('comment', formState.comment);
-    if (formState.images) {
-      for (let i = 0; i < Math.min(formState.images.length, 3); i++) {
-        formData.append('images', formState.images[i]);
-      }
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  setStatus({ loading: true, message: '', error: false });
+  const formData = new FormData();
+  formData.append('rating', formState.rating);
+  formData.append('comment', formState.comment);
+  if (formState.images) {
+    for (let i = 0; i < Math.min(formState.images.length, 3); i++) {
+      formData.append('images', formState.images[i]);
     }
-    try {
-      await submitReview(formData);
-      setStatus({ loading: false, message: 'Review submitted securely! 🚀', error: false });
-      setFormState({ customerName: customerName, rating: 5, comment: '', images: null,  });
-      setTimeout(() => setIsFormOpen(false), 3000);
-    } catch (err) {
-      setStatus({ loading: false, message: err.message, error: true });
-    }
-  };
-
+  }
+  try {
+    await submitReview(formData);
+    setStatus({ loading: false, message: 'Review submitted securely! 🚀', error: false });
+    setFormState({ customerName: customerName, rating: 5, comment: '', images: null });
+    setTimeout(() => setIsFormOpen(false), 3000);
+  } catch (err) {
+    setStatus({ loading: false, message: err.message, error: true });
+  }
+};
   const inputStyle = { backgroundColor: 'var(--echo-input)', borderColor: 'var(--echo-border)', color: 'var(--echo-text)' };
 
   return (
