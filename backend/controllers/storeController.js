@@ -188,6 +188,36 @@ const getStoreAnalytics = async (req, res) => {
         return res.status(500).json("Internal Server Error");
     }
 };
+const updateWidgetConfig = async (req, res) => {
+    try {
+        const store = req.store; // from authStore middleware
+        const { layout, primaryColor, backgroundColor, textColor, fontFamily } = req.body;
 
-// Don't forget to export it!
-export { createStore, myStores, getStoreById, updateStoreStatus, deleteProduct, deleteStore, getStoreAnalytics };
+        // Ensure valid layout selection
+        if (layout && !['glassmorphism', 'classic', 'minimal', 'grid'].includes(layout)) {
+            return res.status(400).json("Invalid layout selected.");
+        }
+
+        // Update the configuration
+        store.widgetConfig = {
+            layout: layout || store.widgetConfig.layout,
+            primaryColor: primaryColor || store.widgetConfig.primaryColor,
+            backgroundColor: backgroundColor || store.widgetConfig.backgroundColor,
+            textColor: textColor || store.widgetConfig.textColor,
+            fontFamily: fontFamily || store.widgetConfig.fontFamily
+        };
+
+        await store.save();
+
+        return res.status(200).json({
+            data: store.widgetConfig,
+            message: "Widget design updated successfully!"
+        });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json("Internal Server Error");
+    }
+};
+
+
+export { createStore, myStores, getStoreById, updateStoreStatus, deleteProduct, deleteStore, getStoreAnalytics,updateWidgetConfig };

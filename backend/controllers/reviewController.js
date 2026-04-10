@@ -102,9 +102,16 @@ const getPublicProductReviews = async (req, res) => {
         .sort({ createdAt: -1 })
         .select('customerName rating comment createdAt merchantReply images'); // Select specific fields
 
+         const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+        reviews.forEach(r => distribution[r.rating]++);
+
         res.status(200).json({ 
             productTitle: product.productTitle,
-            stats: product.stats,
+            stats: [
+                ...product.stats,
+                 distribution
+            ],
+             widgetConfig: req.store.widgetConfig, 
             data: reviews ,
             message: "Reviews fetched successfully"
         });

@@ -11,6 +11,17 @@ const storeSchema=new Schema({
         type:String,
         required:true,
     },
+     widgetConfig: {
+        layout: { 
+            type: String, 
+            enum:['glassmorphism', 'classic', 'minimal', 'grid'], 
+            default: 'glassmorphism' 
+        },
+        primaryColor: { type: String, default: '#06b6d4' }, // Default Cyan
+        backgroundColor: { type: String, default: '#0A0F1A' }, // Default Dark
+        textColor: { type: String, default: '#ffffff' }, // Default Light
+        fontFamily: { type: String, default: 'system-ui, sans-serif' }
+    },
     owner:{
         type: mongoose.Schema.Types.ObjectId,
         ref:'User',
