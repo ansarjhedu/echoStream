@@ -35,6 +35,7 @@ export const WidgetProvider = ({ apiKey, productHandle, productTitle, customerNa
     setWidgetError(null);
     try {
       const res = await api.get(`/products/${productHandle}/reviews`);
+      console.log(res)
       setReviews(res.data.data ||[]);
       if (res.data.stats) setStats(res.data.stats);
       

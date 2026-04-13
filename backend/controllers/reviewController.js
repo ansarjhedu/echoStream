@@ -112,7 +112,7 @@ const getPublicProductReviews = async (req, res) => {
                 product.stats,
                 distribution
             ],
-             widgetConfig: req.store.widgetConfig, 
+            widgetConfig: req.store.widgetConfig, 
             data: reviews ,
             message: "Reviews fetched successfully"
         });
