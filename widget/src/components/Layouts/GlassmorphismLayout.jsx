@@ -1,6 +1,6 @@
 import { useWidget } from "../../context/WidgetContext";
 import StarRating from "../StarRating";
-import ReviewCard from "./ReviewCard";
+import ReviewCard from "../ReviewCard";
 import ReviewForm from "../ReviewForm";
 export default GlassmorphismLayout = () => {
   const { reviews, stats, isFormOpen, setIsFormOpen } = useWidget();

@@ -1,5 +1,6 @@
 import StarRating from "../StarRating";
 import { useWidget } from "../../context/WidgetContext";
+import ReviewForm from "../ReviewForm";
 const MinimalLayout = () => {
   const { reviews, stats, isFormOpen, setIsFormOpen } = useWidget();
   return (
