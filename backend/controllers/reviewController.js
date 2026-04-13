@@ -91,7 +91,8 @@ const getPublicProductReviews = async (req, res) => {
             return res.status(200).json({ 
                 message: "No reviews yet", 
                 data:[],
-                stats: { avgRating: 0, totalReviews: 0 } 
+                stats: { avgRating: 0, totalReviews: 0 },
+                widgetConfig: req.store.widgetConfig
             });
         }
 
@@ -108,10 +109,11 @@ const getPublicProductReviews = async (req, res) => {
 
         res.status(200).json({ 
             productTitle: product.productTitle,
-            stats: [
-                product.stats,
-                distribution
-            ],
+            stats: {
+                avgRating: product.stats?.avgRating || 0,
+                totalReviews: product.stats?.totalReviews || 0,
+                distribution: distribution // Required for Classic Layout progress bars
+            },
             widgetConfig: req.store.widgetConfig, 
             data: reviews ,
             message: "Reviews fetched successfully"
