@@ -14,7 +14,7 @@ const storeSchema=new Schema({
      widgetConfig: {
         layout: { 
             type: String, 
-            enum:['glassmorphism', 'classic', 'minimal', 'grid'], 
+            enum:['glassmorphism', 'classic', 'minimal', 'grid', 'carousel', 'brutalism'], 
             default: 'glassmorphism' 
         },
         primaryColor: { type: String, default: '#06b6d4' }, // Default Cyan

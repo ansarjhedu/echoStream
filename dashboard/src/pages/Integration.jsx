@@ -113,7 +113,9 @@ export default function Integration() {
                 { id: 'glassmorphism', label: 'Glassmorphism' },
                 { id: 'classic', label: 'Classic Store' },
                 { id: 'minimal', label: 'Minimalist' },
-                { id: 'grid', label: 'Masonry Grid' }
+                { id: 'grid', label: 'Masonry Grid' },
+                { id: 'carousel', label: 'Swipe Carousel' },   // <-- NEW
+                { id: 'brutalism', label: 'Neo-Brutalism' } 
               ].map(layout => (
                 <button 
                   key={layout.id}
@@ -329,6 +331,49 @@ const WidgetPreviewMockup = ({ layout }) => {
       </div>
     );
   }
+ if (layout === 'carousel') {
+    return (
+      <div className="p-6 overflow-hidden" style={{ backgroundColor: 'var(--bg-color)' }}>
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-bold">Latest Reviews</h3>
+          <button className="text-sm font-bold underline" style={{ color: 'var(--p-color)' }}>Write Review</button>
+        </div>
+        <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x">
+          {reviews.map(r => (
+            <div key={r.id} className="p-5 rounded-2xl shrink-0 w-[280px] snap-center border shadow-sm" style={{ backgroundColor: 'color-mix(in srgb, var(--t-color) 2%, transparent)', borderColor: 'var(--echo-border)' }}>
+              <div className="flex justify-between items-start mb-3">
+                <div className="font-bold">{r.name}</div>
+                {renderStars(r.rating)}
+              </div>
+              <p className="text-sm opacity-80 line-clamp-3">"{r.comment}"</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
+  // 6. NEO-BRUTALISM (Bold, Sharp, High Contrast)
+  if (layout === 'brutalism') {
+    return (
+      <div className="p-8 border-4 border-black" style={{ backgroundColor: 'var(--bg-color)' }}>
+        <div className="flex justify-between items-center mb-8 border-b-4 border-black pb-4">
+          <h3 className="text-2xl font-black uppercase tracking-widest">Reviews</h3>
+          <button className="px-6 py-2 border-2 border-black font-black uppercase tracking-wider hover:-translate-y-1 hover:translate-x-1 transition-transform" style={{ backgroundColor: 'var(--p-color)', color: '#000', boxShadow: '-4px 4px 0px 0px #000' }}>Review</button>
+        </div>
+        <div className="space-y-6">
+          {reviews.map(r => (
+            <div key={r.id} className="p-5 border-2 border-black transition-transform hover:-translate-y-1 hover:translate-x-1" style={{ backgroundColor: '#fff', color: '#000', boxShadow: '-6px 6px 0px 0px #000' }}>
+              <div className="flex justify-between items-center mb-2">
+                <span className="font-black text-lg">{r.name}</span>
+                {renderStars(r.rating)}
+              </div>
+              <p className="font-medium">"{r.comment}"</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
   return null;
 };
