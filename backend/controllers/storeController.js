@@ -194,7 +194,7 @@ const updateWidgetConfig = async (req, res) => {
         const { layout, primaryColor, backgroundColor, textColor, fontFamily } = req.body;
 
         // Ensure valid layout selection
-        if (layout && !['glassmorphism', 'classic', 'minimal', 'grid'].includes(layout)) {
+        if (layout && !['glassmorphism', 'classic', 'minimal', 'grid','carousel', 'brutalism'].includes(layout)) {
             return res.status(400).json("Invalid layout selected.");
         }
 
