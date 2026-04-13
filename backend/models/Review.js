@@ -46,6 +46,14 @@ const reviewSchema=new schema({
         enum:["pending","approved","rejected","dispute"],
         default:"pending",
     },
+     disputeCount: {
+        type: Number,
+        default: 0
+    },
+    isLocked: {
+        type: Boolean,
+        default: false
+    },
     isDeleted:{
         type:Boolean,
         default:false
