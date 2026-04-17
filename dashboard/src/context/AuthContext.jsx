@@ -67,8 +67,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   // UPDATED: Now accepts userName instead of storeName
-  const register = async (userName, email, password) => {
-    const res = await api.post('/users/register', { userName, email, password });
+  const register = async (userName, email, password, confirmPassword) => {
+    const res = await api.post('/users/register', { userName, email, password, confirmPassword });
     
     setAccessToken(res.data.user.accessToken.token); 
     const userProfile = { ...res.data.user };
@@ -77,7 +77,7 @@ export const AuthProvider = ({ children }) => {
     setUser(userProfile);
     localStorage.setItem('has_session', 'true');
   };
-
+  
   const logout = async () => {
     try {
       await api.post('/users/logout');

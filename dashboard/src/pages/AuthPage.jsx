@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { User, Mail, Lock, AlertCircle, ArrowRight, Store } from 'lucide-react';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { toast } from 'react-toastify'; // Only import toast, container is in App.jsx
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({ userName: '', email: '', password: '' });
+  
+  // 🚨 ADDED confirmPassword to state
+  const [formData, setFormData] = useState({ userName: '', email: '', password: '', confirmPassword: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [passwordStrength, setPasswordStrength] = useState({ level: '', width: 0, color: '' });
@@ -55,22 +56,27 @@ export default function AuthPage() {
     setLoading(true);
     setError('');
 
+    // Frontend validation for passwords
+    if (!isLogin && formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
+    }
+
     try {
       if (isLogin) {
         await login(formData.email, formData.password);
-        toast.success('Logged in successfully');
+        toast.success('Logged in successfully!');
       } else {
-        await register(formData.userName, formData.email, formData.password);
-        toast.success('Account created successfully');
+        // Pass confirmPassword to the register function
+        await register(formData.userName, formData.email, formData.password, formData.confirmPassword);
+        toast.success('Account created successfully! Welcome to EchoStream.');
       }
       navigate('/stores');
     } catch (err) {
-      const message =
-        err.response?.data?.message ||
-        err.response?.data ||
-        'Authentication failed. Please try again.';
+      const message = err.response?.data?.message || err.response?.data || 'Authentication failed. Please try again.';
       setError(message);
-      toast.error(message);
+      // We removed toast.error() here to prevent double-notifying the user since we render it in the red Alert box below anyway!
     } finally {
       setLoading(false);
     }
@@ -103,94 +109,55 @@ export default function AuthPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           
-          {/* USER NAME (Only for Registration) */}
           {!isLogin && (
-            <div className="relative">
+            <div className="relative animate-fade-in-down">
               <User className="absolute left-4 top-3.5 text-gray-500" size={20} />
-              <input 
-                type="text" 
-                name="userName"
-                required={!isLogin}
-                value={formData.userName} 
-                onChange={handleChange} 
-                className="w-full bg-black/40 border border-white/10 p-3 pl-12 rounded-xl text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all placeholder-gray-600" 
-                placeholder="Your Name" 
-              />
+              <input type="text" name="userName" required={!isLogin} value={formData.userName} onChange={handleChange} className="w-full bg-black/40 border border-white/10 p-3 pl-12 rounded-xl text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all placeholder-gray-600" placeholder="Your Name" />
             </div>
           )}
 
           <div className="relative">
             <Mail className="absolute left-4 top-3.5 text-gray-500" size={20} />
-            <input 
-              type="email" 
-              name="email"
-              required
-              value={formData.email} 
-              onChange={handleChange} 
-              className="w-full bg-black/40 border border-white/10 p-3 pl-12 rounded-xl text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all placeholder-gray-600" 
-              placeholder="Email Address" 
-            />
+            <input type="email" name="email" required value={formData.email} onChange={handleChange} className="w-full bg-black/40 border border-white/10 p-3 pl-12 rounded-xl text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all placeholder-gray-600" placeholder="Email Address" />
           </div>
 
           <div className="relative">
             <Lock className="absolute left-4 top-3.5 text-gray-500" size={20} />
-            <input 
-              type="password" 
-              name="password"
-              required
-              value={formData.password} 
-              onChange={handleChange} 
-              className="w-full bg-black/40 border border-white/10 p-3 pl-12 rounded-xl text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all placeholder-gray-600" 
-              placeholder="Password" 
-            />
-            {formData.password && (
-              <div className="mt-2">
-                <div className="w-full bg-gray-700 rounded-full h-2">
-                  <div
-                    className={`h-2 rounded-full transition-all duration-300 ${passwordStrength.color}`}
-                    style={{ width: `${passwordStrength.width}%` }}
-                  ></div>
+            <input type="password" name="password" required value={formData.password} onChange={handleChange} className="w-full bg-black/40 border border-white/10 p-3 pl-12 rounded-xl text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all placeholder-gray-600" placeholder="Password" />
+            
+            {/* 🚨 ONLY show strength meter during Registration */}
+            {!isLogin && formData.password && (
+              <div className="mt-3 animate-fade-in-down">
+                <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                  <div className={`h-full transition-all duration-300 ${passwordStrength.color}`} style={{ width: `${passwordStrength.width}%` }}></div>
                 </div>
-                <p className={`text-xs mt-1 ${passwordStrength.level === 'Strong' ? 'text-green-400' : passwordStrength.level === 'Medium' ? 'text-yellow-400' : 'text-red-400'}`}>
-                  Password Strength: {passwordStrength.level}
+                <p className={`text-xs mt-1.5 font-medium ${passwordStrength.level === 'Strong' ? 'text-green-400' : passwordStrength.level === 'Medium' ? 'text-yellow-400' : 'text-red-400'}`}>
+                  Security: {passwordStrength.level}
                 </p>
               </div>
             )}
           </div>
 
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="w-full bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 py-4 rounded-xl font-bold text-white shadow-[0_0_20px_rgba(34,211,238,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-6"
-          >
-            {loading ? (
-              <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-            ) : (
-              <>{isLogin ? 'Access Account' : 'Create Account'} <ArrowRight size={18} /></>
-            )}
+          {/* 🚨 NEW: Confirm Password (Only during Registration) */}
+          {!isLogin && (
+            <div className="relative animate-fade-in-down">
+              <Lock className="absolute left-4 top-3.5 text-gray-500" size={20} />
+              <input type="password" name="confirmPassword" required={!isLogin} value={formData.confirmPassword} onChange={handleChange} className={`w-full bg-black/40 border p-3 pl-12 rounded-xl text-white focus:outline-none transition-all placeholder-gray-600 ${formData.confirmPassword && formData.password !== formData.confirmPassword ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500' : 'border-white/10 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400'}`} placeholder="Confirm Password" />
+            </div>
+          )}
+
+          <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 py-4 rounded-xl font-bold text-white shadow-[0_0_20px_rgba(34,211,238,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-6">
+            {loading ? <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <>{isLogin ? 'Access Account' : 'Create Account'} <ArrowRight size={18} /></>}
           </button>
         </form>
 
         <div className="mt-8 text-center">
-          <button
-            type="button"
-            onClick={() => {
-              setIsLogin(!isLogin);
-              setError('');
-              setFormData({ userName: '', email: '', password: '' });
-              setPasswordStrength({ level: '', width: 0, color: '' });
-            }}
-            className="text-gray-400 hover:text-cyan-400 transition-colors text-sm"
-          >
+          <button type="button" onClick={() => { setIsLogin(!isLogin); setError(''); setFormData({ userName: '', email: '', password: '', confirmPassword: '' }); setPasswordStrength({ level: '', width: 0, color: '' }); }} className="text-gray-400 hover:text-cyan-400 transition-colors text-sm">
             {isLogin ? "Don't have an account? " : "Already have an account? "}
-            <span className="font-bold border-b border-transparent hover:border-cyan-400 pb-0.5">
-              {isLogin ? 'Register' : 'Sign In'}
-            </span>
+            <span className="font-bold border-b border-transparent hover:border-cyan-400 pb-0.5">{isLogin ? 'Register' : 'Sign In'}</span>
           </button>
         </div>
       </div>
-
-      <ToastContainer position="top-right" autoClose={4000} hideProgressBar={false} newestOnTop />
     </div>
   );
 }
