@@ -59,6 +59,7 @@ export default function AuthPage() {
     // Frontend validation for passwords
     if (!isLogin && formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");
+      toast.error("Passwords do not match");
       setLoading(false);
       return;
     }
@@ -76,6 +77,7 @@ export default function AuthPage() {
     } catch (err) {
       const message = err.response?.data?.message || err.response?.data || 'Authentication failed. Please try again.';
       setError(message);
+      toast.error(message);
       // We removed toast.error() here to prevent double-notifying the user since we render it in the red Alert box below anyway!
     } finally {
       setLoading(false);
