@@ -179,33 +179,45 @@ const getDisputedReviews = async (req, res) => {
     }
 };
 
+import Review from "../models/Review.js";
+import { recalculateProductStats } from '../services/reviewService.js'; 
+
 const resolveDispute = async (req, res) => {
     try {
         const { reviewId } = req.params;
-        const { resolution } = req.body; // 'approved' or 'rejected'
+        const { resolution } = req.body; // Frontend sends 'approved' or 'rejected'
 
         if (!["approved", "rejected"].includes(resolution)) {
-            return res.status(400).json("Invalid resolution status");
+            return res.status(400).json("Invalid resolution status. Must be 'approved' or 'rejected'.");
         }
 
-        const review = await Review.findByIdAndUpdate(
-            reviewId, 
-          {status:resolution, isLocked: true}, // Lock the review after resolution to prevent further disputes
-          {new: true}
-        );
-
+        const review = await Review.findById(reviewId);
         if (!review) return res.status(404).json("Review not found");
+
+        // Apply the admin's ruling
+        review.status = resolution;
+
+        // 🚨 THE ADMIN LOCK: If the store owner has disputed this 3 times, lock it forever.
+        if (review.disputeCount >= 3) {
+            review.isLocked = true;
+        }
+
+        await review.save();
+        
+        // Recalculate stats because an admin just changed a star rating's visibility!
+        await recalculateProductStats(review.product); 
 
         return res.status(200).json({ 
             data: review, 
-            message: `Dispute resolved. Review marked as ${resolution}.` 
+            message: review.isLocked 
+                ? `Dispute resolved. Review marked as ${resolution} and is now PERMANENTLY LOCKED.` 
+                : `Dispute resolved. Review marked as ${resolution}.` 
         });
     } catch (error) {
         console.log(error);
         return res.status(500).json("Internal Server Error");
     }
 };
-
 
 const restoreStore = async (req, res) => {
     try {
