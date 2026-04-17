@@ -67,7 +67,7 @@ const updateReviewStatus = async (req, res) => {
             // ---------------------------------------------------
             // VERIFIED BUYER LOGIC (Owner can ONLY Dispute)
             // ---------------------------------------------------
-            if (status !== "dispute") {
+            if (status !== "disputed") {
                 return res.status(403).json({ message: "Verified customer reviews can only be disputed. Admins handle approvals/rejections." });
             }
             
@@ -76,7 +76,7 @@ const updateReviewStatus = async (req, res) => {
                 return res.status(403).json({ message: "Dispute limit reached. You cannot dispute this review anymore." });
             }
 
-            review.status = "dispute";
+            review.status = "disputed";
             review.disputeCount = (review.disputeCount || 0) + 1;
 
         } else {
