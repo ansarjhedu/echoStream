@@ -19,6 +19,9 @@ import AdminDisputes from './pages/admin/AdminDisputes';
 import AdminStores from './pages/admin/AdminStores';
 import AdminUsers from './pages/admin/AdminUsers';
 
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
 
 // Route Guards
 const ProtectedRoute = ({ children }) => {
@@ -85,6 +88,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
+        <ToastContainer position="top-right" autoClose={3000} theme="dark" />
     </AuthProvider>
   );
 }
