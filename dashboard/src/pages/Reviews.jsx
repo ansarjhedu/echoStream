@@ -176,7 +176,7 @@ export default function Reviews() {
                       <span className="px-3 py-1 text-xs font-bold text-red-400 bg-red-500/10 rounded-md border border-red-500/20 flex items-center gap-1">
                         <Lock size={14} /> Locked by Admin
                       </span>
-                    ) : review.status === 'dispute' ? (
+                    ) : review.status === 'disputed' ? (
                       <span className="px-3 py-1 text-xs font-bold text-orange-400 flex items-center gap-1">
                         <AlertOctagon size={14} /> Under Admin Review
                       </span>
@@ -184,7 +184,7 @@ export default function Reviews() {
                       <span className="px-3 py-1 text-xs font-bold text-gray-400">Rejected by Admin</span>
                     ) : (
                       <button 
-                        onClick={() => handleStatusUpdate(review._id, 'dispute')} 
+                        onClick={() => handleStatusUpdate(review._id, 'disputed')} 
                         className="p-2 px-3 text-red-400 hover:bg-red-400/10 rounded-md transition-all flex items-center gap-2 text-xs font-bold" 
                         title="Dispute Review"
                       >
