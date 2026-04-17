@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import api from '../../Api';
 import { useAuth } from '../../context/AuthContext';
 import { ShieldAlert, Activity, Server, Crown } from 'lucide-react';
+import { toast } from 'react-toastify';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 export default function AdminOverview() {
@@ -26,7 +27,7 @@ export default function AdminOverview() {
         setUsers(userRes.data.data || []);
         setDisputes(dispRes.data.data ||[]);
       } catch (error) {
-        console.error("Admin fetch failed", error);
+        toast.error("Admin fetch failed");
       } finally {
         setLoading(false);
       }

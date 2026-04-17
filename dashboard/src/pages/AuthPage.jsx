@@ -10,7 +10,6 @@ export default function AuthPage() {
   // 🚨 ADDED confirmPassword to state
   const [formData, setFormData] = useState({ userName: '', email: '', password: '', confirmPassword: '' });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [passwordStrength, setPasswordStrength] = useState({ level: '', width: 0, color: '' });
   
   const { login, register } = useAuth();
@@ -44,7 +43,7 @@ export default function AuthPage() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
-    setError('');
+
     
     if (name === 'password') {
       setPasswordStrength(checkPasswordStrength(value));
@@ -54,11 +53,9 @@ export default function AuthPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
 
     // Frontend validation for passwords
     if (!isLogin && formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
       toast.error("Passwords do not match");
       setLoading(false);
       return;
@@ -76,7 +73,6 @@ export default function AuthPage() {
       navigate('/stores');
     } catch (err) {
       const message = err.response?.data?.message || err.response?.data || 'Authentication failed. Please try again.';
-      setError(message);
       toast.error(message);
       // We removed toast.error() here to prevent double-notifying the user since we render it in the red Alert box below anyway!
     } finally {
@@ -102,12 +98,6 @@ export default function AuthPage() {
           </p>
         </div>
 
-        {error && (
-          <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/50 flex items-start gap-3 text-red-400 text-sm animate-fade-in-down">
-            <AlertCircle size={18} className="mt-0.5 shrink-0" />
-            <p>{error}</p>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           
@@ -154,7 +144,7 @@ export default function AuthPage() {
         </form>
 
         <div className="mt-8 text-center">
-          <button type="button" onClick={() => { setIsLogin(!isLogin); setError(''); setFormData({ userName: '', email: '', password: '', confirmPassword: '' }); setPasswordStrength({ level: '', width: 0, color: '' }); }} className="text-gray-400 hover:text-cyan-400 transition-colors text-sm">
+          <button type="button" onClick={() => { setIsLogin(!isLogin); setFormData({ userName: '', email: '', password: '', confirmPassword: '' }); setPasswordStrength({ level: '', width: 0, color: '' }); }} className="text-gray-400 hover:text-cyan-400 transition-colors text-sm">
             {isLogin ? "Don't have an account? " : "Already have an account? "}
             <span className="font-bold border-b border-transparent hover:border-cyan-400 pb-0.5">{isLogin ? 'Register' : 'Sign In'}</span>
           </button>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../Api';
+import { toast } from 'react-toastify';
 import { Store, Ban, CheckCircle, Clock, RefreshCcw } from 'lucide-react'; // <-- Added RefreshCcw
 
 export default function AdminStores() {
@@ -16,7 +17,7 @@ export default function AdminStores() {
       const res = await api.get('/admin/store/list');
       setStores(res.data.data ||[]);
     } catch (error) {
-      console.error("Failed to fetch stores", error);
+      toast.error("Failed to fetch stores");
     } finally {
       setLoading(false);
     }
@@ -29,7 +30,7 @@ export default function AdminStores() {
       await api.patch(`/admin/store/${storeId}/status`, { status: newStatus });
       setStores(stores.map(s => s._id === storeId ? { ...s, status: newStatus, isActive: newStatus === 'live' } : s));
     } catch (error) {
-      alert("Failed to update store status");
+      toast.error("Failed to update store status");
     }
   };
 
@@ -40,7 +41,7 @@ export default function AdminStores() {
       await api.patch(`/admin/store/${storeId}/restore`);
       setStores(stores.map(s => s._id === storeId ? { ...s, isDeleted: false, deletedAt: null, status: 'live', isActive: true } : s));
     } catch (error) {
-      alert("Failed to restore store");
+      toast.error("Failed to restore store");
     }
   };
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../Api';
 import { AlertOctagon, CheckCircle } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 export default function AdminDisputes() {
   const [disputes, setDisputes] = useState([]);
@@ -15,7 +16,9 @@ export default function AdminDisputes() {
     try {
       await api.patch(`/admin/disputes/${reviewId}/resolve`, { resolution });
       setDisputes(disputes.filter(d => d._id !== reviewId)); 
-    } catch (error) { alert("Failed to resolve dispute"); }
+    } catch (error) { 
+      toast.error("Failed to resolve dispute");
+     }
   };
 
   if (loading) return <div className="p-10 text-red-400">Loading disputes...</div>;

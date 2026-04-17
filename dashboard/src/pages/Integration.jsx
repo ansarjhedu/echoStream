@@ -5,13 +5,13 @@ import {
   Copy, Check, Code, LayoutTemplate, Palette, Type, 
   Save, AlertCircle, Star, MessageSquare 
 } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 export default function Integration() {
   const { activeStore } = useAuth();
   const[copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const[saving, setSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState({ type: '', message: '' });
 
   // Default configuration
   const [config, setConfig] = useState({
@@ -40,13 +40,11 @@ export default function Integration() {
 
   const handleSave = async () => {
     setSaving(true);
-    setSaveStatus({ type: '', message: '' });
     try {
       await api.patch(`/store/${activeStore._id}/widget-config`, config);
-      setSaveStatus({ type: 'success', message: 'Widget design published live! 🚀' });
-      setTimeout(() => setSaveStatus({ type: '', message: '' }), 3000);
+      toast.success("Widget configuration saved successfully!");
     } catch (error) {
-      setSaveStatus({ type: 'error', message: 'Failed to save configuration.' });
+      toast.error("Failed to save widget configuration");
     } finally {
       setSaving(false);
     }
@@ -55,12 +53,16 @@ export default function Integration() {
   const scriptCode = `<!-- 1. Add this to your HTML <head> -->
 <script src="https://echo-stream-5nch.vercel.app/widget/echo-widget.js" defer></script>
 
-<!-- 2. Place this where you want the reviews to appear -->
+<!-- 2. Place this where you want the reviews to appear
+note: Make sure to replace the placeholder values with actual product and customer data -->
 <div 
   class="echo-reviews-widget" 
   data-api-key="${activeStore?.apiKey}" 
   data-product-handle="UNIQUE_PRODUCT_ID" 
-  data-product-title="Product Name">
+  data-product-title="Product Name"
+  data-customer-name="Customer Name"
+  data-customer-email="Customer Email"
+>
 </div>`;
 
   const copyToClipboard = () => {
@@ -218,208 +220,42 @@ const ColorPicker = ({ label, value, onChange }) => (
   </div>
 );
 
-// =========================================================================
-// 🎨 THE LIVE PREVIEW RENDERING ENGINE
-// This simulates exactly what the 4 layouts will look like on the client's site.
-// Notice the use of styles like `backgroundColor: 'var(--p-color)'`!
-// =========================================================================
+// Shared dummy data for the previews
+const MOCK_REVIEWS =[
+  { id: 1, name: "Sarah Jenkins", rating: 5, date: "2 days ago", comment: "Absolutely love the quality. It exceeded my expectations completely!" },
+  { id: 2, name: "Marcus Doe", rating: 4, date: "1 week ago", comment: "Great product, but shipping took a little longer than expected." }
+];
+
+// Reusable star renderer for the mockups
+export const RenderMockupStars = ({ rating }) => (
+  <div className="flex gap-0.5">
+    {[1,2,3,4,5].map(i => (
+      <Star 
+        key={i} 
+        size={14} 
+        className={i <= rating ? "" : "opacity-30"} 
+        style={{ fill: i <= rating ? 'var(--p-color)' : 'none', color: 'var(--p-color)' }} 
+      />
+    ))}
+  </div>
+);
+
+// The Orchestrator: It imports the separate files and renders the chosen one.
+import GlassmorphismMockup from '../components/widget-mockups/GlassmorphismMockup';
+import ClassicMockup from '../components/widget-mockups/ClassicMockup';
+import MinimalMockup from '../components/widget-mockups/MinimalMockup';
+import GridMockup from '../components/widget-mockups/GridMockup';
+import CarouselMockup from '../components/widget-mockups/CarouselMockup';
+import BrutalismMockup from '../components/widget-mockups/BrutalismMockup';
+import { toast } from 'react-toastify';
+
 const WidgetPreviewMockup = ({ layout }) => {
-  const reviews =[
-    { id: 1, name: "Sarah Jenkins", rating: 5, date: "2 days ago", comment: "Absolutely love the quality. It exceeded my expectations completely!" },
-    { id: 2, name: "Marcus Doe", rating: 4, date: "1 week ago", comment: "Great product, but shipping took a little longer than expected." }
-  ];
-
-  const renderStars = (rating) => (
-    <div className="flex gap-0.5">
-      {[1,2,3,4,5].map(i => <Star key={i} size={14} className={i <= rating ? "" : "opacity-30"} style={{ fill: i<=rating ? 'var(--p-color)' : 'none', color: 'var(--p-color)' }} />)}
-    </div>
-  );
-
-  // 1. GLASSMORPHISM (Current Style)
-  if (layout === 'glassmorphism') {
-    return (
-      <div className="p-6 relative backdrop-blur-xl" style={{ backgroundColor: 'color-mix(in srgb, var(--bg-color) 80%, transparent)' }}>
-        <div className="flex justify-between items-center mb-6 pb-4 border-b border-white/10">
-          <h3 className="text-xl font-bold">Customer Reviews</h3>
-          <button className="px-4 py-2 rounded-full font-bold text-sm" style={{ backgroundColor: 'var(--p-color)', color: 'var(--bg-color)' }}>Write Review</button>
-        </div>
-        <div className="space-y-4">
-          {reviews.map(r => (
-            <div key={r.id} className="p-4 rounded-xl border border-white/10" style={{ backgroundColor: 'color-mix(in srgb, var(--t-color) 3%, transparent)' }}>
-              <div className="flex justify-between mb-2">
-                <div><span className="font-bold block">{r.name}</span><span className="text-xs opacity-50">{r.date}</span></div>
-                {renderStars(r.rating)}
-              </div>
-              <p className="text-sm opacity-90">{r.comment}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+  switch (layout) {
+    case 'classic': return <ClassicMockup reviews={MOCK_REVIEWS} />;
+    case 'minimal': return <MinimalMockup reviews={MOCK_REVIEWS} />;
+    case 'grid': return <GridMockup reviews={MOCK_REVIEWS} />;
+    case 'carousel': return <CarouselMockup reviews={MOCK_REVIEWS} />;
+    case 'brutalism': return <BrutalismMockup reviews={MOCK_REVIEWS} />;
+    case 'glassmorphism': default: return <GlassmorphismMockup reviews={MOCK_REVIEWS} />;
   }
-
-  // 2. CLASSIC (Amazon/Yotpo Style - Bars and crisp borders)
-  if (layout === 'classic') {
-    return (
-      <div className="p-6 border border-gray-200" style={{ backgroundColor: 'var(--bg-color)' }}>
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <div>
-              <h3 className="text-2xl font-bold m-0">4.5</h3>
-              {renderStars(5)}
-            </div>
-            <div className="text-sm opacity-70">Based on 124 reviews</div>
-          </div>
-          <button className="px-5 py-2 border font-bold text-sm uppercase tracking-wider rounded-sm hover:opacity-80 transition-opacity" style={{ borderColor: 'var(--p-color)', color: 'var(--p-color)' }}>Write a Review</button>
-        </div>
-        <hr className="mb-6 opacity-20" style={{ borderColor: 'var(--t-color)' }}/>
-        <div className="space-y-6">
-          {reviews.map(r => (
-            <div key={r.id} className="border-b pb-6 last:border-0" style={{ borderColor: 'color-mix(in srgb, var(--t-color) 15%, transparent)' }}>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm" style={{ backgroundColor: 'color-mix(in srgb, var(--p-color) 20%, transparent)', color: 'var(--p-color)' }}>{r.name.charAt(0)}</div>
-                <div><span className="font-bold mr-2">{r.name}</span> <span className="text-xs opacity-50">{r.date}</span></div>
-              </div>
-              <div className="mb-2">{renderStars(r.rating)}</div>
-              <p className="text-sm opacity-90">{r.comment}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // 3. MINIMAL (Clean, lots of whitespace, Apple-esque)
-  if (layout === 'minimal') {
-    return (
-      <div className="p-8 max-w-lg mx-auto text-center" style={{ backgroundColor: 'var(--bg-color)' }}>
-        <h3 className="text-2xl font-light mb-2 tracking-wide">Reviews</h3>
-        <div className="flex justify-center mb-6">{renderStars(5)}</div>
-        <button className="mb-8 text-sm hover:underline" style={{ color: 'var(--p-color)' }}>Add your voice</button>
-        <div className="space-y-8 text-left">
-          {reviews.map(r => (
-            <div key={r.id}>
-              <div className="flex justify-between items-center mb-3">
-                <span className="font-medium tracking-wide">{r.name}</span>
-                {renderStars(r.rating)}
-              </div>
-              <p className="text-sm opacity-70 leading-relaxed font-light">"{r.comment}"</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // 4. GRID (Masonry style cards side by side)
-  if (layout === 'grid') {
-    return (
-      <div className="p-6" style={{ backgroundColor: 'var(--bg-color)' }}>
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-bold">What Customers Say</h3>
-          <button className="px-4 py-2 rounded-lg font-medium text-sm transition-opacity hover:opacity-90" style={{ backgroundColor: 'var(--p-color)', color: 'var(--bg-color)' }}>Review</button>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          {reviews.map(r => (
-            <div key={r.id} className="p-5 rounded-xl shadow-sm" style={{ backgroundColor: 'color-mix(in srgb, var(--t-color) 4%, transparent)' }}>
-              <div className="mb-3">{renderStars(r.rating)}</div>
-              <p className="text-sm opacity-90 mb-4 line-clamp-3">"{r.comment}"</p>
-              <div className="text-xs opacity-60 font-medium">— {r.name}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
- if (layout === 'carousel') {
-    // We add hooks specifically inside the mockup function for the preview!
-    const scrollRef = React.useRef(null);
-    const [isHovered, setIsHovered] = React.useState(false);
-
-    React.useEffect(() => {
-      if (isHovered) return;
-      const interval = setInterval(() => {
-        if (scrollRef.current) {
-          const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
-          if (scrollLeft + clientWidth >= scrollWidth - 10) {
-            scrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
-          } else {
-            scrollRef.current.scrollBy({ left: 250, behavior: 'smooth' });
-          }
-        }
-      }, 3000);
-      return () => clearInterval(interval);
-    }, [isHovered]);
-
-    const scrollPrev = () => scrollRef.current?.scrollBy({ left: -250, behavior: 'smooth' });
-    const scrollNext = () => scrollRef.current?.scrollBy({ left: 250, behavior: 'smooth' });
-
-    // Generate some extra dummy reviews so the carousel actually has something to scroll through!
-    const mockupReviews =[
-      ...reviews, 
-      { id: 3, name: "Elena R.", rating: 5, date: "3 weeks ago", comment: "Fast shipping and amazing support team!" },
-      { id: 4, name: "David K.", rating: 5, date: "1 month ago", comment: "10/10 would buy again. Fits perfectly into my workflow." }
-    ];
-
-    return (
-      <div className="p-6 overflow-hidden" style={{ backgroundColor: 'var(--bg-color)' }}>
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-bold">Latest Reviews</h3>
-          <button className="text-sm font-bold underline" style={{ color: 'var(--p-color)' }}>Write Review</button>
-        </div>
-
-        <div 
-          className="relative group/carousel"
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-        >
-          <button onClick={scrollPrev} className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 z-10 w-8 h-8 rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover/carousel:opacity-100 transition-opacity" style={{ backgroundColor: 'var(--bg-color)', color: 'var(--p-color)', border: '1px solid var(--echo-border)' }}>
-             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M15 18l-6-6 6-6"/></svg>
-          </button>
-          <button onClick={scrollNext} className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 z-10 w-8 h-8 rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover/carousel:opacity-100 transition-opacity" style={{ backgroundColor: 'var(--bg-color)', color: 'var(--p-color)', border: '1px solid var(--echo-border)' }}>
-             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M9 18l6-6-6-6"/></svg>
-          </button>
-
-          <div ref={scrollRef} className="flex gap-4 overflow-x-auto no-scrollbar py-2 px-1 snap-x scroll-smooth">
-            {mockupReviews.map(r => (
-              <div key={r.id} className="p-5 rounded-2xl shrink-0 w-[240px] snap-center border shadow-sm flex flex-col justify-between" style={{ backgroundColor: 'color-mix(in srgb, var(--t-color) 2%, transparent)', borderColor: 'var(--echo-border)' }}>
-                <div>
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="font-bold">{r.name}</div>
-                    {renderStars(r.rating)}
-                  </div>
-                  <p className="text-sm opacity-80 line-clamp-3 mb-2">"{r.comment}"</p>
-                </div>
-                <div className="text-xs opacity-50">{r.date}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // 6. NEO-BRUTALISM (Bold, Sharp, High Contrast)
-  if (layout === 'brutalism') {
-    return (
-      <div className="p-8 border-4 border-black" style={{ backgroundColor: 'var(--bg-color)' }}>
-        <div className="flex justify-between items-center mb-8 border-b-4 border-black pb-4">
-          <h3 className="text-2xl font-black uppercase tracking-widest">Reviews</h3>
-          <button className="px-6 py-2 border-2 border-black font-black uppercase tracking-wider hover:-translate-y-1 hover:translate-x-1 transition-transform" style={{ backgroundColor: 'var(--p-color)', color: '#000', boxShadow: '-4px 4px 0px 0px #000' }}>Review</button>
-        </div>
-        <div className="space-y-6">
-          {reviews.map(r => (
-            <div key={r.id} className="p-5 border-2 border-black transition-transform hover:-translate-y-1 hover:translate-x-1" style={{ backgroundColor: '#fff', color: '#000', boxShadow: '-6px 6px 0px 0px #000' }}>
-              <div className="flex justify-between items-center mb-2">
-                <span className="font-black text-lg">{r.name}</span>
-                {renderStars(r.rating)}
-              </div>
-              <p className="font-medium">"{r.comment}"</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-  return null;
 };

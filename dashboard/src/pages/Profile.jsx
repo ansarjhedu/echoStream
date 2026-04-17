@@ -1,57 +1,51 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../Api';
-import { User, Mail, Lock, Camera, AlertCircle, CheckCircle } from 'lucide-react';
+import { toast } from 'react-toastify'; // <-- Import Toast
+import { User, Mail, Lock, Camera } from 'lucide-react';
 
 export default function Profile() {
-  const { user, login } = useAuth(); // We'll re-use login trick to update context if needed, or just force reload.
-  
-  const[formData, setFormData] = useState({
-    userName: user?.userName || '',
-    email: user?.email || '',
-    password: '',
-    profilePic: null
-  });
-  
+  const { user } = useAuth(); 
+  const [formData, setFormData] = useState({ userName: user?.userName || '', email: user?.email || '', password: '', confirmPassword: '', profilePic: null });
   const [previewImage, setPreviewImage] = useState(user?.profilePic || null);
   const [loading, setLoading] = useState(false);
-  const[status, setStatus] = useState({ type: '', message: '' });
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setFormData({ ...formData, profilePic: file });
-      setPreviewImage(URL.createObjectURL(file)); // Show preview instantly
+      setPreviewImage(URL.createObjectURL(file)); 
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setStatus({ type: '', message: '' });
+    
+    // Front-end password check
+    if (formData.password && formData.password !== formData.confirmPassword) {
+        return toast.error("Passwords do not match!");
+    }
 
+    setLoading(true);
     const submitData = new FormData();
     submitData.append('userName', formData.userName);
     submitData.append('email', formData.email);
-    if (formData.password) submitData.append('password', formData.password);
+    if (formData.password) {
+        submitData.append('password', formData.password);
+        submitData.append('confirmPassword', formData.confirmPassword);
+    }
     if (formData.profilePic) submitData.append('profilePic', formData.profilePic);
 
     try {
-      // Hitting your backend update route
-      await api.put('/users/update', submitData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      
-      setStatus({ type: 'success', message: 'Profile updated successfully! Refreshing...' });
-      // Reload page to re-fetch safe user data from context
+      await api.put('/users/update', submitData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      toast.success('Profile updated successfully! Refreshing...');
       setTimeout(() => window.location.reload(), 1500); 
     } catch (error) {
-      setStatus({ type: 'error', message: error.response?.data || 'Failed to update profile' });
+      toast.error(error.response?.data?.message || error.response?.data || 'Failed to update profile');
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <div className="p-4 md:p-12 relative overflow-y-auto h-full">
       <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-purple-600/20 blur-[120px] rounded-full pointer-events-none"></div>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../Api';
+import { toast } from 'react-toastify';
 import { User, Trash2, Clock, RefreshCcw } from 'lucide-react'; // <-- Added RefreshCcw icon
 
 export default function AdminUsers() {
@@ -16,7 +17,7 @@ export default function AdminUsers() {
       const res = await api.get('/admin/user/list');
       setUsers(res.data.data ||[]);
     } catch (error) {
-      console.error("Failed to fetch users", error);
+      toast.error("Failed to fetch users");
     } finally {
       setLoading(false);
     }
@@ -28,7 +29,7 @@ export default function AdminUsers() {
       await api.patch(`/admin/user/${userId}`);
       setUsers(users.map(u => u._id === userId ? { ...u, isDeleted: true, deletedAt: Date.now() } : u));
     } catch (error) {
-      alert("Failed to delete user");
+      toast.error("Failed to delete user");
     }
   };
 
@@ -39,7 +40,7 @@ export default function AdminUsers() {
       await api.patch(`/admin/user/${userId}/restore`);
       setUsers(users.map(u => u._id === userId ? { ...u, isDeleted: false, deletedAt: null } : u));
     } catch (error) {
-      alert("Failed to restore user");
+      toast.error("Failed to restore user");
     }
   };
 

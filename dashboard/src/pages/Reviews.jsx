@@ -5,6 +5,7 @@ import {
   MessageSquare, CheckCircle, XCircle, AlertOctagon, 
   ArrowLeft, Package, Star 
 } from 'lucide-react';
+import toast from 'react-toastify'; // <-- Import Toast
 
 export default function Reviews() {
   const { activeStore } = useAuth(); // Know which store we are working in!
@@ -27,7 +28,7 @@ export default function Reviews() {
       const res = await api.get(`/store/${activeStore._id}/products`);
       setProducts(res.data.data ||[]);
     } catch (error) {
-      console.error("Failed to load products");
+      toast.error("Failed to load products");
     } finally {
       setLoading(false);
     }
@@ -41,7 +42,7 @@ export default function Reviews() {
       const res = await api.get(`/store/${activeStore._id}/reviews?productId=${product._id}`);
       setReviews(res.data ||[]);
     } catch (error) {
-      console.error("Failed to load reviews");
+      toast.error("Failed to load reviews");
     } finally {
       setLoading(false);
     }
@@ -52,7 +53,7 @@ export default function Reviews() {
       await api.patch(`/store/${activeStore._id}/updateReview/${id}/status`, { status });
       setReviews(reviews.map(r => r._id === id ? { ...r, status } : r));
     } catch (error) {
-      alert("Failed to update status. Verified reviews cannot be rejected.");
+      toast.error("Failed to update status. Verified reviews cannot be rejected.");
     }
   };
 
@@ -63,7 +64,7 @@ export default function Reviews() {
       setReviews(reviews.map(r => r._id === id ? res.data.data : r));
       setReplyText({ ...replyText, [id]: '' });
     } catch (error) {
-      alert("Failed to send reply");
+      toast.error("Failed to send reply");
     }
   };
 

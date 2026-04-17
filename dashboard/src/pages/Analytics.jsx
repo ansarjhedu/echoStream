@@ -3,6 +3,7 @@ import api from '../Api';
 import { useAuth } from '../context/AuthContext';
 import { BarChart3 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
+import { toast } from 'react-toastify';
 
 import StoreOverview from '../components/analytics/StoreOverview';
 import ProductPerformance from '../components/analytics/ProductPerformance';
@@ -30,7 +31,7 @@ export default function Analytics() {
       setProducts(prodRes.data.data ||[]);
       setReviews(revRes.data ||[]); 
     } catch (error) {
-      console.error("Analytics fetch failed", error);
+      toast.error("Analytics fetch failed");
     } finally {
       setLoading(false);
     }

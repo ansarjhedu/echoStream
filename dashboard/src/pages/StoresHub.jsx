@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../Api';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'react-toastify'; // <-- Import Toast
 import { 
   Store, Plus, Server, ShoppingCart, ChevronRight, 
   X, AlertCircle, Ban, CheckCircle, Trash, Clock, Lock 
@@ -9,11 +10,10 @@ import {
 
 export default function StoresHub() {
   const [stores, setStores] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const[isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ storeName: '', storeType: 'ecommerce' }); // Removed hosting
+  const[loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState({ storeName: '', storeType: 'ecommerce', storeHosting: 'shopify' });
   const [submitLoading, setSubmitLoading] = useState(false);
-  const [error, setError] = useState('');
   
   const { user, setActiveStore } = useAuth();
   const navigate = useNavigate();
@@ -24,62 +24,79 @@ export default function StoresHub() {
     try {
       const res = await api.get('/store/mystores');
       setStores(res.data.data ||[]);
-    } catch (error) { console.error("Failed to fetch stores", error); } 
-    finally { setLoading(false); }
+    } catch (error) {
+      toast.error("Failed to fetch your stores.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCreateStore = async (e) => {
     e.preventDefault();
-    setSubmitLoading(true); setError('');
+    setSubmitLoading(true);
     try {
       const res = await api.post('/store/create', formData);
       setStores([res.data.data, ...stores]);
       setIsModalOpen(false);
-      setFormData({ storeName: '', storeType: 'ecommerce' });
-    } catch (err) { setError(err.response?.data || "Failed to create store"); } 
-    finally { setSubmitLoading(false); }
+      setFormData({ storeName: '', storeType: 'ecommerce', storeHosting: 'shopify' });
+      toast.success("Store initialized successfully! 🚀");
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.response?.data || "Failed to create store");
+    } finally {
+      setSubmitLoading(false);
+    }
   };
 
-  const updateStoreApi = async (storeId, payload) => {
+  const updateStoreApi = async (storeId, payload, successMessage) => {
     try {
       const res = await api.patch(`/store/${storeId}/status`, payload);
       setStores(stores.map(s => s._id === storeId ? res.data.data : s));
-    } catch (error) { alert(error.response?.data || "Failed to update store status"); }
+      toast.success(successMessage);
+    } catch (error) {
+      toast.error(error.response?.data?.message || error.response?.data || "Failed to update store");
+    }
   };
 
   const handleToggleStatus = (e, store) => {
     e.stopPropagation(); 
     if(!window.confirm(`Are you sure you want to ${store.status === 'live' ? 'DISABLE' : 'ACTIVATE'} this store?`)) return;
-    updateStoreApi(store._id, { status: store.status === 'live' ? 'disabled' : 'live', isDeleted: false });
+    
+    updateStoreApi(store._id, { 
+      status: store.status === 'live' ? 'disabled' : 'live', 
+      isDeleted: false 
+    }, `Store is now ${store.status === 'live' ? 'disabled' : 'live'}.`);
   };
 
   const handleDelete = (e, store) => {
     e.stopPropagation();
     if(!window.confirm("Soft delete this store? It will stop working and be permanently removed in 30 days.")) return;
-    updateStoreApi(store._id, { status: 'deleted', isDeleted: true });
+    updateStoreApi(store._id, { status: 'deleted', isDeleted: true }, "Store moved to trash.");
+  };
+
+  const handleRestore = (e, store) => {
+    e.stopPropagation();
+    if(!window.confirm("Restore this store? It will go back live immediately.")) return;
+    updateStoreApi(store._id, { status: 'live', isDeleted: false }, "Store restored successfully!");
   };
 
   const handleLockedRestoreRequest = (e, store) => {
     e.stopPropagation();
-    let reason = "marked for deletion";
-    if (store.status === "suspended") reason = "suspended by a Platform Administrator";
-    if (store.status === "disputed") reason = "currently locked due to an active dispute";
-    alert(`🔒 RESTORE LOCKED\n\nThis store is ${reason}. \n\nYou must contact platform support to request restoration or resolve this issue.`);
+    let reason = store.status === "suspended" ? "suspended by a Platform Administrator" : "locked due to an active dispute";
+    toast.warning(`RESTORE LOCKED: This store is ${reason}. Please contact support.`);
   };
 
   const handleStoreClick = (store) => {
-    if (store.isDeleted ||["suspended", "disputed"].includes(store.status)) {
-      alert(`Store is currently locked (${store.isDeleted ? 'deleted' : store.status}). You cannot access the workspace.`);
+    if (store.isDeleted || ["suspended", "disputed"].includes(store.status)) {
+      toast.error(`Access Denied: Store is currently ${store.isDeleted ? 'deleted' : store.status}.`);
       return;
     }
     setActiveStore(store);  
-    navigate('/workspace/analytics/overview');  // Updated route
+    navigate('/workspace/analytics/overview');  
   };
 
   const getDaysLeft = (deletedAt) => {
     if (!deletedAt) return 0;
-    const daysPassed = Math.floor((Date.now() - new Date(deletedAt).getTime()) / (1000 * 60 * 60 * 24));
-    return Math.max(0, 30 - daysPassed);
+    return Math.max(0, 30 - Math.floor((Date.now() - new Date(deletedAt).getTime()) / (1000 * 60 * 60 * 24)));
   };
 
   return (
