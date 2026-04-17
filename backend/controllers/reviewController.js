@@ -36,8 +36,6 @@ const createReview=async(req,res)=>{
     }   
 };
 
-import { recalculateProductStats } from "../services/reviewService.js";
-import Review from "../models/Review.js";
 
 const updateReviewStatus = async (req, res) => {
     try {
@@ -45,10 +43,9 @@ const updateReviewStatus = async (req, res) => {
         let { status } = req.body;
         const storeId = req.store._id;
 
-        // Clean up the string just in case frontend sends 'disputed' instead of 'dispute'
-        if (status === "disputed") status = "dispute";
+        
 
-        if (!["approved", "rejected", "dispute"].includes(status)) {
+        if (!["approved", "rejected", "disputed"].includes(status)) {
             return res.status(400).json({ message: "Invalid status provided." });
         }
 
