@@ -5,7 +5,7 @@ import {
   Copy, Check, Code, LayoutTemplate, Palette, Type, 
   Save, AlertCircle, Star, MessageSquare 
 } from 'lucide-react';
-import { toast } from 'react-toastify';
+
 
 export default function Integration() {
   const { activeStore } = useAuth();
