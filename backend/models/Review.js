@@ -43,12 +43,13 @@ const reviewSchema=new schema({
     },
     status:{
         type:String,
-        enum:["pending","approved","rejected","dispute"],
-        default:"pending",
+        enum:["approved","rejected","disputed"],
+        default:"approved",
     },
      disputeCount: {
         type: Number,
-        default: 0
+        default: 0,
+        max: 3
     },
     isLocked: {
         type: Boolean,

@@ -1,20 +1,53 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { User, Mail, Lock, AlertCircle, ArrowRight, Store } from 'lucide-react'; // Added User icon
+import { User, Mail, Lock, AlertCircle, ArrowRight, Store } from 'lucide-react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 export default function AuthPage() {
-  const[isLogin, setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({ userName: '', email: '', password: '' });
   const [loading, setLoading] = useState(false);
-  const[error, setError] = useState('');
+  const [error, setError] = useState('');
+  const [passwordStrength, setPasswordStrength] = useState({ level: '', width: 0, color: '' });
   
   const { login, register } = useAuth();
   const navigate = useNavigate();
 
+  const checkPasswordStrength = (password) => {
+    if (!password) return { level: '', width: 0, color: '' };
+    
+    const hasLetters = /[a-zA-Z]/.test(password);
+    const hasNumbers = /\d/.test(password);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    const length = password.length;
+    
+    let level = 'Weak';
+    let width = 33;
+    let color = 'bg-red-500';
+    
+    if (length >= 8 && hasLetters && hasNumbers && hasSpecial) {
+      level = 'Strong';
+      width = 100;
+      color = 'bg-green-500';
+    } else if (length >= 6 && hasLetters && hasNumbers) {
+      level = 'Medium';
+      width = 66;
+      color = 'bg-yellow-500';
+    }
+    
+    return { level, width, color };
+  };
+
   const handleChange = (e) => {
-    setFormData({ ...formData,[e.target.name]: e.target.value });
-    setError(''); 
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+    setError('');
+    
+    if (name === 'password') {
+      setPasswordStrength(checkPasswordStrength(value));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -25,13 +58,19 @@ export default function AuthPage() {
     try {
       if (isLogin) {
         await login(formData.email, formData.password);
+        toast.success('Logged in successfully');
       } else {
         await register(formData.userName, formData.email, formData.password);
+        toast.success('Account created successfully');
       }
-      // Redirect to the Stores Hub, NOT directly to reviews!
       navigate('/stores');
     } catch (err) {
-      setError(err.response?.data?.message || err.response?.data || 'Authentication failed. Please try again.');
+      const message =
+        err.response?.data?.message ||
+        err.response?.data ||
+        'Authentication failed. Please try again.';
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -104,6 +143,19 @@ export default function AuthPage() {
               className="w-full bg-black/40 border border-white/10 p-3 pl-12 rounded-xl text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all placeholder-gray-600" 
               placeholder="Password" 
             />
+            {formData.password && (
+              <div className="mt-2">
+                <div className="w-full bg-gray-700 rounded-full h-2">
+                  <div
+                    className={`h-2 rounded-full transition-all duration-300 ${passwordStrength.color}`}
+                    style={{ width: `${passwordStrength.width}%` }}
+                  ></div>
+                </div>
+                <p className={`text-xs mt-1 ${passwordStrength.level === 'Strong' ? 'text-green-400' : passwordStrength.level === 'Medium' ? 'text-yellow-400' : 'text-red-400'}`}>
+                  Password Strength: {passwordStrength.level}
+                </p>
+              </div>
+            )}
           </div>
 
           <button 
@@ -120,22 +172,25 @@ export default function AuthPage() {
         </form>
 
         <div className="mt-8 text-center">
-          <button 
+          <button
             type="button"
             onClick={() => {
               setIsLogin(!isLogin);
               setError('');
               setFormData({ userName: '', email: '', password: '' });
+              setPasswordStrength({ level: '', width: 0, color: '' });
             }}
             className="text-gray-400 hover:text-cyan-400 transition-colors text-sm"
           >
             {isLogin ? "Don't have an account? " : "Already have an account? "}
             <span className="font-bold border-b border-transparent hover:border-cyan-400 pb-0.5">
-              {isLogin ? "Register" : "Sign In"}
+              {isLogin ? 'Register' : 'Sign In'}
             </span>
           </button>
         </div>
       </div>
+
+      <ToastContainer position="top-right" autoClose={4000} hideProgressBar={false} newestOnTop />
     </div>
   );
 }

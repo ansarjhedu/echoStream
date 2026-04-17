@@ -19,6 +19,7 @@ const userSchema=new Schema({
     },
     email:{
         type:String,
+        match:/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
         required:true,
         unique:true,
     },
@@ -26,6 +27,9 @@ const userSchema=new Schema({
         type:String,
         required:true,
         select:false,
+        minLength:6,
+        
+
     },
     profilePic:{
         type:String,

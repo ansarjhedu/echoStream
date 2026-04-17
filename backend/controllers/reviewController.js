@@ -42,23 +42,30 @@ const updateReviewStatus = async (req, res) => {
         const { status } = req.body;
         const storeId=req.store._id;
 
-        if(!["approved","dispute","pending"].includes(status) || status==="rejected"){
-            return res.status(400).json({message:"Review is rejected by Admin or Invalid status "});
+        if(!["disputed","approved","rejected"].includes(status)){
+            return res.status(400).json({message:" Invalid status "});
         }
 
-        // 1. Find the review first
-        const review = await Review.findOneAndUpdate({ _id: reviewId, store: storeId }, { status }, { new: true });
-        if (!review) return res.status(404).json({ message: "Review not found" });
+      // 1. Update the review status and increment dispute count
+      const review=await Review.findOne({ _id: reviewId, store: storeId });
+      if(!review ||  review.disputeCount>=3 ){
+        return res.status(404).json({message:"Review not found or cannot be disputed anymore"});
+      }
 
+      if(review.customerEmail && (review.customerEmail.endsWith("@example.com") )){
+
+        review.status=status;
+        review.disputeCount+=1;
+        await review.save();
         // 4. Trigger Recalculation
         await recalculateProductStats(review.product);
           
         res.status(200).json({ message: "Review status updated successfully", data: review });
-    } catch (error) {
+    } 
+}catch (error) {
         res.status(500).json({ message: "Failed to update review status" });
     }
 };
-
     const getStoreProducts=async(req,res)=>{
         try {
             const storeId=req.store._id;

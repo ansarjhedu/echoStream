@@ -168,7 +168,7 @@ const getPlatformAnalytics = async (req, res) => {
 const getDisputedReviews = async (req, res) => {
     try {
         // Fetch all disputed reviews platform-wide, and populate store info!
-        const disputes = await Review.find({ status: "dispute", isDeleted: false })
+        const disputes = await Review.find({ status: "disputed", isDeleted: false })
             .populate('store', 'storeName')
             .sort({ createdAt: -1 });
             
@@ -190,8 +190,8 @@ const resolveDispute = async (req, res) => {
 
         const review = await Review.findByIdAndUpdate(
             reviewId, 
-            { status: resolution }, 
-            { new: true }
+          {status:resolution, isLocked: true}, // Lock the review after resolution to prevent further disputes
+          {new: true}
         );
 
         if (!review) return res.status(404).json("Review not found");

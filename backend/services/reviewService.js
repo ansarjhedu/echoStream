@@ -28,7 +28,7 @@ const createReviewWithDiscovery=async(storeId, reviewData)=>{
             customerEmail: reviewData.customerEmail,
             rating:reviewData.rating,
             comment:reviewData.comment,
-            status:"pending",
+            status:"approved", // default status for new reviews
             images: reviewData.images || [],
         });
         return review;
