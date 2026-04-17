@@ -179,8 +179,6 @@ const getDisputedReviews = async (req, res) => {
     }
 };
 
-import Review from "../models/Review.js";
-import { recalculateProductStats } from '../services/reviewService.js'; 
 
 const resolveDispute = async (req, res) => {
     try {
