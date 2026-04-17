@@ -49,7 +49,7 @@ export default function Reviews() {
   const handleStatusUpdate = async (id, status) => {
     try {
       await api.patch(`/store/${activeStore._id}/updateReview/${id}/status`, { status });
-      setReviews(reviews.map(r => r._id === id ? { ...r, status, disputeCount: status === 'dispute' ? (r.disputeCount || 0) + 1 : r.disputeCount } : r));
+      setReviews(reviews.map(r => r._id === id ? { ...r, status, disputeCount: status === 'disputed' ? (r.disputeCount || 0) + 1 : r.disputeCount } : r));
       toast.success(`Review marked as ${status}`);
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to update status.");
