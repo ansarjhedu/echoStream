@@ -42,7 +42,7 @@ const updateReviewStatus = async (req, res) => {
         const { status } = req.body;
         const storeId=req.store._id;
 
-        if(!["disputed","approved","rejected"].includes(status)){
+        if(!["disputed"].includes(status)){
             return res.status(400).json({message:" Invalid status "});
         }
 

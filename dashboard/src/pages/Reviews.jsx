@@ -3,19 +3,19 @@ import api from '../Api';
 import { useAuth } from '../context/AuthContext';
 import { 
   MessageSquare, CheckCircle, XCircle, AlertOctagon, 
-  ArrowLeft, Package, Star 
+  ArrowLeft, Package, Star, Lock, Trash2 // Added Lock and Trash2 imports
 } from 'lucide-react';
-import toast from 'react-toastify'; // <-- Import Toast
+import { toast } from 'react-toastify';
 
 export default function Reviews() {
-  const { activeStore } = useAuth(); // Know which store we are working in!
+  const { activeStore } = useAuth(); 
   const [products, setProducts] = useState([]);
-  const [selectedProduct, setSelectedProduct] = useState(null);
+  const[selectedProduct, setSelectedProduct] = useState(null);
   
   const [reviews, setReviews] = useState([]);
-  const[loading, setLoading] = useState(true);
-  const [replyText, setReplyText] = useState({});
-    const [lightboxImg, setLightboxImg] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const[replyText, setReplyText] = useState({});
+  const [lightboxImg, setLightboxImg] = useState(null);
 
   useEffect(() => {
     if (activeStore) fetchProducts();
@@ -24,7 +24,6 @@ export default function Reviews() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      // Hitting the new Store-specific route
       const res = await api.get(`/store/${activeStore._id}/products`);
       setProducts(res.data.data ||[]);
     } catch (error) {
@@ -38,7 +37,6 @@ export default function Reviews() {
     setSelectedProduct(product);
     setLoading(true);
     try {
-      // Hitting the new Store-specific route
       const res = await api.get(`/store/${activeStore._id}/reviews?productId=${product._id}`);
       setReviews(res.data ||[]);
     } catch (error) {
@@ -51,9 +49,10 @@ export default function Reviews() {
   const handleStatusUpdate = async (id, status) => {
     try {
       await api.patch(`/store/${activeStore._id}/updateReview/${id}/status`, { status });
-      setReviews(reviews.map(r => r._id === id ? { ...r, status } : r));
+      setReviews(reviews.map(r => r._id === id ? { ...r, status, disputeCount: status === 'dispute' ? (r.disputeCount || 0) + 1 : r.disputeCount } : r));
+      toast.success(`Review marked as ${status}`);
     } catch (error) {
-      toast.error("Failed to update status. Verified reviews cannot be rejected.");
+      toast.error(error.response?.data?.message || "Failed to update status.");
     }
   };
 
@@ -63,8 +62,21 @@ export default function Reviews() {
       const res = await api.post(`/store/${activeStore._id}/reviews/${id}/reply`, { reply: replyText[id] });
       setReviews(reviews.map(r => r._id === id ? res.data.data : r));
       setReplyText({ ...replyText, [id]: '' });
+      toast.success("Reply posted!");
     } catch (error) {
       toast.error("Failed to send reply");
+    }
+  };
+
+  // Helper for deleting GUEST reviews ONLY
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to permanently delete this guest review?")) return;
+    try {
+      await api.delete(`/store/${activeStore._id}/reviews/${id}`);
+      setReviews(reviews.filter(r => r._id !== id));
+      toast.success("Review deleted");
+    } catch (error) {
+      toast.error("Failed to delete review");
     }
   };
 
@@ -141,7 +153,7 @@ export default function Reviews() {
       ) : (
         <div className="space-y-4 md:space-y-6">
           {reviews.map(review => (
-            <div key={review._id} className="bg-white/[0.02] border border-white/10 p-4 md:p-6 rounded-2xl backdrop-blur-xl relative group shadow-lg">
+            <div key={review._id} className={`bg-white/[0.02] border border-white/10 p-4 md:p-6 rounded-2xl backdrop-blur-xl relative group shadow-lg ${review.isLocked ? 'opacity-80' : ''}`}>
               <div className="flex flex-col sm:flex-row justify-between items-start mb-4 gap-4">
                 <div className="w-full">
                   <div className="flex items-center gap-3 mb-1">
@@ -153,48 +165,79 @@ export default function Reviews() {
                   </div>
                 </div>
                 
-                {/* ACTION BUTTONS */}
+                {/* 🚨 NEW SECURE ACTION CONTROLS */}
                 <div className="flex gap-2 bg-black/40 p-1.5 rounded-lg border border-white/5 opacity-100 md:opacity-50 md:group-hover:opacity-100 transition-opacity w-full sm:w-auto justify-end">
-                  {review.status !== 'approved' && (
-                    <button onClick={() => handleStatusUpdate(review._id, 'approved')} className="p-2 text-gray-400 hover:text-green-400 hover:bg-green-400/10 rounded-md" title="Approve">
-                      <CheckCircle size={18} />
-                    </button>
+                  
+                  {review.customerEmail ? (
+                    // ----------------------------------------------------
+                    // FLOW A: VERIFIED BUYER (Auto-approved, Dispute Only)
+                    // ----------------------------------------------------
+                    review.isLocked ? (
+                      <span className="px-3 py-1 text-xs font-bold text-red-400 bg-red-500/10 rounded-md border border-red-500/20 flex items-center gap-1">
+                        <Lock size={14} /> Locked by Admin
+                      </span>
+                    ) : review.status === 'dispute' ? (
+                      <span className="px-3 py-1 text-xs font-bold text-orange-400 flex items-center gap-1">
+                        <AlertOctagon size={14} /> Under Admin Review
+                      </span>
+                    ) : review.status === 'rejected' ? (
+                      <span className="px-3 py-1 text-xs font-bold text-gray-400">Rejected by Admin</span>
+                    ) : (
+                      <button 
+                        onClick={() => handleStatusUpdate(review._id, 'dispute')} 
+                        className="p-2 px-3 text-red-400 hover:bg-red-400/10 rounded-md transition-all flex items-center gap-2 text-xs font-bold" 
+                        title="Dispute Review"
+                      >
+                        <AlertOctagon size={16} /> Dispute ({3 - (review.disputeCount || 0)} left)
+                      </button>
+                    )
+                  ) : (
+                    // ----------------------------------------------------
+                    // FLOW B: GUEST USER (Full manual control)
+                    // ----------------------------------------------------
+                    <>
+                      {review.status !== 'approved' && (
+                        <button onClick={() => handleStatusUpdate(review._id, 'approved')} className="p-2 text-gray-400 hover:text-green-400 hover:bg-green-400/10 rounded-md" title="Approve Guest">
+                          <CheckCircle size={18} />
+                        </button>
+                      )}
+                      {review.status !== 'rejected' && (
+                        <button onClick={() => handleStatusUpdate(review._id, 'rejected')} className="p-2 text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/10 rounded-md" title="Reject Guest">
+                          <XCircle size={18} />
+                        </button>
+                      )}
+                      <div className="w-px h-5 bg-white/10 self-center mx-1"></div>
+                      <button onClick={() => handleDelete(review._id)} className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-400/10 rounded-md" title="Delete Guest Review">
+                        <Trash2 size={18} />
+                      </button>
+                    </>
                   )}
-                  {review.status !== 'rejected' && review.status !== 'dispute' && (
-                    <button onClick={() => handleStatusUpdate(review._id, 'rejected')} className="p-2 text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/10 rounded-md" title="Reject (Guest only)">
-                      <XCircle size={18} />
-                    </button>
-                  )}
-                  <div className="w-px h-5 bg-white/10 self-center mx-1"></div>
-                  {/* DISPUTE BUTTON instead of Delete! */}
-                  <button onClick={() => handleStatusUpdate(review._id, 'dispute')} className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-400/10 rounded-md" title="Dispute Review">
-                    <AlertOctagon size={18} />
-                  </button>
+
                 </div>
               </div>
 
               <p className="text-gray-300 text-sm md:text-base bg-black/20 p-3 md:p-4 rounded-xl border border-white/5">
                 "{review.comment}"
               </p>
+              
               {/* Responsive Images Grid */}
-        {review.images && review.images.length > 0 && (
-          <div className="flex flex-wrap gap-2 md:gap-3 mb-4">
-            {review.images.map((img, idx) => (
-              <div 
-                key={idx} 
-                onClick={() => setLightboxImg(img)}
-                className="overflow-hidden rounded-lg md:rounded-xl border border-white/10 cursor-pointer hover:shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all group/img"
-              >
-                {/* Images grow larger automatically on bigger screens */}
-                <img 
-                  src={img} 
-                  alt="Review Upload" 
-                  className="w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 object-cover group-hover/img:scale-110 transition-transform duration-300" 
-                />
-              </div>
-            ))}
-          </div>
-        )}
+              {review.images && review.images.length > 0 && (
+                <div className="flex flex-wrap gap-2 md:gap-3 mt-4 mb-4">
+                  {review.images.map((img, idx) => (
+                    <div 
+                      key={idx} 
+                      onClick={() => setLightboxImg(img)}
+                      className="overflow-hidden rounded-lg md:rounded-xl border border-white/10 cursor-pointer hover:shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all group/img"
+                    >
+                      <img 
+                        src={img} 
+                        alt="Review Upload" 
+                        className="w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 object-cover group-hover/img:scale-110 transition-transform duration-300" 
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Merchant Reply */}
               {review.merchantReply ? (
@@ -204,7 +247,7 @@ export default function Reviews() {
                 </div>
               ) : (
                 <div className="flex gap-2 mt-4">
-                  <input type="text" placeholder="Write a public reply..." value={replyText[review._id] || ''} onChange={(e) => setReplyText({ ...replyText, [review._id]: e.target.value })} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-cyan-400" />
+                  <input type="text" placeholder="Write a public reply..." value={replyText[review._id] || ''} onChange={(e) => setReplyText({ ...replyText,[review._id]: e.target.value })} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-cyan-400" />
                   <button onClick={() => handleReply(review._id)} className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-bold">Reply</button>
                 </div>
               )}
@@ -212,7 +255,8 @@ export default function Reviews() {
           ))}
         </div>
       )}
-        {/* FULL-SCREEN LIGHTBOX OVERLAY */}
+      
+      {/* FULL-SCREEN LIGHTBOX OVERLAY */}
       {lightboxImg && (
         <div 
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 transition-opacity" 
@@ -228,7 +272,7 @@ export default function Reviews() {
             src={lightboxImg} 
             alt="Expanded Review" 
             className="max-w-full max-h-[85vh] md:max-h-[90vh] object-contain rounded-lg shadow-[0_0_50px_rgba(0,0,0,0.8)] border border-white/10" 
-            onClick={(e) => e.stopPropagation()} // Prevent closing if they click the image itself
+            onClick={(e) => e.stopPropagation()} 
           />
         </div>
       )}
