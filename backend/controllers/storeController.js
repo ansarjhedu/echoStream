@@ -176,7 +176,7 @@ const getStoreAnalytics = async (req, res) => {
             Product.countDocuments({ store: storeId, isDeleted: false }),
             Review.countDocuments({ store: storeId, isDeleted: false }),
             Review.countDocuments({ store: storeId, status: "approved", isDeleted: false }),
-            Review.countDocuments({ store: storeId, status: "pending", isDeleted: false })
+            Review.countDocuments({ store: storeId, status: "rejected", isDeleted: false })
         ]);
 
         return res.status(200).json({

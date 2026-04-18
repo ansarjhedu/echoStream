@@ -29,6 +29,8 @@ const createReview=async(req,res)=>{
         }
     
         const review=await createReviewWithDiscovery(req.store._id, reviewData);
+        await recalculateProductStats(review.product);
+        
         res.status(201).json(review);
     } catch (error) {
         console.error("Error in createReview controller",error.message);
