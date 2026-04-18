@@ -96,12 +96,6 @@ note: Make sure to replace the placeholder values with actual product and custom
         </button>
       </div>
 
-      {saveStatus.message && (
-        <div className={`mb-6 p-4 rounded-xl text-sm font-bold flex items-center gap-2 ${saveStatus.type === 'success' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-          <AlertCircle size={18} /> {saveStatus.message}
-        </div>
-      )}
-
       <div className="flex flex-col xl:flex-row gap-8 w-full min-h-0">
         
         {/* LEFT COLUMN: CONTROLS */}

@@ -3,69 +3,175 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Awesome Store</title>
-    
-    <!-- Client's own website styles (Widget should not break these) -->
+    <title>Lumina Audio | Premium Gear</title>
+    <!-- Tailwind CSS for styling the dummy store -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body {
-            font-family: 'Georgia', serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 40px;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        }
-        h1 { color: #333; }
-        .product-image {
-            width: 100%;
-            height: 300px;
-            background: #ddd;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 8px;
-            margin-bottom: 30px;
-            color: #666;
-            font-family: sans-serif;
-        }
+        body { font-family: 'Inter', system-ui, sans-serif; background-color: #f8fafc; }
+        .glass-nav { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); border-bottom: 1px solid #e2e8f0; }
     </style>
-
 </head>
-<body>
+<body class="text-slate-800">
 
-    <div class="container">
-        <h1>Cyberpunk Smart Watch</h1>
-        <div class="product-image">Product Image Goes Here</div>
-        <p>This is the client's awesome product page. The reviews should seamlessly drop in below this text.</p>
+    <!-- Store Navigation -->
+    <nav class="glass-nav fixed top-0 w-full z-50 transition-all">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="?" class="text-2xl font-black tracking-tighter text-indigo-600">LUMINA.</a>
+            <div class="flex gap-6 font-medium text-sm">
+                <a href="?" class="hover:text-indigo-600 transition-colors">Shop</a>
+                <a href="#" class="hover:text-indigo-600 transition-colors">About</a>
+                <a href="#" class="hover:text-indigo-600 transition-colors">Cart (0)</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main id="app-root" class="pt-24 pb-20 min-h-screen"></main>
+
+    <!-- Store Footer -->
+    <footer class="bg-slate-900 text-slate-400 py-12 text-center text-sm">
+        <p>© 2026 Lumina Audio. This is a demo store for EchoStream.</p>
+    </footer>
+
+    <script>
+        // ==========================================
+        // ⚙️ ECHOSTREAM CONFIGURATION
+        // ==========================================
+        // Paste your Live Store API Key here:
+        const ECHOSTREAM_API_KEY = "20d10bd58a210131a6d17452ba382119"; 
         
-        <hr style="margin: 40px 0; border: 1px solid #eee;">
+        // Point this to your backend widget file
+        const WIDGET_SCRIPT_URL = "https://echo-stream-5nch.vercel.app/widget/echo-widget.js"; 
 
-              <!-- 2. ADD THE WIDGET HTML TAG -->
-        <!-- Replace data-api-key with an actual API key generated from your database -->
-      <!-- 1. Add this to your HTML <head> -->
-    <!-- 1. Add this to your HTML <head> -->
-<!-- <script src="http://localhost:3000/widget/echo-widget.js" defer></script> -->
-<script src="https://echo-stream-5nch.vercel.app/widget/echo-widget.js" defer></script>
 
-<!-- 2. Place this where you want the reviews to appear -->
-<div 
-  class="echo-reviews-widget" 
-  data-api-key="20d10bd58a210131a6d17452ba382119" 
-  data-product-handle="productrandom111" 
-  data-product-title="random Product111"
-  data-customer-name="john"
-  data-customer-email="john@gmail.com"
- >
-</div>
-   </div>
-    
-  
+        // ==========================================
+        // 📦 DUMMY DATABASE
+        // ==========================================
+        const products =[
+            {
+                id: "neon-headphones-v2",
+                title: "Neon Pulse Wireless Headphones",
+                price: "$299.00",
+                image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop",
+                description: "Experience studio-quality sound with active noise cancellation and 40-hour battery life. Designed for audiophiles."
+            },
+            {
+                id: "quantum-keyboard",
+                title: "Quantum Mechanical Keyboard",
+                price: "$149.00",
+                image: "https://images.unsplash.com/photo-1595225476474-87563907a212?q=80&w=800&auto=format&fit=crop",
+                description: "Tactile, responsive, and fully customizable RGB. The ultimate tool for developers and gamers alike."
+            },
+            {
+                id: "cyber-watch-x",
+                title: "CyberWatch X-Series",
+                price: "$399.00",
+                image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=800&auto=format&fit=crop",
+                description: "Track your health, manage your notifications, and look incredible doing it with aerospace-grade titanium."
+            }
+        ];
 
+        // ==========================================
+        // 🖥️ ROUTING ENGINE
+        // ==========================================
+        const appRoot = document.getElementById('app-root');
+        const urlParams = new URLSearchParams(window.location.search);
+        const productId = urlParams.get('product');
+
+        if (productId) {
+            renderProductPage(productId);
+        } else {
+            renderHomePage();
+        }
+
+        // --- HOMEPAGE RENDERING (Product Grid) ---
+        function renderHomePage() {
+            let gridHtml = `
+                <div class="max-w-6xl mx-auto px-6">
+                    <h1 class="text-4xl font-black mb-2 mt-8">Latest Arrivals</h1>
+                    <p class="text-slate-500 mb-10">Premium gear designed for the modern creator.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            `;
+
+            products.forEach(p => {
+                gridHtml += `
+                    <a href="?product=${p.id}" class="group block">
+                        <div class="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100">
+                            <div class="h-64 overflow-hidden bg-slate-100">
+                                <img src="${p.image}" alt="${p.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                            </div>
+                            <div class="p-6">
+                                <h3 class="text-lg font-bold mb-1 group-hover:text-indigo-600 transition-colors">${p.title}</h3>
+                                <p class="text-slate-500 font-medium">${p.price}</p>
+                            </div>
+                        </div>
+                    </a>
+                `;
+            });
+
+            gridHtml += `</div></div>`;
+            appRoot.innerHTML = gridHtml;
+        }
+
+        // --- PRODUCT PAGE RENDERING (Detail + Widget) ---
+        function renderProductPage(id) {
+            const product = products.find(p => p.id === id);
+            
+            if (!product) {
+                appRoot.innerHTML = `<div class="text-center mt-20"><h1 class="text-2xl font-bold">Product not found.</h1><a href="?" class="text-indigo-600 underline">Go back</a></div>`;
+                return;
+            }
+
+            // 1. Render the HTML
+            appRoot.innerHTML = `
+                <div class="max-w-6xl mx-auto px-6">
+                    <!-- Breadcrumbs -->
+                    <div class="mb-8 text-sm font-medium text-slate-400">
+                        <a href="?" class="hover:text-indigo-600">Home</a> / Shop / <span class="text-slate-800">${product.title}</span>
+                    </div>
+
+                    <!-- Product Top Section -->
+                    <div class="flex flex-col md:flex-row gap-12 mb-20">
+                        <div class="w-full md:w-1/2">
+                            <img src="${product.image}" alt="${product.title}" class="w-full rounded-2xl shadow-lg object-cover aspect-square" />
+                        </div>
+                        <div class="w-full md:w-1/2 flex flex-col justify-center">
+                            <h1 class="text-4xl md:text-5xl font-black mb-4 tracking-tight">${product.title}</h1>
+                            <p class="text-2xl font-bold text-indigo-600 mb-6">${product.price}</p>
+                            <p class="text-slate-600 text-lg leading-relaxed mb-8">${product.description}</p>
+                            
+                            <button class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-8 rounded-xl shadow-lg shadow-indigo-200 transition-all active:scale-95 mb-4">
+                                Add to Cart
+                            </button>
+                            <p class="text-sm text-slate-400 flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                In stock and ready to ship
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- REVIEWS SECTION (ECHOSTREAM WIDGET INJECTION) -->
+                    <div class="pt-16 border-t border-slate-200">
+                        
+                        <!-- 🚨 THIS IS THE ECHOSTREAM WIDGET TAG 🚨 -->
+                        <div 
+                            class="echo-reviews-widget" 
+                            data-api-key="${ECHOSTREAM_API_KEY}" 
+                            data-product-handle="${product.id}" 
+                            data-product-title="${product.title}">
+                        </div>
+
+                    </div>
+                </div>
+            `;
+
+            // 2. Dynamically load the EchoStream Script
+            // We do this dynamically so it executes AFTER the widget div is placed in the DOM!
+            const script = document.createElement('script');
+            script.src = WIDGET_SCRIPT_URL;
+            script.defer = true;
+            document.body.appendChild(script);
+        }
+    </script>
 </body>
 </html>
