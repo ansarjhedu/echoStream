@@ -180,7 +180,6 @@ export default function StoresHub() {
           <div className="bg-[#0A0F1A] border border-white/10 p-6 md:p-8 rounded-2xl w-full max-w-md shadow-2xl relative animate-fade-in-down">
             <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"><X size={24} /></button>
             <h2 className="text-xl md:text-2xl font-bold text-white mb-6">Initialize New Store</h2>
-            {error && <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/50 flex items-start gap-2 text-red-400 text-sm"><AlertCircle size={16} className="mt-0.5 shrink-0" /><p>{error}</p></div>}
             <form onSubmit={handleCreateStore} className="space-y-4 md:space-y-5">
               <div>
                 <label className="block text-xs md:text-sm text-gray-400 mb-2">Store Name</label>

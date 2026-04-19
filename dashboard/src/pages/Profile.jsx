@@ -57,12 +57,6 @@ export default function Profile() {
 
         <div className="bg-white/[0.02] border border-white/10 p-6 md:p-10 rounded-[2rem] backdrop-blur-xl shadow-2xl">
           
-          {status.message && (
-            <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-sm font-bold ${status.type === 'error' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-green-500/10 text-green-400 border border-green-500/20'}`}>
-              {status.type === 'error' ? <AlertCircle size={20} /> : <CheckCircle size={20} />}
-              {status.message}
-            </div>
-          )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             

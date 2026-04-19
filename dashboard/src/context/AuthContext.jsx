@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import api from '../Api';
 import { setAccessToken } from '../Api';
-
+import { toast } from 'react-toastify';
 const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
 let initialized = false;
@@ -43,7 +43,7 @@ export const AuthProvider = ({ children }) => {
         setAccessToken(res.data.accessToken);
         setUser(res.data.user);
       } catch (error) {
-        console.error("Session expired, logging out.");
+        toast.error("Session expired. Please log in again.");
         setUser(null);
         setActiveStore(null); // Clear active store on logout
         localStorage.removeItem('has_session');
@@ -82,7 +82,7 @@ export const AuthProvider = ({ children }) => {
     try {
       await api.post('/users/logout');
     } catch (err) {
-      console.error("Logout failed", err);
+      toast.error("Logout failed. Please try again.");
     } finally {
       setAccessToken(null);
       setUser(null);
