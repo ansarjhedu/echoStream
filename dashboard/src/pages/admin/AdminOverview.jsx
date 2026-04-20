@@ -13,8 +13,7 @@ export default function AdminOverview() {
   const[disputes, setDisputes] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // NEW: State to control which chart data is showing
-  const [chartTimeframe, setChartTimeframe] = useState('7d'); // '7d' or '30d'
+  const[chartTimeframe, setChartTimeframe] = useState('7d'); // '7d' or '30d'
 
   useEffect(() => {
     const fetchData = async () => {
@@ -25,10 +24,13 @@ export default function AdminOverview() {
           api.get('/admin/user/list'),
           api.get('/admin/disputes')
         ]);
-        setAnalytics(statRes.data.data);
-        setStores(storeRes.data.data ||[]);
-        setUsers(userRes.data.data ||[]);
-        setDisputes(dispRes.data.data ||[]);
+        
+        // 🚨 FIX 1: Robust payload mapping to catch 'storesWithOwner' or standard 'data'
+        setAnalytics(statRes.data?.data || statRes.data || null);
+        setStores(storeRes.data?.storesWithOwner || storeRes.data?.data ||[]);
+        setUsers(userRes.data?.data || []);
+        setDisputes(dispRes.data?.data ||[]);
+
       } catch (error) {
         toast.error("Admin fetch failed");
       } finally {
@@ -40,14 +42,15 @@ export default function AdminOverview() {
 
   // 1. 7-Day Growth Data
   const growthData7d = useMemo(() => {
-    const last7Days = [...Array(7)].map((_, i) => {
+    const last7Days =[...Array(7)].map((_, i) => {
       const d = new Date(); 
       d.setDate(d.getDate() - (6 - i));
       return d.toISOString().split('T')[0];
     });
     return last7Days.map(dateStr => {
       const dailyStores = stores.filter(s => s.createdAt?.startsWith(dateStr)).length;
-      const dailyUsers = users.filter(u => u.createdAt?.startsWith(dateStr)).length;
+      // Filter out 'admin' from graph so we only track real merchants
+      const dailyUsers = users.filter(u => u.role === 'owner' && u.createdAt?.startsWith(dateStr)).length;
       return { 
         name: new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short' }), 
         stores: dailyStores, 
@@ -55,7 +58,7 @@ export default function AdminOverview() {
         fullDate: dateStr 
       };
     });
-  }, [stores, users]);
+  },[stores, users]);
 
   // 2. 30-Day Growth Data
   const growthData30d = useMemo(() => {
@@ -66,8 +69,7 @@ export default function AdminOverview() {
     });
     return last30Days.map(dateStr => {
       const dailyStores = stores.filter(s => s.createdAt?.startsWith(dateStr)).length;
-      const dailyUsers = users.filter(u => u.createdAt?.startsWith(dateStr)).length;
-      // Use Month + Day for the 30-day X-Axis (e.g. "Apr 12")
+      const dailyUsers = users.filter(u => u.role === 'owner' && u.createdAt?.startsWith(dateStr)).length;
       return { 
         name: new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), 
         stores: dailyStores, 
@@ -77,7 +79,6 @@ export default function AdminOverview() {
     });
   }, [stores, users]);
 
-  // Determine which dataset to feed the chart
   const activeChartData = chartTimeframe === '7d' ? growthData7d : growthData30d;
 
   const StoreTypeData = useMemo(() => {
@@ -136,7 +137,8 @@ export default function AdminOverview() {
         <div>
           <h3 className="text-lg font-bold text-white mb-1">Welcome back, {user?.userName}</h3>
           <p className="text-gray-300 text-sm leading-relaxed">
-            EchoStream is hosting <strong>{stores.filter(s=>!s.isDeleted).length} widgets</strong> across {users.filter(u=>!u.isDeleted).length} active owners. 
+            {/* 🚨 FIX 2: Standardized Welcome Message to use the same numbers as Stat Cards */}
+            EchoStream is hosting <strong>{analytics?.activeStores || 0} active widgets</strong> across <strong>{analytics?.totalUsers || 0} active owners.</strong> 
             {topOwner && ` Your top merchant is ${topOwner.userName} (${topOwner.storeCount} stores).`}
             {disputes.length > 0 ? <span className="text-red-400 ml-1"> {disputes.length} disputes need attention!</span> : ' No disputes today.'}
           </p>
@@ -144,66 +146,33 @@ export default function AdminOverview() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard title="Total Owners" value={analytics?.totalUsers} />
-        <StatCard title="Total Stores" value={analytics?.totalStores} />
-        <StatCard title="Active Integrations" value={analytics?.activeStores} color="text-green-400" />
-        <StatCard title="Pending Disputes" value={analytics?.disputedReviews} color="text-red-400" />
+        {/* 🚨 FIX 3: Stat cards now rely on identical backend analytic variables */}
+        <StatCard title="Total Owners" value={analytics?.totalUsers || 0} />
+        <StatCard title="Total Stores" value={analytics?.totalStores || 0} />
+        <StatCard title="Active Integrations" value={analytics?.activeStores || 0} color="text-green-400" />
+        
+        {/* 🚨 FIX 4: Bound directly to disputes.length so it updates LIVE as you resolve them! */}
+        <StatCard title="Pending Disputes" value={disputes.length} color="text-red-400" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* CHART SECTION */}
         <div className="lg:col-span-2 bg-black/20 border border-white/5 p-6 rounded-2xl flex flex-col">
-          
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <h3 className="text-sm font-bold text-gray-400">New Registrations</h3>
-            
-            {/* NEW: Timeframe Toggle */}
             <div className="flex bg-black/40 rounded-lg p-1 border border-white/10">
-              <button 
-                onClick={() => setChartTimeframe('7d')}
-                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${chartTimeframe === '7d' ? 'bg-red-500/20 text-red-400 shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-              >
-                7 Days
-              </button>
-              <button 
-                onClick={() => setChartTimeframe('30d')}
-                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${chartTimeframe === '30d' ? 'bg-red-500/20 text-red-400 shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-              >
-                30 Days
-              </button>
+              <button onClick={() => setChartTimeframe('7d')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${chartTimeframe === '7d' ? 'bg-red-500/20 text-red-400 shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}>7 Days</button>
+              <button onClick={() => setChartTimeframe('30d')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${chartTimeframe === '30d' ? 'bg-red-500/20 text-red-400 shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}>30 Days</button>
             </div>
           </div>
-
           <div className="flex-1 min-h-[250px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              {/* Feeds the active data based on state! */}
               <AreaChart data={activeChartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="colorStores" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
-                  </linearGradient>
+                  <linearGradient id="colorStores" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/><stop offset="95%" stopColor="#f97316" stopOpacity={0}/></linearGradient>
+                  <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/><stop offset="95%" stopColor="#ef4444" stopOpacity={0}/></linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                
-                {/* 
-                  When showing 30 days, we skip some ticks so the labels don't crush into each other.
-                  minTickGap helps keep it clean automatically! 
-                */}
-                <XAxis 
-                  dataKey="name" 
-                  stroke="#6b7280" 
-                  fontSize={12} 
-                  tickLine={false} 
-                  axisLine={false} 
-                  minTickGap={20} 
-                />
-                
+                <XAxis dataKey="name" stroke="#6b7280" fontSize={12} tickLine={false} axisLine={false} minTickGap={20} />
                 <YAxis stroke="#6b7280" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
                 <RechartsTooltip content={<CustomTooltip />} />
                 <Area type="monotone" dataKey="stores" name="New Stores" stroke="#f97316" strokeWidth={3} fill="url(#colorStores)" />
@@ -213,7 +182,7 @@ export default function AdminOverview() {
           </div>
         </div>
 
-        {/* HOSTING DISTRIBUTION */}
+        {/* 🚨 FIX 5: Graph will now properly populate because the stores array is populated! */}
         <div className="bg-black/20 border border-white/5 p-6 rounded-2xl flex flex-col">
           <h3 className="text-sm font-bold text-gray-400 mb-2">Store Type Distribution</h3>
           <div className="flex-1 min-h-[200px] w-full relative flex items-center justify-center">
@@ -237,7 +206,6 @@ export default function AdminOverview() {
             ))}
           </div>
         </div>
-        
       </div>
     </div>
   );
