@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { Navigate } from "react-router-dom";
 import { X, Menu, BarChart3,Package,Code,ArrowLeft} from "lucide-react";
 const StoreLayout = ({ children }) => {
-  const { activeStore, setActiveStore } = useAuth();
+  const { activeStore, setActiveStore,user } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
 
@@ -93,9 +93,15 @@ const StoreLayout = ({ children }) => {
         </div>
 
         <div className="p-4 border-t border-white/10 space-y-2">
+        {user.role === 'admin' ? (
+          <Link to="/admin" onClick={closeMenu} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-gray-400 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold">
+            <User size={18} /> Admin Hub
+          </Link>
+        ):(
           <Link to="/hub/stores" onClick={() => { closeMenu(); setActiveStore(null); }} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-gray-400 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold">
             <ArrowLeft size={18} /> Back to Hub
           </Link>
+        )}
         </div>
       </aside>
 
