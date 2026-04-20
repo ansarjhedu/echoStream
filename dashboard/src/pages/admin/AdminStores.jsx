@@ -100,7 +100,7 @@ export default function AdminStores() {
                 <td className="p-5">
                   <p className={`font-bold text-base ${store.isDeleted ? 'text-gray-500 line-through' : 'text-white'}`}>{store.storeName}</p>
                   <p className="text-xs text-gray-500 font-mono mt-1">ID: {store._id.substring(0,8)}...</p>
-                  <p className=" flex justify-start items-center gap-10px text-xs text-gray-200 font-mono mt-1"><User size={15} /> {store.owner}</p>
+                  <p className=" flex justify-start items-center gap-3 text-xs text-gray-200 font-mono mt-1"><User size={15} /> {store.owner}</p>
 
                 </td>
                 <td className="p-5">
