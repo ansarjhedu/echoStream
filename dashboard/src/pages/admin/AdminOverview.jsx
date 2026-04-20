@@ -10,8 +10,11 @@ export default function AdminOverview() {
   const [analytics, setAnalytics] = useState(null);
   const [stores, setStores] = useState([]);
   const [users, setUsers] = useState([]);
-  const [disputes, setDisputes] = useState([]);
+  const[disputes, setDisputes] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // NEW: State to control which chart data is showing
+  const [chartTimeframe, setChartTimeframe] = useState('7d'); // '7d' or '30d'
 
   useEffect(() => {
     const fetchData = async () => {
@@ -24,7 +27,7 @@ export default function AdminOverview() {
         ]);
         setAnalytics(statRes.data.data);
         setStores(storeRes.data.data ||[]);
-        setUsers(userRes.data.data || []);
+        setUsers(userRes.data.data ||[]);
         setDisputes(dispRes.data.data ||[]);
       } catch (error) {
         toast.error("Admin fetch failed");
@@ -35,19 +38,49 @@ export default function AdminOverview() {
     fetchData();
   },[]);
 
-  const growthData = useMemo(() => {
+  // 1. 7-Day Growth Data
+  const growthData7d = useMemo(() => {
     const last7Days = [...Array(7)].map((_, i) => {
-      const d = new Date(); d.setDate(d.getDate() - (6 - i));
+      const d = new Date(); 
+      d.setDate(d.getDate() - (6 - i));
       return d.toISOString().split('T')[0];
     });
     return last7Days.map(dateStr => {
       const dailyStores = stores.filter(s => s.createdAt?.startsWith(dateStr)).length;
       const dailyUsers = users.filter(u => u.createdAt?.startsWith(dateStr)).length;
-      return { name: new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short' }), stores: dailyStores, users: dailyUsers, fullDate: dateStr };
+      return { 
+        name: new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short' }), 
+        stores: dailyStores, 
+        users: dailyUsers, 
+        fullDate: dateStr 
+      };
     });
-  },[stores, users]);
+  }, [stores, users]);
 
-   const StoreTypeData = useMemo(() => {
+  // 2. 30-Day Growth Data
+  const growthData30d = useMemo(() => {
+    const last30Days = [...Array(30)].map((_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (29 - i));
+      return d.toISOString().split('T')[0];
+    });
+    return last30Days.map(dateStr => {
+      const dailyStores = stores.filter(s => s.createdAt?.startsWith(dateStr)).length;
+      const dailyUsers = users.filter(u => u.createdAt?.startsWith(dateStr)).length;
+      // Use Month + Day for the 30-day X-Axis (e.g. "Apr 12")
+      return { 
+        name: new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), 
+        stores: dailyStores, 
+        users: dailyUsers, 
+        fullDate: dateStr 
+      };
+    });
+  }, [stores, users]);
+
+  // Determine which dataset to feed the chart
+  const activeChartData = chartTimeframe === '7d' ? growthData7d : growthData30d;
+
+  const StoreTypeData = useMemo(() => {
     const counts = { ecommerce: 0, blog: 0, portfolio: 0, other: 0 };
     stores.forEach(s => { 
       const type = s.storeType?.toLowerCase() || 'other';
@@ -55,13 +88,12 @@ export default function AdminOverview() {
       else counts.other++;
     });
     return[
-      { name: 'eCommerce', value: counts.ecommerce, color: '#06b6d4' }, // Cyan
-      { name: 'Blog', value: counts.blog, color: '#a855f7' }, // Purple
-      { name: 'Portfolio', value: counts.portfolio, color: '#10b981' }, // Green
-      { name: 'Other', value: counts.other, color: '#6b7280' }, // Gray
+      { name: 'eCommerce', value: counts.ecommerce, color: '#06b6d4' },
+      { name: 'Blog', value: counts.blog, color: '#a855f7' }, 
+      { name: 'Portfolio', value: counts.portfolio, color: '#10b981' }, 
+      { name: 'Other', value: counts.other, color: '#6b7280' }, 
     ].filter(d => d.value > 0);
   }, [stores]);
-
 
   const topOwner = useMemo(() => {
     if (!stores.length || !users.length) return null;
@@ -76,7 +108,11 @@ export default function AdminOverview() {
       return (
         <div className="bg-[#0A0F1A] border border-white/10 p-4 rounded-xl shadow-2xl">
           <p className="text-white font-bold mb-2">{payload[0].payload.fullDate || label}</p>
-          {payload.map((entry, index) => <p key={index} style={{ color: entry.color }} className="text-sm font-medium">{entry.name}: {entry.value}</p>)}
+          {payload.map((entry, index) => (
+            <p key={index} style={{ color: entry.color }} className="text-sm font-medium">
+              {entry.name}: {entry.value}
+            </p>
+          ))}
         </div>
       );
     }
@@ -86,7 +122,7 @@ export default function AdminOverview() {
   if (loading) return <div className="p-12 text-red-400 animate-pulse flex gap-2"><Activity/> Gathering Platform Telemetry...</div>;
 
   return (
-    <div className="p-4 md:p-10 relative overflow-y-auto h-full z-10 w-full overflow-hidden">
+    <div className="p-4 md:p-10 relative overflow-y-auto h-full z-10 w-full overflow-x-hidden no-scrollbar">
       <div className="absolute top-[-10%] right-[-10%] w-96 h-96 bg-red-600/10 blur-[120px] rounded-full pointer-events-none -z-10"></div>
 
       <div className="mb-10">
@@ -115,17 +151,59 @@ export default function AdminOverview() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-black/20 border border-white/5 p-6 rounded-2xl">
-          <h3 className="text-sm font-bold text-gray-400 mb-6">New Registrations (Last 7 Days)</h3>
-          <div className="h-[250px] w-full">
+        
+        {/* CHART SECTION */}
+        <div className="lg:col-span-2 bg-black/20 border border-white/5 p-6 rounded-2xl flex flex-col">
+          
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+            <h3 className="text-sm font-bold text-gray-400">New Registrations</h3>
+            
+            {/* NEW: Timeframe Toggle */}
+            <div className="flex bg-black/40 rounded-lg p-1 border border-white/10">
+              <button 
+                onClick={() => setChartTimeframe('7d')}
+                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${chartTimeframe === '7d' ? 'bg-red-500/20 text-red-400 shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                7 Days
+              </button>
+              <button 
+                onClick={() => setChartTimeframe('30d')}
+                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${chartTimeframe === '30d' ? 'bg-red-500/20 text-red-400 shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                30 Days
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 min-h-[250px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={growthData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+              {/* Feeds the active data based on state! */}
+              <AreaChart data={activeChartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="colorStores" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/><stop offset="95%" stopColor="#f97316" stopOpacity={0}/></linearGradient>
-                  <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/><stop offset="95%" stopColor="#ef4444" stopOpacity={0}/></linearGradient>
+                  <linearGradient id="colorStores" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                  </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                <XAxis dataKey="name" stroke="#6b7280" fontSize={12} tickLine={false} axisLine={false} />
+                
+                {/* 
+                  When showing 30 days, we skip some ticks so the labels don't crush into each other.
+                  minTickGap helps keep it clean automatically! 
+                */}
+                <XAxis 
+                  dataKey="name" 
+                  stroke="#6b7280" 
+                  fontSize={12} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  minTickGap={20} 
+                />
+                
                 <YAxis stroke="#6b7280" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
                 <RechartsTooltip content={<CustomTooltip />} />
                 <Area type="monotone" dataKey="stores" name="New Stores" stroke="#f97316" strokeWidth={3} fill="url(#colorStores)" />
@@ -135,8 +213,9 @@ export default function AdminOverview() {
           </div>
         </div>
 
+        {/* HOSTING DISTRIBUTION */}
         <div className="bg-black/20 border border-white/5 p-6 rounded-2xl flex flex-col">
-          <h3 className="text-sm font-bold text-gray-400 mb-2">Hosting Distribution</h3>
+          <h3 className="text-sm font-bold text-gray-400 mb-2">Store Type Distribution</h3>
           <div className="flex-1 min-h-[200px] w-full relative flex items-center justify-center">
             {StoreTypeData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -150,7 +229,15 @@ export default function AdminOverview() {
             ) : <p className="text-gray-600 text-sm">No live store data.</p>}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><Server className="text-gray-500" size={24} /></div>
           </div>
+          <div className="flex flex-wrap justify-center gap-3 mt-4">
+            {StoreTypeData.map(item => (
+              <div key={item.name} className="flex items-center gap-1.5 text-xs text-gray-400">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }}></span>{item.name} ({item.value})
+              </div>
+            ))}
+          </div>
         </div>
+        
       </div>
     </div>
   );
