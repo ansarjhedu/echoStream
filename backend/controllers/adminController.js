@@ -98,6 +98,7 @@ const listStores=async(req,res)=>{
                 owner: owner ? owner.name : "Unknown"
             }
         }));
+        console.log("Fetched stores with owner names:", storesWithOwner); // Debug log  
         if(!stores || stores.length===0){
               return res
             .status(400)
