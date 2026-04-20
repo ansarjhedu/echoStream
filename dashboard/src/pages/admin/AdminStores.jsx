@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../Api';
 import { toast } from 'react-toastify';
-import { Store, Ban, CheckCircle, Clock, RefreshCcw } from 'lucide-react'; // <-- Added RefreshCcw
+import { Store, Ban, CheckCircle, Clock, RefreshCcw , User} from 'lucide-react'; // <-- Added RefreshCcw
 
 export default function AdminStores() {
   const [stores, setStores] = useState([]);
