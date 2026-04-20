@@ -15,7 +15,7 @@ export default function AdminStores() {
   const fetchStores = async () => {
     try {
       const res = await api.get('/admin/store/list');
-      console.log("Fetched stores:", res.data.storesWithOwner); // Debug log
+
       setStores(res.data.storesWithOwner || []);
     } catch (error) {
       toast.error("Failed to fetch stores");
@@ -100,7 +100,7 @@ export default function AdminStores() {
                 <td className="p-5">
                   <p className={`font-bold text-base ${store.isDeleted ? 'text-gray-500 line-through' : 'text-white'}`}>{store.storeName}</p>
                   <p className="text-xs text-gray-500 font-mono mt-1">ID: {store._id.substring(0,8)}...</p>
-                  <p className="text-xs text-gray-500 font-mono mt-1"><User size={12} /> {store.owner}</p>
+                  <p className=" flex justify-start items-center gap-10px text-xs text-gray-200 font-mono mt-1"><User size={15} /> {store.owner}</p>
 
                 </td>
                 <td className="p-5">

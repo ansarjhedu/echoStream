@@ -93,7 +93,7 @@ const listStores=async(req,res)=>{
         const stores=await Store.find({}).sort({createdAt:-1});
         const storesWithOwner=await Promise.all(stores.map(async(store)=>{
             const owner=await User.findById(store.owner);
-            console.log(`Store: ${store.storeName}, Owner: ${owner ? owner.userName : "Unknown"}`); // Debug log
+           
             return {
                 ...store._doc,
                 owner: owner ? owner.userName : "Unknown"
