@@ -20,9 +20,10 @@ const StoreLayout = ({ children }) => {
     <div className="min-h-screen bg-[#0A0F1A] text-white flex flex-col md:flex-row font-sans selection:bg-cyan-500/30 overflow-hidden">
       
       {/* Mobile Top Bar */}
-      <div className="md:hidden flex items-center justify-between p-4 border-b border-white/10 bg-[#0A0F1A] z-40 relative">
+       <div className="md:hidden flex items-center justify-between p-4 border-b border-white/10 bg-[#0A0F1A] z-40 relative">
         <div className="flex items-center gap-2">
-          <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-cyan-400 to-purple-600 shadow-[0_0_10px_rgba(34,211,238,0.5)]"></span>
+          {/* 💎 PREMIUM MOBILE LOGO */}
+          <img src={logo} alt="EchoStream Logo" className="h-6 w-auto object-contain drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]" />
           <h2 className="text-xl font-black tracking-tighter truncate max-w-[150px]">{activeStore.storeName}</h2>
         </div>
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-gray-400">
@@ -36,8 +37,8 @@ const StoreLayout = ({ children }) => {
       <aside className={`fixed inset-y-0 left-0 z-50 w-72 border-r border-white/10 bg-[#0A0F1A] flex flex-col justify-between transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 md:bg-black/20 md:backdrop-blur-3xl ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div>
           <div className="p-8 hidden md:block">
-            <h2 className="text-2xl font-black tracking-tighter flex items-center gap-2 mb-6">
-              <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-purple-600 shadow-[0_0_15px_rgba(34,211,238,0.5)]"></span>
+            <h2 className="text-2xl font-black tracking-tighter flex items-center gap-3 mb-6">
+              <img src={logo} alt="EchoStream Logo" className="h-8 w-auto object-contain drop-shadow-[0_0_15px_rgba(34,211,238,0.6)]" />
               EchoStream
             </h2>
             <div className="bg-white/5 border border-white/10 rounded-xl p-4">

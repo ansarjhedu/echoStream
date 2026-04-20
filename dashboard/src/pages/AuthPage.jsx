@@ -86,10 +86,16 @@ export default function AuthPage() {
       <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-purple-600/10 blur-[120px] rounded-full pointer-events-none"></div>
 
       <div className="w-full max-w-md bg-white/[0.02] p-8 rounded-[2rem] border border-white/10 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-10 relative">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-400/20 to-purple-600/20 border border-white/10 mb-4 shadow-[0_0_20px_rgba(34,211,238,0.2)]">
-            <Store className="text-cyan-400" size={32} />
+       <div className="text-center mb-8 animate-fade-in-down">
+          {/* 💎 PREMIUM AUTH LOGO WITH GLASSMORPHISM BACKDROP */}
+          <div className="inline-flex items-center justify-center p-4 rounded-3xl bg-white/[0.02] border border-white/10 mb-5 shadow-[0_0_30px_rgba(34,211,238,0.15)] backdrop-blur-md">
+            <img 
+              src={logo} 
+              alt="EchoStream" 
+              className="h-14 w-auto object-contain drop-shadow-[0_0_20px_rgba(34,211,238,0.6)] transition-transform hover:scale-105 duration-500" 
+            />
           </div>
+          
           <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 tracking-tight">
             EchoStream
           </h2>

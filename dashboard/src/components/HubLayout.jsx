@@ -17,8 +17,8 @@ const HubLayout = ({ children }) => {
       {/* Mobile Top Bar */}
       <div className="md:hidden flex items-center justify-between p-4 border-b border-white/10 bg-[#0A0F1A] z-40 relative">
         <div className="flex items-center gap-2">
-          <img className='w-10' src={logo} alt=""/>
-          {/* <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-cyan-400 to-purple-600 shadow-[0_0_10px_rgba(34,211,238,0.5)]"></span> */}
+          {/* 💎 PREMIUM MOBILE LOGO */}
+          <img src={logo} alt="EchoStream Logo" className="h-6 w-auto object-contain drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]" />
           <h2 className="text-xl font-black tracking-tighter">Echo Hub</h2>
         </div>
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-gray-400">
@@ -26,15 +26,17 @@ const HubLayout = ({ children }) => {
         </button>
       </div>
 
+
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden" onClick={closeMenu} />}
 
       {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-72 border-r border-white/10 bg-[#0A0F1A] flex flex-col justify-between transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 md:bg-black/20 md:backdrop-blur-3xl ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div>
           <div className="p-8 pb-4">
-            <h2 className="text-2xl font-black tracking-tighter flex items-center gap-2 mb-8 hidden md:flex">
-             <img className='w-10' src={logo} alt=""/>
-              EchoStream
+               <h2 className="text-2xl font-black tracking-tighter flex items-center gap-3 mb-8 hidden md:flex">
+              <img src={logo} alt="EchoStream Logo" className="h-8 w-auto object-contain drop-shadow-[0_0_15px_rgba(34,211,238,0.6)]" />
+              EchoStream 
+              {/* Note: If your logo.png already has the word "EchoStream" in it, you can delete the word "EchoStream" above! */}
             </h2>
             
             <div className="flex items-center gap-4 bg-white/5 border border-white/10 p-4 rounded-2xl w-full">
