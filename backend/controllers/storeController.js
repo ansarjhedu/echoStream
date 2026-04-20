@@ -46,7 +46,6 @@ const myStores=async(req,res)=>{
         
        const stores=await Store.find({
         owner:req.user._id,
-        //isDeleted:false
         }).sort({createdAt:-1});
      if(!stores || stores.length === 0){
             return res.status(200).json({ data:[], message: "You have not registered any store yet" });

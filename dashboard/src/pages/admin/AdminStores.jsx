@@ -1,12 +1,18 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../Api';
+import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
-import { Store, Ban, CheckCircle, Clock, RefreshCcw , User} from 'lucide-react'; // <-- Added RefreshCcw
+import { Store, Ban, CheckCircle, Clock, RefreshCcw, User, LayoutDashboard } from 'lucide-react';
 
 export default function AdminStores() {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [storeFilter, setStoreFilter] = useState('all');
+
+  // Bring in Auth Context and Router Navigation
+  const { setActiveStore } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchStores();
@@ -15,8 +21,7 @@ export default function AdminStores() {
   const fetchStores = async () => {
     try {
       const res = await api.get('/admin/store/list');
-
-      setStores(res.data.storesWithOwner || []);
+      setStores(res.data.data || res.data.storesWithOwner ||[]); // Fallback in case payload naming changes
     } catch (error) {
       toast.error("Failed to fetch stores");
     } finally {
@@ -30,20 +35,32 @@ export default function AdminStores() {
       const newStatus = currentStatus === 'live' ? 'suspended' : 'live';
       await api.patch(`/admin/store/${storeId}/status`, { status: newStatus });
       setStores(stores.map(s => s._id === storeId ? { ...s, status: newStatus, isActive: newStatus === 'live' } : s));
+      toast.success(`Store has been ${newStatus === 'live' ? 'activated' : 'suspended'}.`);
     } catch (error) {
       toast.error("Failed to update store status");
     }
   };
 
-  // 🚨 NEW: Restore Store Action
   const restoreStoreAction = async (storeId) => {
     if(!window.confirm("Restore this deleted store? It will go live immediately and all products/reviews will be recovered.")) return;
     try {
       await api.patch(`/admin/store/${storeId}/restore`);
       setStores(stores.map(s => s._id === storeId ? { ...s, isDeleted: false, deletedAt: null, status: 'live', isActive: true } : s));
+      toast.success("Store restored successfully!");
     } catch (error) {
       toast.error("Failed to restore store");
     }
+  };
+
+  // 🚨 NEW: God Mode / Impersonate Store
+  const handleImpersonateStore = (store) => {
+    if (store.isDeleted) {
+      toast.warning("You must restore this store before accessing its workspace.");
+      return;
+    }
+    setActiveStore(store); 
+    navigate('/workspace/analytics/overview');
+    toast.success(`Entered Admin God Mode for ${store.storeName}`);
   };
 
   const getDaysLeft = (deletedAt) => {
@@ -81,7 +98,7 @@ export default function AdminStores() {
       </div>
 
       <div className="bg-white/[0.02] border border-white/10 rounded-2xl overflow-x-auto shadow-2xl max-w-full custom-scrollbar">
-        <table className="w-full text-left min-w-[700px]">
+        <table className="w-full text-left min-w-[800px]">
           <thead className="bg-black/40 border-b border-white/10 text-gray-400 text-xs uppercase tracking-wider">
             <tr>
               <th className="p-5 font-medium">Store Data</th>
@@ -100,12 +117,13 @@ export default function AdminStores() {
                 <td className="p-5">
                   <p className={`font-bold text-base ${store.isDeleted ? 'text-gray-500 line-through' : 'text-white'}`}>{store.storeName}</p>
                   <p className="text-xs text-gray-500 font-mono mt-1">ID: {store._id.substring(0,8)}...</p>
-                  <p className=" flex justify-start items-center gap-3 text-xs text-gray-200 font-mono mt-1"><User size={15} /> {store.owner}</p>
-
+                  <p className="flex justify-start items-center gap-2 text-xs text-gray-400 font-mono mt-2">
+                    <User size={12} className="text-purple-400" /> Owner: {store.owner}
+                  </p>
                 </td>
                 <td className="p-5">
                   <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-gray-300 capitalize">
-                    {store.storeType}
+                    {store.storeType || 'eCommerce'}
                   </span>
                 </td>
                 <td className="p-5">
@@ -125,28 +143,38 @@ export default function AdminStores() {
                   )}
                 </td>
                 <td className="p-5 text-right">
-                  {store.isDeleted ? (
-                    // NEW: Restore Button for deleted stores!
-                    <button 
-                      onClick={() => restoreStoreAction(store._id)} 
-                      className="p-2 px-4 bg-green-500/10 text-green-400 hover:bg-green-500/30 rounded-lg border border-green-500/30 transition-all inline-flex items-center gap-2 text-xs font-bold"
-                    >
-                      <RefreshCcw size={14} /> Restore Store
-                    </button>
-                  ) : (
-                    // Existing: Suspend/Lift Suspension button for active stores
-                    <button 
-                      onClick={() => toggleStoreStatus(store._id, store.status)} 
-                      className={`px-4 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-2 transition-all ${
-                        store.status === 'live' 
-                          ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30' 
-                          : 'bg-green-500/10 text-green-400 hover:bg-green-500/20 border border-green-500/30'
-                      }`}
-                    >
-                      {store.status === 'live' ? <Ban size={14}/> : <CheckCircle size={14}/>} 
-                      {store.status === 'live' ? 'Suspend Store' : 'Lift Suspension'}
-                    </button>
-                  )}
+                  <div className="flex justify-end gap-2">
+                    {store.isDeleted ? (
+                      <button 
+                        onClick={() => restoreStoreAction(store._id)} 
+                        className="p-2 px-4 bg-green-500/10 text-green-400 hover:bg-green-500/30 rounded-lg border border-green-500/30 transition-all inline-flex items-center gap-2 text-xs font-bold"
+                      >
+                        <RefreshCcw size={14} /> Restore Store
+                      </button>
+                    ) : (
+                      <>
+                        {/* THE NEW GOD MODE BUTTON */}
+                        <button 
+                          onClick={() => handleImpersonateStore(store)} 
+                          className="px-4 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-2 transition-all bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/30"
+                        >
+                          <LayoutDashboard size={14}/> Access Workspace
+                        </button>
+
+                        <button 
+                          onClick={() => toggleStoreStatus(store._id, store.status)} 
+                          className={`px-4 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-2 transition-all ${
+                            store.status === 'live' 
+                              ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30' 
+                              : 'bg-green-500/10 text-green-400 hover:bg-green-500/20 border border-green-500/30'
+                          }`}
+                        >
+                          {store.status === 'live' ? <Ban size={14}/> : <CheckCircle size={14}/>} 
+                          {store.status === 'live' ? 'Suspend' : 'Activate'}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

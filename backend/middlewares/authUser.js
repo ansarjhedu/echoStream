@@ -21,7 +21,7 @@ const authUser=async (req,res,next)=>{
             return res.status(401).json({message:"Invalid token, user not found, authorization denied"});
         }
         
-        req.user={_id:user._id};
+        req.user={_id:user._id, role:user.role};
         next();
     }
     catch (error) {
@@ -34,19 +34,20 @@ const authUser=async (req,res,next)=>{
 const authStore=async (req,res,next)=>{
     try{
         const userId=req.user._id;
+        const role=req.user.role;
         const storeId=req.params.id;
       
         const store=await Store.findById(storeId);
         if(!store){
             return res.status(401).json({message:"Store not found, authorization denied"});
         }
-
-        if(store.owner.toString() !== userId.toString()){
-            return res.status(403).json({message:"Unauthorized: You do not have access to this store"});
-        }
+    
+        if(role==='admin' ||(role==='owner' && store.owner.toString() === userId.toString())){
         req.store=store;
         next();
-
+        } else{
+            return res.status(401).json({message:"You do not have permission to access this store"});
+        }
 
     }
     catch (error) {
