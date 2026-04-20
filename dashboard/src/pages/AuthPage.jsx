@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { User, Mail, Lock, AlertCircle, ArrowRight, Store } from 'lucide-react';
 import { toast } from 'react-toastify'; // Only import toast, container is in App.jsx
+import logo from '../assets/logo.png'; // Make sure to have a logo.png in your assets folder for the premium logo!
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
