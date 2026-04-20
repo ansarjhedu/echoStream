@@ -96,7 +96,7 @@ const listStores=async(req,res)=>{
             console.log(`Store: ${store.storeName}, Owner: ${owner ? owner.userName : "Unknown"}`); // Debug log
             return {
                 ...store._doc,
-                owner: owner ? owner.name : "Unknown"
+                owner: owner ? owner.userName : "Unknown"
             }
         }));
      
