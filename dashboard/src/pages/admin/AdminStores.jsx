@@ -15,6 +15,7 @@ export default function AdminStores() {
   const fetchStores = async () => {
     try {
       const res = await api.get('/admin/store/list');
+      console.log("Fetched stores:", res.data.storesWithOwner); // Debug log
       setStores(res.data.storesWithOwner || []);
     } catch (error) {
       toast.error("Failed to fetch stores");
