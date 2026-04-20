@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { Navigate } from "react-router-dom";
-import { X, Menu, BarChart3,Package,Code,ArrowLeft} from "lucide-react";
+import { X, Menu, BarChart3,Package,Code,ArrowLeft,User} from "lucide-react";
 const StoreLayout = ({ children }) => {
   const { activeStore, setActiveStore,user } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
