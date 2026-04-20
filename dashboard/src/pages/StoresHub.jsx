@@ -82,6 +82,7 @@ export default function StoresHub() {
   const handleLockedRestoreRequest = (e, store) => {
     e.stopPropagation();
     let reason = store.status === "suspended" ? "suspended by a Platform Administrator" : "locked due to an active dispute";
+    updateStoreApi(store._id, {status:'disputed'}, "Restore request sent. Our team will review and get back to you shortly.");
     toast.warning(`RESTORE LOCKED: This store is ${reason}. Please contact support.`);
   };
 
@@ -187,7 +188,7 @@ export default function StoresHub() {
               </div>
               <div>
                 <label className="block text-xs md:text-sm text-gray-400 mb-2">Store Type</label>
-                <select value={formData.storeType} onChange={(e) => setFormData({...formData, storeType: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 md:py-3 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all appearance-none text-sm md:text-base">
+                <select value={formData.storeType} onChange={(e) => setFormData({...formData, storeType: e.target.value})} className="w-full bg-black border border-white/10 rounded-xl px-4 py-2.5 md:py-3 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all appearance-none text-sm md:text-base">
                   <option value="ecommerce">eCommerce</option>
                   <option value="blog">Blog / Content</option>
                   <option value="portfolio">Portfolio</option>
