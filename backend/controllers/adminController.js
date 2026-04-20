@@ -91,6 +91,13 @@ const restoreUser=async(req,res)=>{
 const listStores=async(req,res)=>{
     try {
         const stores=await Store.find({}).sort({createdAt:-1});
+        const storesWithOwner=await Promise.all(stores.map(async(store)=>{
+            const owner=await User.findById(store.owner);
+            return {
+                ...store._doc,
+                owner: owner ? owner.name : "Unknown"
+            }
+        }));
         if(!stores || stores.length===0){
               return res
             .status(400)
@@ -101,7 +108,7 @@ const listStores=async(req,res)=>{
         return res
           .status(200)
           .json({
-              data:stores,
+              storesWithOwner,
               message:" Stores have been listed successfully"
           })
         
