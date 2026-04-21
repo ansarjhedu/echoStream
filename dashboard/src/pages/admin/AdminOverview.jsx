@@ -3,7 +3,7 @@ import api from '../../Api';
 import { useAuth } from '../../context/AuthContext';
 import { ShieldAlert, Activity, Server, Crown, Users } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell ,LifeBuoy} from 'recharts';
 
 export default function AdminOverview() {
   const { user } = useAuth();
