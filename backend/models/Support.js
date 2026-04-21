@@ -35,6 +35,7 @@ const supportSchema = new Schema({
         content: String,
         createdAt: Date
     },
+  
    
 }, { timestamps: true });
 

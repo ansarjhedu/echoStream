@@ -162,11 +162,12 @@ const getPlatformAnalytics = async (req, res) => {
             User.countDocuments({ isDeleted: false, role: "owner" }),
             Store.countDocuments({ isActive: true, isDeleted: false }),
             Store.countDocuments({ isDeleted: false }),
-            Review.countDocuments({ status: "dispute", isDeleted: false })
+            Review.countDocuments({ status: "dispute", isDeleted: false }),
+            Support.countDocuments({ status: { $ne: "resolved" } }) // Count of open tickets for AdminOverview
         ]);
 
         return res.status(200).json({
-            data: { totalUsers, activeStores, totalStores, disputedReviews },
+            data: { totalUsers, activeStores, totalStores, disputedReviews, Tickets: analytics.openTickets },
             message: "Platform analytics fetched successfully"
         });
     } catch (error) {
@@ -262,12 +263,12 @@ const restoreStore = async (req, res) => {
 
 const getTicketsFromUsers=async(req,res)=>{
     try {
-        const tickets=await Support.find({}).sort({createdAt:-1});
+        const tickets=await Support.find({status:{ $ne: "resolved" }}).sort({createdAt:-1});
 
-        if(!tickets || tickets.length===0){
+        if(!tickets || tickets.length===0 ){
             return res.status(200).json({
                 data:[],
-                message:"No support tickets found"
+                message:"No support tickets found from users"
             })
         }
         return res.status(200).json({

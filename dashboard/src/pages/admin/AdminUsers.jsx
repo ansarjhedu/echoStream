@@ -1,44 +1,93 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import api from '../../Api';
+import { User, Trash2, Clock, RefreshCcw, Crown, AlertOctagon, LifeBuoy, Store } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { User, Trash2, Clock, RefreshCcw } from 'lucide-react'; // <-- Added RefreshCcw icon
 
 export default function AdminUsers() {
-  const[users, setUsers] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [stores, setStores] = useState([]);
+  const [disputes, setDisputes] = useState([]);
+  const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
-  const[userFilter, setUserFilter] = useState('all');
+  const [userFilter, setUserFilter] = useState('all');
 
   useEffect(() => {
-    fetchUsers();
+    fetchAllData();
   },[]);
 
-  const fetchUsers = async () => {
+  const fetchAllData = async () => {
     try {
-      const res = await api.get('/admin/user/list');
-      setUsers(res.data.data ||[]);
+      const [userRes, storeRes, dispRes, ticketRes] = await Promise.all([
+        api.get('/admin/user/list'),
+        api.get('/admin/store/list'),
+        api.get('/admin/disputes'),
+        api.get('/admin/support/list')
+      ]);
+      setUsers(userRes.data.data ||[]);
+      setStores(storeRes.data?.storesWithOwner || storeRes.data?.data ||[]);
+      setDisputes(dispRes.data?.data || []);
+      setTickets(ticketRes.data?.data ||[]);
     } catch (error) {
-      toast.error("Failed to fetch users");
+      toast.error("Failed to fetch platform data");
     } finally {
       setLoading(false);
     }
   };
 
+  // 🧠 ENRICH USERS WITH METRICS & RANKS
+  const enrichedUsers = useMemo(() => {
+    // 1. Calculate store counts to find the top users
+    const storeCounts = {};
+    stores.forEach(s => { storeCounts[s.owner] = (storeCounts[s.owner] || 0) + 1; });
+    
+    // Sort all owners to determine top 3 ranks
+    const rankedOwners = Object.keys(storeCounts).sort((a, b) => storeCounts[b] - storeCounts[a]);
+    const top3 = rankedOwners.slice(0, 3);
+
+    return users.map(u => {
+      const userStores = stores.filter(s => s.owner === u._id);
+      const activeStoresCount = userStores.filter(s => s.isActive).length;
+      
+      const userTicketsCount = tickets.filter(t => t.owner === u._id && t.status !== 'resolved').length;
+      
+      // Check if disputes belong to this user's stores
+      const storeIds = userStores.map(s => s._id);
+      const userDisputesCount = disputes.filter(d => storeIds.includes(d.store?._id || d.store)).length;
+
+      // Assign Rank (1, 2, 3, or null)
+      let rank = null;
+      if (top3.includes(u._id) && storeCounts[u._id] > 0) {
+        rank = top3.indexOf(u._id) + 1;
+      }
+
+      return {
+        ...u,
+        totalStores: userStores.length,
+        activeStores: activeStoresCount,
+        openTickets: userTicketsCount,
+        pendingDisputes: userDisputesCount,
+        rank
+      };
+    });
+  }, [users, stores, tickets, disputes]);
+
   const deleteUserAction = async (userId) => {
     if(!window.confirm("Soft-delete this user and all their stores? (30-day countdown begins)")) return;
     try {
-      await api.patch(`/admin/user/${userId}`);
+      await api.delete(`/admin/user/${userId}`);
       setUsers(users.map(u => u._id === userId ? { ...u, isDeleted: true, deletedAt: Date.now() } : u));
+      toast.success("User soft-deleted");
     } catch (error) {
       toast.error("Failed to delete user");
     }
   };
 
-  // 🚨 NEW: Restore User Action
   const restoreUserAction = async (userId) => {
     if(!window.confirm("Restore this user and reactivate their stores?")) return;
     try {
       await api.patch(`/admin/user/${userId}/restore`);
       setUsers(users.map(u => u._id === userId ? { ...u, isDeleted: false, deletedAt: null } : u));
+      toast.success("User Restored!");
     } catch (error) {
       toast.error("Failed to restore user");
     }
@@ -50,7 +99,7 @@ export default function AdminUsers() {
     return Math.max(0, 30 - daysPassed);
   };
 
-  const filteredUsers = users.filter(u => {
+  const filteredUsers = enrichedUsers.filter(u => {
     if (userFilter === 'all') return true;
     if (userFilter === 'deleted') return u.isDeleted;
     if (userFilter === 'active') return !u.isDeleted && u.isActive;
@@ -60,35 +109,30 @@ export default function AdminUsers() {
   if (loading) return <div className="p-10 text-red-400 animate-pulse">Loading registered users...</div>;
 
   return (
-    // FIX: Added overflow-hidden to prevent full page horizontal scroll
-    <div className="p-4 md:p-10 w-full animate-fade-in-down overflow-hidden">
-      
-      {/* ALIGNED HEADER AND FILTER (Matches AdminStores.jsx) */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold text-white flex items-center gap-3 mb-2">
-            <User className="text-red-500" /> Registered Users
-          </h1>
-          <p className="text-gray-400">Manage user accounts and data retention policies.</p>
-        </div>
-        
-        <select 
-          value={userFilter} 
-          onChange={(e) => setUserFilter(e.target.value)} 
-          className="bg-black border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-red-400 text-sm w-full sm:w-auto cursor-pointer"
-        >
-          <option value="all">All Statuses</option>
-          <option value="active">Live & Active</option>
-          <option value="deleted">Soft Deleted (Trash)</option>
-        </select>
+    <div className="p-4 md:p-10 w-full animate-fade-in-down">
+      <div className="mb-8">
+        <h1 className="text-3xl font-extrabold text-white flex items-center gap-3 mb-2">
+          <User className="text-red-500" /> Registered Users
+        </h1>
+        <p className="text-gray-400">Manage user accounts, monitor workload, and handle retention.</p>
       </div>
+      
+      <select 
+        value={userFilter} 
+        onChange={(e) => setUserFilter(e.target.value)} 
+        className="bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-red-400 text-sm w-full sm:w-auto cursor-pointer mb-6"
+      >
+        <option value="all">All Statuses</option>
+        <option value="active">Live & Active</option>
+        <option value="deleted">Soft Deleted (Trash)</option>
+      </select>
 
-      <div className="bg-white/[0.02] border border-white/10 rounded-2xl overflow-x-auto shadow-2xl max-w-full custom-scrollbar">
-        <table className="w-full text-left min-w-[700px]">
+      <div className="bg-white/[0.02] border border-white/10 rounded-2xl overflow-x-auto shadow-2xl custom-scrollbar">
+        <table className="w-full text-left min-w-[900px]">
           <thead className="bg-black/40 border-b border-white/10 text-gray-400 text-xs uppercase tracking-wider">
             <tr>
               <th className="p-5 font-medium">User Profile</th>
-              <th className="p-5 font-medium">Email</th>
+              <th className="p-5 font-medium">Platform Metrics</th>
               <th className="p-5 font-medium">Account Status</th>
               <th className="p-5 text-right font-medium">Actions</th>
             </tr>
@@ -99,19 +143,50 @@ export default function AdminUsers() {
             ) : null}
             
             {filteredUsers.map(u => (
-              <tr key={u._id} className={`border-b border-white/5 transition-colors ${u.isDeleted ? 'bg-red-900/10' : 'hover:bg-white/5'}`}>
-                <td className="p-5 flex items-center gap-3">
-                  {u.profilePic ? (
-                    <img src={u.profilePic} alt="avatar" className={`w-10 h-10 rounded-full object-cover border ${u.isDeleted ? 'border-red-500/50 opacity-50 grayscale' : 'border-purple-500/50'}`} />
-                  ) : (
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg border ${u.isDeleted ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-purple-500/20 text-purple-400 border-purple-500/50'}`}>
-                      {u.userName.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  {/* Strikethrough for deleted users */}
-                  <span className={`font-bold text-base ${u.isDeleted ? 'text-gray-500 line-through' : 'text-white'}`}>{u.userName}</span>
+              <tr key={u._id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                
+                {/* 1. PROFILE CELL */}
+                <td className="p-5 flex items-center gap-4">
+                  <div className="relative">
+                    {u.profilePic ? (
+                      <img src={u.profilePic} alt="avatar" className="w-12 h-12 rounded-full object-cover border border-purple-500/50" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-purple-500/20 border border-purple-500/50 flex items-center justify-center text-purple-400 font-bold text-lg">
+                        {u.userName.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    {/* Crown Badge for Top 3 */}
+                    {u.rank && (
+                      <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center border shadow-lg ${u.rank === 1 ? 'bg-yellow-500 text-black border-yellow-300' : u.rank === 2 ? 'bg-gray-300 text-black border-white' : 'bg-orange-500 text-black border-orange-300'}`}>
+                        <Crown size={12} />
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <p className={`font-bold text-base ${u.isDeleted ? 'text-gray-500 line-through' : 'text-white'}`}>{u.userName}</p>
+                    <p className="text-xs text-gray-400">{u.email}</p>
+                  </div>
                 </td>
-                <td className={`p-5 ${u.isDeleted ? 'text-gray-600' : 'text-gray-400'}`}>{u.email}</td>
+                
+                {/* 2. METRICS CELL (The "High Maintenance" Check) */}
+                <td className="p-5">
+                  <div className="flex gap-4">
+                    <div className="flex flex-col">
+                      <span className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1"><Store size={10}/> Stores</span>
+                      <span className="font-bold text-cyan-400">{u.activeStores} Active <span className="text-gray-600 text-xs font-normal">/ {u.totalStores}</span></span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1"><LifeBuoy size={10}/> Tickets</span>
+                      <span className={`font-bold ${u.openTickets > 0 ? 'text-yellow-400' : 'text-gray-500'}`}>{u.openTickets} Open</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1"><AlertOctagon size={10}/> Disputes</span>
+                      <span className={`font-bold ${u.pendingDisputes > 0 ? 'text-red-400' : 'text-gray-500'}`}>{u.pendingDisputes} Pending</span>
+                    </div>
+                  </div>
+                </td>
+
+                {/* 3. STATUS CELL */}
                 <td className="p-5">
                   {u.isDeleted ? (
                     <div className="flex flex-col gap-1 items-start">
@@ -124,21 +199,15 @@ export default function AdminUsers() {
                     </span>
                   )}
                 </td>
+
+                {/* 4. ACTIONS CELL */}
                 <td className="p-5 text-right">
                   {u.isDeleted ? (
-                    // NEW: Restore Button for deleted users!
-                    <button 
-                      onClick={() => restoreUserAction(u._id)} 
-                      className="p-2 px-4 bg-green-500/10 text-green-400 hover:bg-green-500/30 rounded-lg border border-green-500/30 transition-all inline-flex items-center gap-2 text-xs font-bold"
-                    >
+                    <button onClick={() => restoreUserAction(u._id)} className="px-4 py-2 bg-green-500/10 text-green-400 hover:bg-green-500/30 rounded-lg border border-green-500/30 transition-all inline-flex items-center gap-2 text-xs font-bold">
                       <RefreshCcw size={14} /> Restore User
                     </button>
-                  ) : (
-                    // Existing: Soft Delete button for active users
-                    <button 
-                      onClick={() => deleteUserAction(u._id)} 
-                      className="p-2 px-4 bg-red-500/10 text-red-400 hover:bg-red-500/30 rounded-lg border border-red-500/30 transition-all inline-flex items-center gap-2 text-xs font-bold"
-                    >
+                  ) : u.role !== 'admin' && ( // Protect Admins from being deleted here!
+                    <button onClick={() => deleteUserAction(u._id)} className="px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/30 rounded-lg border border-red-500/30 transition-all inline-flex items-center gap-2 text-xs font-bold">
                       <Trash2 size={14} /> Soft Delete
                     </button>
                   )}
