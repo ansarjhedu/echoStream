@@ -118,7 +118,7 @@ export default function AdminStores() {
                   <p className={`font-bold text-base ${store.isDeleted ? 'text-gray-500 line-through' : 'text-white'}`}>{store.storeName}</p>
                   <p className="text-xs text-gray-500 font-mono mt-1">ID: {store._id.substring(0,8)}...</p>
                   <p className="flex justify-start items-center gap-2 text-xs text-gray-400 font-mono mt-2">
-                    <User size={12} className="text-purple-400" /> Owner: {store.owner}
+                    <User size={12} className="text-purple-400" /> Owner: {store.ownerName}
                   </p>
                 </td>
                 <td className="p-5">

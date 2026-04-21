@@ -97,7 +97,7 @@ const listStores=async(req,res)=>{
            
             return {
                 ...store._doc,
-                owner: owner ? owner.userName : "Unknown"
+                ownerName: owner ? owner.userName : "Unknown"
             }
         }));
      
