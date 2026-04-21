@@ -65,7 +65,7 @@ export default function Support() {
   };
 
   return (
-    <div className="p-4 md:p-10 lg:p-14 relative overflow-y-auto h-full z-10 w-full">
+    <div className="p-4 md:p-10 lg:p-14 relative overflow-y-auto h-full z-10 w-full overflow-hidden">
       <div className="absolute top-[-10%] right-[-10%] w-96 h-96 bg-blue-600/10 blur-[120px] rounded-full pointer-events-none -z-10"></div>
       
       <div className="mb-10">
@@ -109,7 +109,7 @@ export default function Support() {
         </div>
 
         {/* RIGHT COLUMN: TICKET HISTORY */}
-        <div className="flex-1 bg-white/[0.02] border border-white/10 p-6 md:p-8 rounded-2xl backdrop-blur-xl shadow-2xl overflow-hidden">
+        <div className="flex-1 bg-white/[0.02] border border-white/10 p-6 md:p-8 rounded-2xl backdrop-blur-xl shadow-2xl">
           <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
             <MessageSquare size={18} className="text-cyan-400" /> Your Ticket History
           </h2>
