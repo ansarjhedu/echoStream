@@ -98,30 +98,36 @@ export default function AdminOverview() {
   const activePieData = pieView === 'hosting' ? StoreTypeData : TicketStatusData;
 
   // 🚨 NEW: Calculate TOP 10 Merchants instead of just 1
-  const topMerchants = useMemo(() => {
+   const topMerchants = useMemo(() => {
     if (!stores.length || !users.length) return[];
     const stats = {};
     
-    // Count total and active stores for each owner
+    // 1. Safely extract and count stores
     stores.forEach(s => {
-      if (!stats[s.owner]) stats[s.owner] = { total: 0, active: 0 };
-      stats[s.owner].total += 1;
-      if (s.isActive) stats[s.owner].active += 1;
+      // Force it to a string, whether it's an ObjectId, populated object, or string
+      const ownerId = s.owner?._id ? String(s.owner._id) : String(s.owner);
+      
+      if (!stats[ownerId]) stats[ownerId] = { total: 0, active: 0 };
+      stats[ownerId].total += 1;
+      if (s.isActive) stats[ownerId].active += 1;
     });
 
-    // Map stats to user objects and sort by total stores
+    // 2. Map the stats to the actual users
     return users
-      .filter(u => u.role === 'owner' && !u.isDeleted)
-      .map(u => ({
-        ...u,
-        totalStores: stats[u._id]?.total || 0,
-        activeStores: stats[u._id]?.active || 0
-      }))
-      .filter(u => u.totalStores > 0) // Only show users who actually have stores
-      .sort((a, b) => b.totalStores - a.totalStores)
+      .filter(u => u.role !== 'admin' && !u.isDeleted) // Exclude admins and deleted users
+      .map(u => {
+        const userId = String(u._id);
+        return {
+          ...u,
+          totalStores: stats[userId]?.total || 0,
+          activeStores: stats[userId]?.active || 0
+        };
+      })
+      .filter(u => u.totalStores > 0) // Only show users who ACTUALLY have stores
+      .sort((a, b) => b.totalStores - a.totalStores) // Sort largest to smallest
       .slice(0, 10); // Grab top 10
-  }, [stores, users]);
-
+  },[stores, users]);
+  
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (

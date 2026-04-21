@@ -35,25 +35,46 @@ export default function AdminUsers() {
   };
 
   // 🧠 ENRICH USERS & SORT BY RANK (Top to Bottom)
-  const enrichedUsers = useMemo(() => {
+   const enrichedUsers = useMemo(() => {
     const storeCounts = {};
-    stores.forEach(s => { storeCounts[s.owner] = (storeCounts[s.owner] || 0) + 1; });
+    
+    // 1. Count stores securely
+    stores.forEach(s => { 
+      const ownerId = s.owner?._id ? String(s.owner._id) : String(s.owner);
+      storeCounts[ownerId] = (storeCounts[ownerId] || 0) + 1; 
+    });
     
     // Sort all owners to determine top 3 ranks
     const rankedOwners = Object.keys(storeCounts).sort((a, b) => storeCounts[b] - storeCounts[a]);
     const top3 = rankedOwners.slice(0, 3);
 
     const mappedUsers = users.map(u => {
-      const userStores = stores.filter(s => s.owner === u._id);
-      const activeStoresCount = userStores.filter(s => s.isActive).length;
-      const userTicketsCount = tickets.filter(t => t.owner === u._id && t.status !== 'resolved').length;
+      const userId = String(u._id);
       
-      const storeIds = userStores.map(s => s._id);
-      const userDisputesCount = disputes.filter(d => storeIds.includes(d.store?._id || d.store)).length;
+      // Safely filter Stores
+      const userStores = stores.filter(s => {
+         const sOwner = s.owner?._id ? String(s.owner._id) : String(s.owner);
+         return sOwner === userId;
+      });
+      const activeStoresCount = userStores.filter(s => s.isActive).length;
+      
+      // Safely filter Tickets
+      const userTicketsCount = tickets.filter(t => {
+         const tOwner = t.owner?._id ? String(t.owner._id) : String(t.owner);
+         return tOwner === userId && t.status !== 'resolved';
+      }).length;
+      
+      // Safely filter Disputes
+      const storeIds = userStores.map(s => String(s._id));
+      const userDisputesCount = disputes.filter(d => {
+         const dStore = d.store?._id ? String(d.store._id) : String(d.store);
+         return storeIds.includes(dStore);
+      }).length;
 
+      // Assign Rank (1, 2, 3, or null)
       let rank = null;
-      if (top3.includes(u._id) && storeCounts[u._id] > 0) {
-        rank = top3.indexOf(u._id) + 1;
+      if (top3.includes(userId) && storeCounts[userId] > 0) {
+        rank = top3.indexOf(userId) + 1;
       }
 
       return {
@@ -68,14 +89,14 @@ export default function AdminUsers() {
 
     // 🚨 SORTING LOGIC: Ranks first, then by store count, then newest users
     return mappedUsers.sort((a, b) => {
-      if (a.rank && b.rank) return a.rank - b.rank; // Top 1, 2, 3
-      if (a.rank) return -1; // Ranks float to top
+      if (a.rank && b.rank) return a.rank - b.rank; 
+      if (a.rank) return -1; 
       if (b.rank) return 1;
-      if (b.totalStores !== a.totalStores) return b.totalStores - a.totalStores; // Most stores next
-      return new Date(b.createdAt) - new Date(a.createdAt); // Newest next
+      if (b.totalStores !== a.totalStores) return b.totalStores - a.totalStores; 
+      return new Date(b.createdAt) - new Date(a.createdAt); 
     });
 
-  },[users, stores, tickets, disputes]);
+  }, [users, stores, tickets, disputes]);
 
   const deleteUserAction = async (userId) => {
     if(!window.confirm("Soft-delete this user and all their stores? (30-day countdown begins)")) return;
