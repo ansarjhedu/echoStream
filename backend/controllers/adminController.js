@@ -288,7 +288,7 @@ const replyToTicket=async(req,res)=>{
         if(!content){
             return res.status(400).json({message:"Reply content cannot be empty"})
         }
-        console.log("Replying to Ticket ID:", ticketId, "with content:", content); // Debugging log
+      
         const ticket=await Support.findByIdAndUpdate(ticketId,
             {
                 status:"in_progress",
@@ -299,7 +299,7 @@ const replyToTicket=async(req,res)=>{
             },
             {new:true}
         );
-        console.log("Updated Ticket:", ticket); // Debugging log
+       
         if(!ticket){
             return res.status(404).json("Support ticket not found")
         }

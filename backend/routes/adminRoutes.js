@@ -17,8 +17,8 @@ adminRouter.get('/disputes', authAdmin, getDisputedReviews);
 adminRouter.patch('/disputes/:reviewId/resolve', authAdmin, resolveDispute);
 
 adminRouter.get('/support/list',authAdmin, getTicketsFromUsers);
-adminRouter.post('/support/:ticketId/reply', authAdmin, replyToTicket);
-adminRouter.patch('/support/:ticketId/resolve', authAdmin, resolveTicket);
+adminRouter.post('/support/:id/reply', authAdmin, replyToTicket);
+adminRouter.patch('/support/:id/resolve', authAdmin, resolveTicket);
 
 
 
