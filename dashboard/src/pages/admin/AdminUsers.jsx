@@ -40,7 +40,8 @@ export default function AdminUsers() {
     
     // 1. Count stores securely
     stores.forEach(s => { 
-      console.log("Processing store:", s._id, "Owner:", s.owner);
+      const ownerId = s.owner?._id ? String(s.owner._id) : String(s.owner);
+      storeCounts[ownerId] = (storeCounts[ownerId] || 0) + 1; 
     });
     
     // Sort all owners to determine top 3 ranks
