@@ -21,7 +21,7 @@ const authUser=async (req,res,next)=>{
             return res.status(401).json({message:"Invalid token, user not found, authorization denied"});
         }
         
-        req.user={_id:user._id, role:user.role};
+        req.user={_id:user._id, role:user.role, userName:user.userName, email:user.email}; // <-- ADD userName and profilePic to req.user
         next();
     }
     catch (error) {

@@ -1,13 +1,18 @@
-import React, { useMemo } from 'react';
-import { Star, MessageSquare, CheckCircle, Clock, TrendingUp, AlertOctagon } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Star, MessageSquare, CheckCircle, TrendingUp, AlertOctagon } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import StatCard from '../StatCard';
 
 export default function StoreOverview({ products, reviews }) {
   
+  // 1. Timeframe State for the Chart
+  const [chartTimeframe, setChartTimeframe] = useState('7d'); // '7d' or '30d'
+
+  // 2. Core Stats Calculation
   const stats = useMemo(() => {
     const approved = reviews.filter(r => r.status === 'approved');
-    const pending = reviews.filter(r => r.status === 'pending');
+    const disputed = reviews.filter(r => r.status === 'dispute'); // Swapped pending for disputed!
+    
     const avgRating = approved.length > 0 
       ? (approved.reduce((sum, r) => sum + r.rating, 0) / approved.length).toFixed(1) : 0;
 
@@ -15,14 +20,15 @@ export default function StoreOverview({ products, reviews }) {
       totalProducts: products.length,
       totalReviews: reviews.length,
       approvedReviews: approved.length,
-      pendingReviews: pending.length,
+      disputedReviews: disputed.length, // Now tracking disputes
       avgRating,
       approvalRate: reviews.length > 0 ? Math.round((approved.length / reviews.length) * 100) : 0
     };
   }, [products, reviews]);
 
-  const reviewTrendData = useMemo(() => {
-    const last7Days = [...Array(7)].map((_, i) => {
+  // 3. 7-Day Review Volume Data
+  const reviewTrendData7d = useMemo(() => {
+    const last7Days =[...Array(7)].map((_, i) => {
       const d = new Date(); d.setDate(d.getDate() - (6 - i));
       return d.toISOString().split('T')[0];
     });
@@ -33,6 +39,23 @@ export default function StoreOverview({ products, reviews }) {
     }));
   }, [reviews]);
 
+  // 4. 30-Day Review Volume Data
+  const reviewTrendData30d = useMemo(() => {
+    const last30Days = [...Array(30)].map((_, i) => {
+      const d = new Date(); d.setDate(d.getDate() - (29 - i));
+      return d.toISOString().split('T')[0];
+    });
+    return last30Days.map(dateStr => ({
+      name: new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), 
+      reviews: reviews.filter(r => r.createdAt?.startsWith(dateStr)).length, 
+      fullDate: dateStr 
+    }));
+  },[reviews]);
+
+  // Determine which dataset the chart uses
+  const activeChartData = chartTimeframe === '7d' ? reviewTrendData7d : reviewTrendData30d;
+
+  // 5. Pie Chart Distribution
   const statusData = useMemo(() => {
     const counts = { approved: 0, pending: 0, rejected: 0, dispute: 0 };
     reviews.forEach(r => { if (counts[r.status] !== undefined) counts[r.status]++; });
@@ -58,24 +81,58 @@ export default function StoreOverview({ products, reviews }) {
 
   return (
     <div className="space-y-8 animate-fade-in-down">
+      
+      {/* 4 Key Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Avg Rating" value={stats.avgRating} icon={<Star className="text-yellow-400" size={20}/>} color="text-yellow-400" />
         <StatCard title="Total Reviews" value={stats.totalReviews} icon={<MessageSquare size={20} className="text-cyan-400"/>} />
         <StatCard title="Approval Rate" value={`${stats.approvalRate}%`} icon={<CheckCircle size={20} className="text-green-400"/>} color="text-green-400" />
-        <StatCard title="Pending" value={stats.pendingReviews} icon={<Clock size={20} className="text-orange-400"/>} color={stats.pendingReviews > 0 ? "text-orange-400" : "text-gray-400"} />
+        
+        {/* Swapped Pending for Disputed! */}
+        <StatCard 
+          title="Disputed Reviews" 
+          value={stats.disputedReviews} 
+          icon={<AlertOctagon size={20} className={stats.disputedReviews > 0 ? "text-red-400" : "text-gray-400"}/>} 
+          color={stats.disputedReviews > 0 ? "text-red-400" : "text-white"} 
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Area Chart: Reviews over Time */}
         <div className="lg:col-span-2 bg-black/20 border border-white/5 p-6 rounded-xl">
-          <h3 className="text-sm font-bold text-gray-400 mb-6 flex items-center gap-2"><TrendingUp size={16} className="text-cyan-400"/> Review Volume (Last 7 Days)</h3>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+            <h3 className="text-sm font-bold text-gray-400 flex items-center gap-2">
+              <TrendingUp size={16} className="text-cyan-400"/> Review Volume
+            </h3>
+            
+            {/* Timeframe Toggle (Styled in Cyan for Store Owner) */}
+            <div className="flex bg-black/40 rounded-lg p-1 border border-white/10">
+              <button 
+                onClick={() => setChartTimeframe('7d')}
+                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${chartTimeframe === '7d' ? 'bg-cyan-500/20 text-cyan-400 shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                7 Days
+              </button>
+              <button 
+                onClick={() => setChartTimeframe('30d')}
+                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${chartTimeframe === '30d' ? 'bg-cyan-500/20 text-cyan-400 shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                30 Days
+              </button>
+            </div>
+          </div>
+
           <div className="h-[250px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={reviewTrendData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+              <AreaChart data={activeChartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorReviews" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3}/><stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/></linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                <XAxis dataKey="name" stroke="#6b7280" fontSize={12} tickLine={false} axisLine={false} />
+                
+                {/* minTickGap=20 automatically spaces out the 30-day labels! */}
+                <XAxis dataKey="name" stroke="#6b7280" fontSize={12} tickLine={false} axisLine={false} minTickGap={20} />
                 <YAxis stroke="#6b7280" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
                 <RechartsTooltip content={<CustomTooltip />} />
                 <Area type="monotone" dataKey="reviews" name="Reviews Received" stroke="#06b6d4" strokeWidth={3} fill="url(#colorReviews)" />
@@ -84,6 +141,7 @@ export default function StoreOverview({ products, reviews }) {
           </div>
         </div>
 
+        {/* Doughnut Chart: Status Distribution */}
         <div className="bg-black/20 border border-white/5 p-6 rounded-xl flex flex-col">
           <h3 className="text-sm font-bold text-gray-400 mb-2">Review Status</h3>
           <div className="flex-1 min-h-[200px] w-full relative flex items-center justify-center">

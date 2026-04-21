@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import generateToken from "../utils/tokenManager.js";
 import Token from "../models/Token.js";
+import Support from "../models/Support.js";
 import jwt from "jsonwebtoken";
 
 const registerUser = async (req, res) => {
@@ -207,4 +208,58 @@ const logoutUser = async (req, res) => {
         return res.status(500).json("Internal Server Error ")
     }
 }
-export { registerUser, loginUser, logoutUser, refreshToken,updateUserCredentials };
+
+  const generateTicket=async(req, res)=>{
+   try {
+     const {subject,message}=req.body;
+    if( !subject || !message){
+        return res.status(400).json({message:"Please provide all required fields"})
+    }
+
+    const images=req.files ? req.files.map(file=>file.path) : [];
+
+    const ticket=await Support.create({
+        owner:req.user._id,
+        ownerName:req.user.userName,
+        ownerEmail:req.user.email,
+        subject,
+        message,
+        images
+    });
+
+    if(!ticket){
+        return res.status(500).json({message:"Failed to create support ticket"})
+    }
+
+    return res.status(201).json({
+        data:ticket,
+        message:"Support ticket created successfully"
+    });
+   } catch (error) {
+    console.log(error)
+    return res.status(500).json("Internal Server Error ")
+   }
+
+  }
+
+  const getTickets=async(req,res)=>{
+    try {
+        const userId=req.user._id;
+        const tickets=await Support.find({owner:userId}).sort({createdAt:-1});
+
+        if(!tickets || tickets.length===0){
+            return res.status(200).json({
+                data:[],
+                message:"No support tickets found for this user"
+            })
+        }
+        return res.status(200).json({
+            data:tickets,
+            message:"Support tickets retrieved successfully"
+        })
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json("Internal Server Error ")
+    }
+  }
+export { registerUser, loginUser, logoutUser, refreshToken,updateUserCredentials, generateTicket,getTickets };

@@ -10,14 +10,16 @@ import Profile from './pages/Profile';
 import Reviews from './pages/Reviews';
 import Integration from './pages/Integration';
 import Analytics from './pages/Analytics';
-import HubLayout from './components/HubLayout';
-import StoreLayout from './components/StoreLayout';
+import HubLayout from './pages/HubLayout';
+import StoreLayout from './pages/StoreLayout';
+import Support from './pages/support';
 
 // New Admin Components
 import AdminOverview from './pages/admin/AdminOverview';
 import AdminDisputes from './pages/admin/AdminDisputes';
 import AdminStores from './pages/admin/AdminStores';
 import AdminUsers from './pages/admin/AdminUsers';
+import AdminSupport from './pages/admin/AdminSupport';
 
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -57,12 +59,14 @@ export default function App() {
                 <Routes>
                   <Route path="stores" element={<StoresHub />} />
                   <Route path="profile" element={<Profile />} />
+                  <Route path="support" element={<Support />} />
                   
                   {/* ADMIN ROUTES IN THE HUB */}
                   <Route path="admin/overview" element={<AdminRoute><AdminOverview /></AdminRoute>} />
                   <Route path="admin/disputes" element={<AdminRoute><AdminDisputes /></AdminRoute>} />
                   <Route path="admin/stores" element={<AdminRoute><AdminStores /></AdminRoute>} />
                   <Route path="admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+                  <Route path="admin/support" element={<AdminRoute><AdminSupport /></AdminRoute>} />
 
                   <Route path="*" element={<Navigate to="stores" replace />} />
                 </Routes>

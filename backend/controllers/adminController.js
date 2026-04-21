@@ -2,6 +2,7 @@ import User from "../models/User.js";
 import Store from "../models/Store.js";
 import Review from "../models/Review.js";
 import Product from "../models/Product.js";
+import Support from "../models/Support.js";
 import mongoose from "mongoose";
 import crypto from "crypto";
 
@@ -259,5 +260,77 @@ const restoreStore = async (req, res) => {
 
 
 
-// Add `restoreStore` to your exports!
-export { listUsers, deleteUser, listStores, updateStore, getPlatformAnalytics, getDisputedReviews, resolveDispute, restoreStore,restoreUser };
+const getTicketsFromUsers=async(req,res)=>{
+    try {
+        const tickets=await Support.find({}).sort({createdAt:-1});
+
+        if(!tickets || tickets.length===0){
+            return res.status(200).json({
+                data:[],
+                message:"No support tickets found"
+            })
+        }
+        return res.status(200).json({
+            data:tickets,
+            message:"Support tickets fetched successfully"
+        })
+    }
+    catch (error) {
+        console.log(error)
+        return res.status(500).json("Internal Server Error ")
+    }
+}
+
+const replyToTicket=async(req,res)=>{
+    try {
+        const ticketId=req.params.id;
+        const {content}=req.body;
+        if(!content){
+            return res.status(400).json({message:"Reply content cannot be empty"})
+        }
+        const ticket=await Support.findByIdAndUpdate(ticketId,
+            {
+                status:"in_progress",
+                adminReply:{
+                    content,
+                    createdAt:Date.now()
+                }
+            },
+            {new:true}
+        );
+        if(!ticket){
+            return res.status(404).json("Support ticket not found")
+        }
+        return res.status(200).json({
+            data:ticket,
+            message:"Replied to support ticket successfully"
+        })
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json("Internal Server Error ")
+        }
+}
+    const resolveTicket=async(req,res)=>{
+    try {
+        const ticketId=req.params.id;
+        const ticket=await Support.findByIdAndUpdate(ticketId,
+            {
+                status:"resolved",
+            },
+            {new:true}
+        );
+        if(!ticket){
+            return res.status(404).json("Support ticket not found")
+        }
+        return res.status(200).json({
+            data:ticket,
+            message:"Support ticket marked as resolved successfully"
+        })
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json("Internal Server Error ")
+    }
+}
+
+        // Add `restoreStore` to your exports!
+export { listUsers, deleteUser, listStores, updateStore, getPlatformAnalytics, getDisputedReviews, resolveDispute, restoreStore,restoreUser, getTicketsFromUsers, replyToTicket, resolveTicket};
