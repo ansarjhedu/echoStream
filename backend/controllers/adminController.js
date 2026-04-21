@@ -167,7 +167,7 @@ const getPlatformAnalytics = async (req, res) => {
         ]);
 
         return res.status(200).json({
-            data: { totalUsers, activeStores, totalStores, disputedReviews, Tickets: analytics.tickets },
+            data: { totalUsers, activeStores, totalStores, disputedReviews, tickets },
             message: "Platform analytics fetched successfully"
         });
     } catch (error) {
