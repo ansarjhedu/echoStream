@@ -1,7 +1,7 @@
 import { useAuth } from "../context/AuthContext";
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Menu,X, UserIcon, Activity, AlertOctagon,StoreIcon,Users,LogOut } from "lucide-react";
+import { Menu,X, UserIcon, Activity, AlertOctagon,StoreIcon,Users,LogOut ,LifeBuoy} from "lucide-react";
 import { Link } from "react-router-dom";
 import logo from '../assets/logo.png'
 
@@ -75,12 +75,18 @@ const HubLayout = ({ children }) => {
                 <Link to="/hub/admin/users" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/users') ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
                   <Users size={20} className={location.pathname.includes('/users') ? "text-red-400" : ""} /> Registered Users
                 </Link>
+                <Link to="/hub/admin/support" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/support') ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
+                  <LifeBuoy size={20} className={location.pathname.includes('/support') ? "text-red-400" : ""} /> Support Queue
+                </Link>
               </>
             ) : (
               /* STORE OWNER NAVIGATION */
               <>
                 <Link to="/hub/stores" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/stores') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                   <StoreIcon size={20} className={location.pathname.includes('/hub/stores') ? "text-cyan-400" : ""} /> My Stores
+                </Link>
+                <Link to="/hub/support" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/support') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                  <LifeBuoy size={20} className={location.pathname.includes('/hub/support') ? "text-cyan-400" : ""} /> Support
                 </Link>
               </>
             )}
@@ -89,6 +95,7 @@ const HubLayout = ({ children }) => {
             <Link to="/hub/profile" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/profile') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
               <UserIcon size={20} className={location.pathname.includes('/profile') ? "text-purple-400" : ""} /> Profile Settings
             </Link>
+
           </nav>
         </div>
 
