@@ -12,7 +12,7 @@ import Integration from './pages/Integration';
 import Analytics from './pages/Analytics';
 import HubLayout from './pages/HubLayout';
 import StoreLayout from './pages/StoreLayout';
-import Support from './pages/support';
+import Support from './pages/Support';
 
 // New Admin Components
 import AdminOverview from './pages/admin/AdminOverview';
