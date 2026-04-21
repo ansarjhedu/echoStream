@@ -109,7 +109,7 @@ export default function Support() {
         </div>
 
         {/* RIGHT COLUMN: TICKET HISTORY */}
-        <div className="flex-1 bg-white/[0.02] border border-white/10 p-6 md:p-8 rounded-2xl backdrop-blur-xl shadow-2xl">
+        <div className="flex-1 bg-white/[0.02] border border-white/10 p-6 md:p-8 rounded-2xl backdrop-blur-xl shadow-2xl no-scrollbar">
           <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
             <MessageSquare size={18} className="text-cyan-400" /> Your Ticket History
           </h2>
