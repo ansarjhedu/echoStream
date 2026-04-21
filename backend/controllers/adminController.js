@@ -158,7 +158,7 @@ const updateStore=async(req,res)=>{
 const getPlatformAnalytics = async (req, res) => {
     try {
         // Run promises in parallel for speed
-        const[totalUsers, activeStores, totalStores, disputedReviews] = await Promise.all([
+        const[totalUsers, activeStores, totalStores, disputedReviews, tickets] = await Promise.all([
             User.countDocuments({ isDeleted: false, role: "owner" }),
             Store.countDocuments({ isActive: true, isDeleted: false }),
             Store.countDocuments({ isDeleted: false }),
@@ -167,7 +167,7 @@ const getPlatformAnalytics = async (req, res) => {
         ]);
 
         return res.status(200).json({
-            data: { totalUsers, activeStores, totalStores, disputedReviews, Tickets: analytics.openTickets },
+            data: { totalUsers, activeStores, totalStores, disputedReviews, Tickets: analytics.tickets },
             message: "Platform analytics fetched successfully"
         });
     } catch (error) {
