@@ -25,7 +25,7 @@ export default function AdminUsers() {
       ]);
       setUsers(userRes.data.data ||[]);
       setStores(storeRes.data?.storesWithOwner || storeRes.data?.data ||[]);
-      setDisputes(dispRes.data?.data || []);
+      setDisputes(dispRes.data?.data ||[]);
       setTickets(ticketRes.data?.data ||[]);
     } catch (error) {
       toast.error("Failed to fetch platform data");
@@ -34,9 +34,8 @@ export default function AdminUsers() {
     }
   };
 
-  // 🧠 ENRICH USERS WITH METRICS & RANKS
+  // 🧠 ENRICH USERS & SORT BY RANK (Top to Bottom)
   const enrichedUsers = useMemo(() => {
-    // 1. Calculate store counts to find the top users
     const storeCounts = {};
     stores.forEach(s => { storeCounts[s.owner] = (storeCounts[s.owner] || 0) + 1; });
     
@@ -44,17 +43,14 @@ export default function AdminUsers() {
     const rankedOwners = Object.keys(storeCounts).sort((a, b) => storeCounts[b] - storeCounts[a]);
     const top3 = rankedOwners.slice(0, 3);
 
-    return users.map(u => {
+    const mappedUsers = users.map(u => {
       const userStores = stores.filter(s => s.owner === u._id);
       const activeStoresCount = userStores.filter(s => s.isActive).length;
-      
       const userTicketsCount = tickets.filter(t => t.owner === u._id && t.status !== 'resolved').length;
       
-      // Check if disputes belong to this user's stores
       const storeIds = userStores.map(s => s._id);
       const userDisputesCount = disputes.filter(d => storeIds.includes(d.store?._id || d.store)).length;
 
-      // Assign Rank (1, 2, 3, or null)
       let rank = null;
       if (top3.includes(u._id) && storeCounts[u._id] > 0) {
         rank = top3.indexOf(u._id) + 1;
@@ -69,7 +65,17 @@ export default function AdminUsers() {
         rank
       };
     });
-  }, [users, stores, tickets, disputes]);
+
+    // 🚨 SORTING LOGIC: Ranks first, then by store count, then newest users
+    return mappedUsers.sort((a, b) => {
+      if (a.rank && b.rank) return a.rank - b.rank; // Top 1, 2, 3
+      if (a.rank) return -1; // Ranks float to top
+      if (b.rank) return 1;
+      if (b.totalStores !== a.totalStores) return b.totalStores - a.totalStores; // Most stores next
+      return new Date(b.createdAt) - new Date(a.createdAt); // Newest next
+    });
+
+  },[users, stores, tickets, disputes]);
 
   const deleteUserAction = async (userId) => {
     if(!window.confirm("Soft-delete this user and all their stores? (30-day countdown begins)")) return;
@@ -128,66 +134,85 @@ export default function AdminUsers() {
       </select>
 
       <div className="bg-white/[0.02] border border-white/10 rounded-2xl overflow-x-auto shadow-2xl custom-scrollbar">
-        <table className="w-full text-left min-w-[900px]">
+        <table className="w-full text-left min-w-[800px]">
           <thead className="bg-black/40 border-b border-white/10 text-gray-400 text-xs uppercase tracking-wider">
             <tr>
-              <th className="p-5 font-medium">User Profile</th>
-              <th className="p-5 font-medium">Platform Metrics</th>
+              <th className="p-5 font-medium">User Details & Metrics</th>
               <th className="p-5 font-medium">Account Status</th>
               <th className="p-5 text-right font-medium">Actions</th>
             </tr>
           </thead>
           <tbody className="text-sm">
             {filteredUsers.length === 0 ? (
-              <tr><td colSpan="4" className="p-8 text-center text-gray-500 italic">No users match this filter.</td></tr>
+              <tr><td colSpan="3" className="p-8 text-center text-gray-500 italic">No users match this filter.</td></tr>
             ) : null}
             
             {filteredUsers.map(u => (
               <tr key={u._id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                 
-                {/* 1. PROFILE CELL */}
-                <td className="p-5 flex items-center gap-4">
-                  <div className="relative">
-                    {u.profilePic ? (
-                      <img src={u.profilePic} alt="avatar" className="w-12 h-12 rounded-full object-cover border border-purple-500/50" />
-                    ) : (
-                      <div className="w-12 h-12 rounded-full bg-purple-500/20 border border-purple-500/50 flex items-center justify-center text-purple-400 font-bold text-lg">
-                        {u.userName.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                    {/* Crown Badge for Top 3 */}
-                    {u.rank && (
-                      <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center border shadow-lg ${u.rank === 1 ? 'bg-yellow-500 text-black border-yellow-300' : u.rank === 2 ? 'bg-gray-300 text-black border-white' : 'bg-orange-500 text-black border-orange-300'}`}>
-                        <Crown size={12} />
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <p className={`font-bold text-base ${u.isDeleted ? 'text-gray-500 line-through' : 'text-white'}`}>{u.userName}</p>
-                    <p className="text-xs text-gray-400">{u.email}</p>
-                  </div>
-                </td>
-                
-                {/* 2. METRICS CELL (The "High Maintenance" Check) */}
+                {/* 1. COMBINED PROFILE & METRICS CELL */}
                 <td className="p-5">
-                  <div className="flex gap-4">
-                    <div className="flex flex-col">
-                      <span className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1"><Store size={10}/> Stores</span>
-                      <span className="font-bold text-cyan-400">{u.activeStores} Active <span className="text-gray-600 text-xs font-normal">/ {u.totalStores}</span></span>
+                  <div className="flex items-start gap-4">
+                    {/* Avatar Area */}
+                    <div className="relative shrink-0 mt-1">
+                      {u.profilePic ? (
+                        <img src={u.profilePic} alt="avatar" className="w-12 h-12 rounded-full object-cover border border-purple-500/50" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-purple-500/20 border border-purple-500/50 flex items-center justify-center text-purple-400 font-bold text-lg">
+                          {u.userName.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      {/* Crown Badge */}
+                      {u.rank && (
+                        <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center border shadow-lg ${u.rank === 1 ? 'bg-yellow-500 text-black border-yellow-300' : u.rank === 2 ? 'bg-gray-300 text-black border-white' : 'bg-orange-500 text-black border-orange-300'}`}>
+                          <Crown size={12} />
+                        </div>
+                      )}
                     </div>
-                    <div className="flex flex-col">
-                      <span className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1"><LifeBuoy size={10}/> Tickets</span>
-                      <span className={`font-bold ${u.openTickets > 0 ? 'text-yellow-400' : 'text-gray-500'}`}>{u.openTickets} Open</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1"><AlertOctagon size={10}/> Disputes</span>
-                      <span className={`font-bold ${u.pendingDisputes > 0 ? 'text-red-400' : 'text-gray-500'}`}>{u.pendingDisputes} Pending</span>
+                    
+                    {/* Details & Sub-Row Metrics */}
+                    <div className="flex flex-col w-full">
+                      {/* Primary Row: Name & Email */}
+                      <div className="flex items-baseline gap-3 mb-2">
+                        <span className={`font-bold text-lg ${u.isDeleted ? 'text-gray-500 line-through' : 'text-white'}`}>{u.userName}</span>
+                        <span className="text-sm text-gray-500">{u.email}</span>
+                        {u.role === 'admin' && <span className="ml-2 px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 text-[10px] uppercase font-bold rounded-full">Platform Admin</span>}
+                      </div>
+
+                      {/* Secondary Row: Metrics (Hidden for Admins since they don't own stores) */}
+                      {u.role !== 'admin' && (
+                        <div className="flex items-center gap-4 md:gap-6 bg-black/20 w-fit px-4 py-2 rounded-lg border border-white/5 mt-1">
+                          
+                          <div className="flex items-center gap-2">
+                            <Store size={14} className="text-gray-500" />
+                            <span className="text-xs text-gray-400 hidden sm:inline">Stores:</span>
+                            <span className="text-sm font-bold text-cyan-400">{u.activeStores} <span className="text-gray-600 text-xs font-normal">/ {u.totalStores}</span></span>
+                          </div>
+                          
+                          <div className="w-px h-4 bg-white/10"></div>
+                          
+                          <div className="flex items-center gap-2">
+                            <LifeBuoy size={14} className="text-gray-500" />
+                            <span className="text-xs text-gray-400 hidden sm:inline">Tickets:</span>
+                            <span className={`text-sm font-bold ${u.openTickets > 0 ? 'text-yellow-400' : 'text-gray-500'}`}>{u.openTickets}</span>
+                          </div>
+                          
+                          <div className="w-px h-4 bg-white/10"></div>
+                          
+                          <div className="flex items-center gap-2">
+                            <AlertOctagon size={14} className="text-gray-500" />
+                            <span className="text-xs text-gray-400 hidden sm:inline">Disputes:</span>
+                            <span className={`text-sm font-bold ${u.pendingDisputes > 0 ? 'text-red-400' : 'text-gray-500'}`}>{u.pendingDisputes}</span>
+                          </div>
+
+                        </div>
+                      )}
                     </div>
                   </div>
                 </td>
 
-                {/* 3. STATUS CELL */}
-                <td className="p-5">
+                {/* 2. STATUS CELL */}
+                <td className="p-5 align-middle">
                   {u.isDeleted ? (
                     <div className="flex flex-col gap-1 items-start">
                       <span className="px-3 py-1 text-xs font-bold rounded-full border bg-red-500/10 text-red-400 border-red-500/20">DELETED</span>
@@ -200,16 +225,18 @@ export default function AdminUsers() {
                   )}
                 </td>
 
-                {/* 4. ACTIONS CELL */}
-                <td className="p-5 text-right">
+                {/* 3. ACTIONS CELL */}
+                <td className="p-5 text-right align-middle">
                   {u.isDeleted ? (
                     <button onClick={() => restoreUserAction(u._id)} className="px-4 py-2 bg-green-500/10 text-green-400 hover:bg-green-500/30 rounded-lg border border-green-500/30 transition-all inline-flex items-center gap-2 text-xs font-bold">
-                      <RefreshCcw size={14} /> Restore User
+                      <RefreshCcw size={14} /> Restore
                     </button>
-                  ) : u.role !== 'admin' && ( // Protect Admins from being deleted here!
+                  ) : u.role !== 'admin' ? ( 
                     <button onClick={() => deleteUserAction(u._id)} className="px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/30 rounded-lg border border-red-500/30 transition-all inline-flex items-center gap-2 text-xs font-bold">
                       <Trash2 size={14} /> Soft Delete
                     </button>
+                  ) : (
+                    <span className="text-xs text-gray-500 font-bold uppercase">Protected</span>
                   )}
                 </td>
               </tr>
