@@ -6,7 +6,7 @@ const createReview=async(req,res)=>{
 
     try {
         const { productHandle, productTitle, customerName, customerEmail, rating, comment, }=req.body;
-        console.log(customerName)
+       
         if(!productHandle || !productTitle || !customerName || !customerEmail || !rating || !comment){
             return res.status(400).json({ message: "All fields are required" });
         }
@@ -42,14 +42,16 @@ const createReview=async(req,res)=>{
 const updateReviewStatus = async (req, res) => {
     try {
         const { reviewId } = req.params;
-        let { status } = req.body;
+        let { status, content } = req.body;
         const storeId = req.store._id;
 
         
 
-        if (!["approved", "rejected", "disputed"].includes(status)) {
+        if ( !status || !content || status!=="disputed") {
             return res.status(400).json({ message: "Invalid status provided." });
         }
+
+        const images = req.files ? req.files.map(file => file.path) : [];
 
         // 1. Find the review
         const review = await Review.findOne({ _id: reviewId, store: storeId });
@@ -58,47 +60,22 @@ const updateReviewStatus = async (req, res) => {
         }
 
         // 2. SECURITY: Admin Lock Check
-        if (review.isLocked) {
-            return res.status(403).json({ message: "This review is permanently locked by Platform Admin." });
+        if (review.isLocked || review.disputedReason.count >= 3) {
+            return res.status(403).json({ message: "This review is permanently locked by Platform Admin or has reached the maximum dispute count." });
         }
-
-        // 3. Determine if the review is from a Verified Buyer (they have an email)
-        const isVerifiedBuyer = review.customerEmail && review.customerEmail.trim() !== "";
-
-        if (isVerifiedBuyer) {
-            // ---------------------------------------------------
-            // VERIFIED BUYER LOGIC (Owner can ONLY Dispute)
-            // ---------------------------------------------------
-            if (status !== "disputed") {
-                return res.status(403).json({ message: "Verified customer reviews can only be disputed. Admins handle approvals/rejections." });
-            }
-            
-            // Check the 3-Strike Rule
-            if (review.disputeCount >= 3) {
-                return res.status(403).json({ message: "Dispute limit reached. You cannot dispute this review anymore." });
-            }
-
-            review.status = "disputed";
-            review.disputeCount = (review.disputeCount || 0) + 1;
-
-        } else {
-            // ---------------------------------------------------
-            // GUEST BUYER LOGIC (Owner has full control)
-            // ---------------------------------------------------
-            if (!["approved", "rejected"].includes(status)) {
-                return res.status(400).json({ message: "Guest reviews can only be approved or rejected." });
-            }
-            review.status = status;
-        }
-
-        // 4. Save and Recalculate
+        
+        review.status = status;
+        review.disputedReason = {
+            reason: content,
+            proofImages: images,
+            count: (review.disputedReason.count || 0) + 1,
+            createdAt: new Date()
+        };
         await review.save();
-        await recalculateProductStats(review.product);
-          
-        return res.status(200).json({ 
-            message: `Review status updated to ${review.status} successfully`, 
-            data: review 
-        });
+            await recalculateProductStats(review.product);
+
+        res.status(200).json({ message: "Review status updated successfully.", data: review });
+
 
     } catch (error) {
         console.error("Status Update Error:", error);

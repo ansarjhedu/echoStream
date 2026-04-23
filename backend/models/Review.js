@@ -46,10 +46,20 @@ const reviewSchema=new schema({
         enum:["approved","rejected","disputed"],
         default:"approved",
     },
-     disputeCount: {
-        type: Number,
-        default: 0,
-        max: 3
+    disputedReason: {
+       reason: {
+        type: String,
+        required:true
+       },
+       proofImages: [{
+        type: String // Cloudinary URLs
+       }],
+       count:{
+        type:Number,
+        default:1,
+        max:3
+       },
+       createdAt: Date
     },
     isLocked: {
         type: Boolean,
