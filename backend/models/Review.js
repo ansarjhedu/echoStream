@@ -49,7 +49,7 @@ const reviewSchema=new schema({
     disputedReason: {
        reason: {
         type: String,
-        required:true
+        
        },
        proofImages: [{
         type: String // Cloudinary URLs
