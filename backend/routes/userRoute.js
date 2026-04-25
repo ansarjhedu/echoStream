@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { registerUser,loginUser,logoutUser, refreshToken, updateUserCredentials, generateTicket, getTickets} from "../controllers/userController.js";
+import { registerUser,loginUser,logoutUser, refreshToken, updateUserCredentials, generateTicket, getTickets,replyToAdmin} from "../controllers/userController.js";
 import { authUser } from "../middlewares/authUser.js";
 import { upload } from "../utils/cloudinary.js";
 
@@ -14,5 +14,6 @@ userRouter.put("/update",authUser,upload.single("profilePic"),updateUserCredenti
 
 userRouter.post("/support/create",authUser,upload.array("images", 3),generateTicket); // NEW route for creating support tickets with image uploads
 userRouter.get("/support/list",authUser,getTickets); // NEW route for fetching user's support tickets
+userRouter.post('/support/:id/reply', authUser,upload.array('images',3),replyToAdmin)
 
 export default userRouter;

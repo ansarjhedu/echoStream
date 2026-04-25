@@ -293,10 +293,10 @@ const replyToTicket=async(req,res)=>{
         const ticket=await Support.findByIdAndUpdate(ticketId,
             {
                 status:"in_progress",
-                adminReply:{
-                    content,
-                    createdAt:Date.now()
-                }
+                conversation:[{
+                    sender:"admin",
+                    content:content
+                }]
             },
             {new:true}
         );

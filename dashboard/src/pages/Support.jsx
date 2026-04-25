@@ -5,9 +5,10 @@ import { toast } from 'react-toastify';
 
 export default function Support() {
   const [tickets, setTickets] = useState([]);
-  const[loading, setLoading] = useState(true);
-  const [submitLoading, setSubmitLoading] = useState(false);
-  const [formData, setFormData] = useState({ subject: '', message: '', images: null }); // Added images
+  const [loading, setLoading] = useState(true);
+  const[submitLoading, setSubmitLoading] = useState(false);
+  const [formData, setFormData] = useState({ subject: '', message: '', images: null });
+  const [replyText, setReplyText] = useState({}); // Track reply text for each ticket
 
   useEffect(() => {
     fetchTickets();
@@ -15,7 +16,7 @@ export default function Support() {
 
   const fetchTickets = async () => {
     try {
-      const res = await api.get('/users/support/list'); // Change route if yours is different
+      const res = await api.get('/users/support/list'); // Adjust if needed
       setTickets(res.data.data ||[]);
     } catch (error) {
       console.error("No tickets found.");
@@ -24,13 +25,12 @@ export default function Support() {
     }
   };
 
+  // 1. Create a NEW ticket
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.subject || !formData.message) return toast.error("Please fill in all fields.");
     
     setSubmitLoading(true);
-    
-    // 🚨 We MUST use FormData because we are sending files to Multer!
     const payload = new FormData();
     payload.append('subject', formData.subject);
     payload.append('message', formData.message);
@@ -47,12 +47,26 @@ export default function Support() {
       });
       setTickets([res.data.data, ...tickets]); 
       setFormData({ subject: '', message: '', images: null }); 
-      document.getElementById('ticket-images').value = ""; // Reset file input
+      document.getElementById('ticket-images').value = ""; 
       toast.success("Support ticket submitted successfully!");
     } catch (error) {
-      toast.error(error.response?.data?.message || error.response?.data || "Failed to submit ticket.");
+      toast.error(error.response?.data?.message || "Failed to submit ticket.");
     } finally {
       setSubmitLoading(false);
+    }
+  };
+
+  // 2. Reply to an EXISTING ticket
+  const handleReply = async (ticketId) => {
+    if (!replyText[ticketId]) return toast.error("Reply cannot be empty");
+    try {
+      const res = await api.post(`/users/support/${ticketId}/reply`, { content: replyText[ticketId] });
+      // Update the specific ticket in state with the new data from backend
+      setTickets(tickets.map(t => t._id === ticketId ? res.data.data : t));
+      setReplyText({ ...replyText, [ticketId]: '' }); // Clear input
+      toast.success("Reply sent to admin!");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to send reply");
     }
   };
 
@@ -95,7 +109,6 @@ export default function Support() {
                 <textarea value={formData.message} onChange={(e) => setFormData({...formData, message: e.target.value})} rows="6" placeholder="Please describe your issue in detail..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all text-sm resize-none custom-scrollbar" required />
               </div>
 
-              {/* 📸 IMAGE UPLOAD FOR TICKETS */}
               <div>
                 <label className="block text-sm text-gray-400 mb-2 flex items-center gap-2"><ImageIcon size={14}/> Attach Screenshots (Max 3)</label>
                 <input id="ticket-images" type="file" multiple accept="image/*" className="w-full text-xs text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-blue-500/10 file:text-blue-400 hover:file:bg-blue-500/20 cursor-pointer transition-all" onChange={(e) => setFormData({ ...formData, images: e.target.files })} />
@@ -108,7 +121,7 @@ export default function Support() {
           </div>
         </div>
 
-        {/* RIGHT COLUMN: TICKET HISTORY */}
+        {/* RIGHT COLUMN: TICKET HISTORY (CHAT UI) */}
         <div className="flex-1 bg-white/[0.02] border border-white/10 p-6 md:p-8 rounded-2xl backdrop-blur-xl shadow-2xl">
           <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
             <MessageSquare size={18} className="text-cyan-400" /> Your Ticket History
@@ -123,19 +136,22 @@ export default function Support() {
               <p className="text-gray-500 text-sm">You have not submitted any support requests.</p>
             </div>
           ) : (
-            <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
               {tickets.map(ticket => (
                 <div key={ticket._id} className="p-5 bg-black/30 border border-white/5 rounded-xl hover:border-white/10 transition-colors">
-                  <div className="flex justify-between items-start mb-3">
-                    <h3 className="font-bold text-white text-lg">{ticket.subject}</h3>
+                  
+                  {/* TICKET HEADER */}
+                  <div className="flex justify-between items-start mb-4 border-b border-white/5 pb-4">
+                    <div>
+                      <h3 className="font-bold text-white text-lg mb-1">{ticket.subject}</h3>
+                      <span className="text-xs font-mono text-gray-600">ID: {ticket._id.substring(0, 8)}</span>
+                    </div>
                     <StatusBadge status={ticket.status} />
                   </div>
                   
-                  <p className="text-sm text-gray-300 leading-relaxed mb-3">"{ticket.message}"</p>
-                  
-                  {/* Display Ticket Images */}
+                  {/* 📸 ORIGINAL IMAGES */}
                   {ticket.images && ticket.images.length > 0 && (
-                    <div className="flex gap-2 mb-4">
+                    <div className="flex gap-2 mb-6">
                       {ticket.images.map((img, idx) => (
                         <a key={idx} href={img} target="_blank" rel="noopener noreferrer">
                           <img src={img} alt="Screenshot" className="w-16 h-16 object-cover rounded-lg border border-white/10 hover:border-blue-400 transition-colors" />
@@ -144,18 +160,49 @@ export default function Support() {
                     </div>
                   )}
 
-                  <div className="flex justify-between items-end border-t border-white/5 pt-3">
-                    <span className="text-xs text-gray-500">{new Date(ticket.createdAt).toLocaleDateString()}</span>
-                    <span className="text-xs font-mono text-gray-600">ID: {ticket._id.substring(0, 8)}</span>
+                  {/* 💬 THE CHAT THREAD */}
+                  <div className="space-y-4 mb-4">
+                    {ticket.conversation?.map((msg, index) => (
+                      <div 
+                        key={index} 
+                        className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
+                      >
+                        <span className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 px-1">
+                          {msg.sender === 'user' ? 'You' : 'Admin'} • {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </span>
+                        <div 
+                          className={`p-3 rounded-2xl max-w-[85%] text-sm leading-relaxed ${
+                            msg.sender === 'user' 
+                              ? 'bg-blue-600/20 text-blue-100 border border-blue-500/30 rounded-tr-sm' 
+                              : 'bg-white/5 text-gray-300 border border-white/10 rounded-tl-sm'
+                          }`}
+                        >
+                          {msg.content}
+                        </div>
+                      </div>
+                    ))}
                   </div>
 
-                  {/* 🚨 FIX: Updated to read adminReply.content based on your backend! */}
-                  {ticket.adminReply && ticket.adminReply.content && (
-                    <div className="mt-4 p-4 rounded-lg bg-blue-500/10 border-l-2 border-blue-500">
-                      <span className="text-blue-400 text-xs font-bold uppercase tracking-widest block mb-1">Admin Response</span>
-                      <p className="text-sm text-gray-300">{ticket.adminReply.content}</p>
+                  {/* ✉️ REPLY INPUT (Hidden if resolved) */}
+                  {ticket.status !== 'resolved' && (
+                    <div className="flex gap-2 mt-6 pt-4 border-t border-white/5">
+                      <input 
+                        type="text" 
+                        placeholder="Reply to admin..." 
+                        value={replyText[ticket._id] || ''}
+                        onChange={(e) => setReplyText({ ...replyText, [ticket._id]: e.target.value })}
+                        className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-sm" 
+                      />
+                      <button 
+                        onClick={() => handleReply(ticket._id)}
+                        disabled={!replyText[ticket._id]}
+                        className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-bold flex items-center gap-2 transition-all disabled:opacity-50 text-sm"
+                      >
+                        <Send size={14}/> Reply
+                      </button>
                     </div>
                   )}
+
                 </div>
               ))}
             </div>

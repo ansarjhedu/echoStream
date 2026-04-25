@@ -16,25 +16,30 @@ const supportSchema = new Schema({
         required:true,
     },
     subject:{
-        type:String,
-        required:true,
-    },
-    message:{
-        type:String,
-        required:true,
-    },
-    images: [{
-        type: String // Cloudinary URLs
+            type:String,
+            required:true
+        },
+    conversation:[{
+        sender:{
+            type:String,
+            enum:["owner","admin"],
+            default:"owner",
+            required:true
+        },
+        images:[{
+            type:String
+        }],
+        createdAt:{
+            type:Date,
+            default:Date.now()
+        }
     }],
     status:{
         type:String,
         enum:["open","in_progress","resolved"],
         default:"open",
-    },
-    adminReply: {
-        content: String,
-        createdAt: Date
-    },
+    }
+    
   
    
 }, { timestamps: true });
