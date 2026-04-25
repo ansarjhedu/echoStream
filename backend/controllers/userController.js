@@ -226,7 +226,7 @@ const logoutUser = async (req, res) => {
         conversation:[{
           sender:"owner",
           images:images,
-          conent:message
+          content:message
         }]
     });
 
