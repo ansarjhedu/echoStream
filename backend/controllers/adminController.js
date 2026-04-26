@@ -290,21 +290,21 @@ const replyToTicket=async(req,res)=>{
             return res.status(400).json({message:"Reply content cannot be empty"})
         }
       
-        const ticket=await Support.findByIdAndUpdate(ticketId,
-            {
-                status:"in_progress",
-                conversation:[{
-                    sender:"admin",
-                    content:content,
-                    timestamp:Date.now()
-                }]
-            },
-            {new:true}
-        );
-       
-        if(!ticket){
-            return res.status(404).json("Support ticket not found")
+        const ticket=await Support.findById(ticketId);
+        if (!ticket) {
+            return res.status(404).json("Support ticket not found");
         }
+
+        if(ticket.status==="resolved"){
+            return res.status(400).json("Cannot reply to a resolved ticket")
+        }
+        ticket.conversation.push({
+            content:content,
+            sender:"admin",
+            timestamp:Date.now()
+        });
+        await ticket.save();
+        
         return res.status(200).json({
             data:ticket,
             message:"Replied to support ticket successfully"
