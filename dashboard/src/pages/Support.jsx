@@ -55,10 +55,12 @@ export default function Support() {
   };
 
   const handleReply = async () => {
+    console.log("Replying to ticket:", activeTicketId, "with message:", replyText);
     if (!replyText.trim()) return;
     try {
       const res = await api.post(`/users/support/${activeTicketId}/reply`, { content: replyText });
       setTickets(tickets.map(t => t._id === activeTicketId ? res.data.data : t));
+      toast.success("Message sent successfully!");
       setReplyText('');
     } catch (error) { toast.error("Failed to send reply"); }
   };
