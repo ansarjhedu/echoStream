@@ -99,7 +99,7 @@ export default function AdminSupport() {
             </div>
             
             <div className="bg-black/40 p-4 rounded-xl border border-white/5 mb-4">
-              <p className="text-gray-300">"{ticket.message}"</p>
+              <p className="text-gray-300">"{ticket.conversation[ticket.conversation.length - 1].content}"</p>
               {ticket.images && ticket.images.length > 0 && (
                 <div className="flex gap-2 mt-4">
                   {ticket.images.map((img, idx) => (
@@ -112,12 +112,12 @@ export default function AdminSupport() {
             </div>
 
             {/* Admin Reply Logic */}
-            {ticket.adminReply && ticket.adminReply.content ? (
+            { ticket.conversation[ticket.conversation.length - 1].content ? (
               <div className="p-4 rounded-lg bg-blue-500/10 border-l-2 border-blue-500">
                 <span className="text-blue-400 text-xs font-bold uppercase block mb-1">
-                  Your Response sent on {new Date(ticket.adminReply.createdAt).toLocaleDateString()}
+                  Your Response sent on {new Date(ticket.conversation[ticket.conversation.length - 1].createdAt).toLocaleDateString()}
                 </span>
-                <p className="text-sm text-gray-300">{ticket.adminReply.content}</p>
+                <p className="text-sm text-gray-300">{ticket.conversation[ticket.conversation.length - 1].content}</p>
               </div>
             ) : ticket.status !== 'resolved' ? (
               <div className="flex flex-col sm:flex-row gap-3 mt-4">
