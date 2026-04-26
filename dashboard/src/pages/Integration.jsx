@@ -99,7 +99,7 @@ note: Make sure to replace the placeholder values with actual product and custom
       <div className="flex flex-col  gap-8 w-full min-h-0">
         
         {/* LEFT COLUMN: CONTROLS */}
-        <div className="w-full xl:w-[400px] shrink-0 space-y-6 flex flex-col">
+        <div className="w-full shrink-0 space-y-6 flex flex-col">
           
           {/* Layout Selector */}
           <div className="bg-white/[0.02] border border-white/10 p-6 rounded-2xl backdrop-blur-xl">
