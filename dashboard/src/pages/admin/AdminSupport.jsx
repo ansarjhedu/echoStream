@@ -11,9 +11,11 @@ export default function AdminSupport() {
   
   const messagesEndRef = useRef(null);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [activeTicketId, tickets]);
+  useEffect(() => { fetchTickets(); },[]);
+
+  // useEffect(() => {
+  //   messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  // }, [activeTicketId, tickets]);
 
   const fetchTickets = async () => {
     try {
