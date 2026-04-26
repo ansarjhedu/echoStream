@@ -29,6 +29,10 @@ const supportSchema = new Schema({
         images:[{
             type:String
         }],
+        content:{
+            type:String,
+            required:true
+        },
         createdAt:{
             type:Date,
             default:Date.now()
