@@ -303,6 +303,7 @@ const replyToTicket=async(req,res)=>{
             sender:"admin",
             timestamp:Date.now()
         });
+        ticket.status="in_progress"; // Mark as in_progress when admin replies
         await ticket.save();
         
         return res.status(200).json({
