@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../Api';
-import { LifeBuoy, Send, Clock, CheckCircle, AlertCircle, Image as ImageIcon, Plus, ArrowLeft, X } from 'lucide-react';
+import { LifeBuoy, Send, Clock, CheckCircle, AlertCircle, Image as ImageIcon, Plus, ArrowLeft, X ,MessageSquare} from 'lucide-react';
 import { toast } from 'react-toastify';
 
 export default function Support() {
