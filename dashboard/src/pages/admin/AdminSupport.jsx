@@ -11,8 +11,6 @@ export default function AdminSupport() {
   
   const messagesEndRef = useRef(null);
 
-  useEffect(() => { fetchTickets(); },[]);
-
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeTicketId, tickets]);
