@@ -3,19 +3,24 @@ import api from '../Api';
 import { useAuth } from '../context/AuthContext';
 import { 
   MessageSquare, CheckCircle, XCircle, AlertOctagon, 
-  ArrowLeft, Package, Star, Lock, Trash2 // Added Lock and Trash2 imports
+  ArrowLeft, Package, Star, Lock, Trash2, X
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 export default function Reviews() {
   const { activeStore } = useAuth(); 
   const [products, setProducts] = useState([]);
-  const[selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
   
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
-  const[replyText, setReplyText] = useState({});
+  const [replyText, setReplyText] = useState({});
   const [lightboxImg, setLightboxImg] = useState(null);
+
+  // 🚨 NEW: Dispute Modal States
+  const [disputeModalOpen, setDisputeModalOpen] = useState(false);
+  const [disputeData, setDisputeData] = useState({ reviewId: null, content: '', images: null });
+  const [disputeLoading, setDisputeLoading] = useState(false);
 
   useEffect(() => {
     if (activeStore) fetchProducts();
@@ -46,13 +51,46 @@ export default function Reviews() {
     }
   };
 
+  // 🚨 UPDATED: Handles standard status changes (Approve/Reject for Guests)
   const handleStatusUpdate = async (id, status) => {
     try {
       await api.patch(`/store/${activeStore._id}/updateReview/${id}/status`, { status });
-      setReviews(reviews.map(r => r._id === id ? { ...r, status, disputeCount: status === 'disputed' ? (r.disputeCount || 0) + 1 : r.disputeCount } : r));
+      setReviews(reviews.map(r => r._id === id ? { ...r, status } : r));
       toast.success(`Review marked as ${status}`);
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to update status.");
+    }
+  };
+
+  // 🚨 NEW: Handles Dispute Form Submission (Multipart/Form-Data)
+  const submitDispute = async (e) => {
+    e.preventDefault();
+    if (!disputeData.content) return toast.error("Please provide a reason for the dispute.");
+    
+    setDisputeLoading(true);
+    const payload = new FormData();
+    payload.append('status', 'disputed'); // Matches your backend check!
+    payload.append('content', disputeData.content);
+    
+    if (disputeData.images) {
+      for (let i = 0; i < Math.min(disputeData.images.length, 3); i++) {
+        payload.append('images', disputeData.images[i]);
+      }
+    }
+
+    try {
+      const res = await api.patch(`/store/${activeStore._id}/updateReview/${disputeData.reviewId}/status`, payload, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      // Update UI with the new review data from backend
+      setReviews(reviews.map(r => r._id === disputeData.reviewId ? res.data.data : r));
+      setDisputeModalOpen(false);
+      setDisputeData({ reviewId: null, content: '', images: null });
+      toast.success("Dispute submitted to Admin successfully.");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to submit dispute.");
+    } finally {
+      setDisputeLoading(false);
     }
   };
 
@@ -68,7 +106,6 @@ export default function Reviews() {
     }
   };
 
-  // Helper for deleting GUEST reviews ONLY
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to permanently delete this guest review?")) return;
     try {
@@ -85,7 +122,7 @@ export default function Reviews() {
       pending: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
       approved: "bg-green-500/10 text-green-400 border-green-500/20",
       rejected: "bg-gray-500/10 text-gray-400 border-gray-500/20",
-      dispute: "bg-red-500/10 text-red-400 border-red-500/20"
+      disputed: "bg-red-500/10 text-red-400 border-red-500/20" // Updated to match backend
     };
     return (
       <span className={`px-3 py-1 text-[10px] md:text-xs font-bold uppercase tracking-wider rounded-full border ${styles[status] || styles.pending}`}>
@@ -96,11 +133,11 @@ export default function Reviews() {
 
   if (!selectedProduct) {
     return (
+      // ... (KEEP PRODUCT LIST RENDER EXACTLY THE SAME)
       <div className="p-4 md:p-8 relative z-10">
         <h1 className="text-2xl md:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 mb-6 md:mb-8">
           Product Inventory
         </h1>
-        
         {loading ? (
           <div className="text-cyan-400 animate-pulse flex items-center gap-2"><Package/> Syncing products...</div>
         ) : products.length === 0 ? (
@@ -134,7 +171,7 @@ export default function Reviews() {
   }
 
   return (
-    <div className="p-4 md:p-8 relative z-10">
+    <div className="p-4 md:p-8 relative z-10 h-full overflow-y-auto no-scrollbar">
       <button onClick={() => setSelectedProduct(null)} className="flex items-center gap-2 text-sm text-gray-400 hover:text-cyan-400 transition-colors mb-6 bg-white/5 px-3 py-2 rounded-lg border border-white/10 w-fit">
         <ArrowLeft size={18} /> Back to Products
       </button>
@@ -165,7 +202,7 @@ export default function Reviews() {
                   </div>
                 </div>
                 
-                {/* 🚨 NEW SECURE ACTION CONTROLS */}
+                {/* ACTION CONTROLS */}
                 <div className="flex gap-2 bg-black/40 p-1.5 rounded-lg border border-white/5 opacity-100 md:opacity-50 md:group-hover:opacity-100 transition-opacity w-full sm:w-auto justify-end">
                   
                   {review.customerEmail ? (
@@ -183,8 +220,12 @@ export default function Reviews() {
                     ) : review.status === 'rejected' ? (
                       <span className="px-3 py-1 text-xs font-bold text-gray-400">Rejected by Admin</span>
                     ) : (
+                      // 🚨 NEW: Open Dispute Modal
                       <button 
-                        onClick={() => handleStatusUpdate(review._id, 'disputed')} 
+                        onClick={() => {
+                          setDisputeData({ reviewId: review._id, content: '', images: null });
+                          setDisputeModalOpen(true);
+                        }}
                         className="p-2 px-3 text-red-400 hover:bg-red-400/10 rounded-md transition-all flex items-center gap-2 text-xs font-bold" 
                         title="Dispute Review"
                       >
@@ -201,7 +242,7 @@ export default function Reviews() {
                           <CheckCircle size={18} />
                         </button>
                       )}
-                      {review.status !== 'rejected' && (
+                      {review.status !== 'rejected' && review.status !== 'disputed' && (
                         <button onClick={() => handleStatusUpdate(review._id, 'rejected')} className="p-2 text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/10 rounded-md" title="Reject Guest">
                           <XCircle size={18} />
                         </button>
@@ -224,16 +265,8 @@ export default function Reviews() {
               {review.images && review.images.length > 0 && (
                 <div className="flex flex-wrap gap-2 md:gap-3 mt-4 mb-4">
                   {review.images.map((img, idx) => (
-                    <div 
-                      key={idx} 
-                      onClick={() => setLightboxImg(img)}
-                      className="overflow-hidden rounded-lg md:rounded-xl border border-white/10 cursor-pointer hover:shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all group/img"
-                    >
-                      <img 
-                        src={img} 
-                        alt="Review Upload" 
-                        className="w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 object-cover group-hover/img:scale-110 transition-transform duration-300" 
-                      />
+                    <div key={idx} onClick={() => setLightboxImg(img)} className="overflow-hidden rounded-lg md:rounded-xl border border-white/10 cursor-pointer hover:shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all group/img">
+                      <img src={img} alt="Review Upload" className="w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 object-cover group-hover/img:scale-110 transition-transform duration-300" />
                     </div>
                   ))}
                 </div>
@@ -256,24 +289,61 @@ export default function Reviews() {
         </div>
       )}
       
+      {/* 🚨 NEW: DISPUTE MODAL */}
+      {disputeModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-[#0A0F1A] border border-red-500/30 p-6 md:p-8 rounded-2xl w-full max-w-md shadow-2xl relative animate-fade-in-down">
+            <button onClick={() => setDisputeModalOpen(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
+              <X size={24} />
+            </button>
+            <h2 className="text-xl md:text-2xl font-bold text-white mb-2 flex items-center gap-2">
+              <AlertOctagon className="text-red-500" /> Dispute Review
+            </h2>
+            <p className="text-gray-400 text-sm mb-6">Please provide a valid reason and proof for the Super Admin to review.</p>
+
+            <form onSubmit={submitDispute} className="space-y-4">
+              <div>
+                <label className="block text-xs md:text-sm text-gray-400 mb-2">Dispute Reason</label>
+                <textarea 
+                  required 
+                  rows="4" 
+                  value={disputeData.content} 
+                  onChange={(e) => setDisputeData({...disputeData, content: e.target.value})} 
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-all text-sm resize-none custom-scrollbar" 
+                  placeholder="e.g. This user is using profanity / never bought the item..." 
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs md:text-sm text-gray-400 mb-2">Attach Proof (Max 3 Images)</label>
+                <input 
+                  type="file" 
+                  multiple 
+                  accept="image/*" 
+                  onChange={(e) => setDisputeData({...disputeData, images: e.target.files})} 
+                  className="w-full text-xs text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-red-500/10 file:text-red-400 hover:file:bg-red-500/20 cursor-pointer transition-all" 
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={disputeLoading} 
+                className="w-full bg-gradient-to-r from-red-500 to-orange-600 hover:from-red-400 hover:to-orange-500 py-3 rounded-xl font-bold text-white shadow-[0_0_15px_rgba(239,68,68,0.3)] transition-all disabled:opacity-50 mt-2 text-sm"
+              >
+                {disputeLoading ? 'Submitting to Admin...' : 'Submit Dispute'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* FULL-SCREEN LIGHTBOX OVERLAY */}
       {lightboxImg && (
-        <div 
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 transition-opacity" 
-          onClick={() => setLightboxImg(null)}
-        >
-          <button 
-            className="absolute top-4 right-4 md:top-8 md:right-8 text-white/50 hover:text-white bg-white/10 hover:bg-white/20 p-2 md:p-3 rounded-full transition-all"
-            onClick={() => setLightboxImg(null)}
-          >
-            <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 transition-opacity" onClick={() => setLightboxImg(null)}>
+          <button className="absolute top-4 right-4 md:top-8 md:right-8 text-white/50 hover:text-white bg-white/10 hover:bg-white/20 p-2 md:p-3 rounded-full transition-all" onClick={() => setLightboxImg(null)}>
+            <X size={24}/>
           </button>
-          <img 
-            src={lightboxImg} 
-            alt="Expanded Review" 
-            className="max-w-full max-h-[85vh] md:max-h-[90vh] object-contain rounded-lg shadow-[0_0_50px_rgba(0,0,0,0.8)] border border-white/10" 
-            onClick={(e) => e.stopPropagation()} 
-          />
+          <img src={lightboxImg} alt="Expanded Review" className="max-w-full max-h-[85vh] md:max-h-[90vh] object-contain rounded-lg shadow-[0_0_50px_rgba(0,0,0,0.8)] border border-white/10" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
     </div>

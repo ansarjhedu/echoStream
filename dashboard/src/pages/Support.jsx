@@ -141,7 +141,7 @@ export default function Support() {
                     <span className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 px-1">
                       {msg.sender === 'owner' ? 'You' : 'EchoStream Support'} • {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                     </span>
-                    <div className={`p-3 md:p-4 rounded-2xl max-w-[85%] text-sm leading-relaxed ${msg.sender === 'owner' ? 'bg-blue-600/20 text-blue-100 border border-blue-500/30 rounded-tr-sm' : 'bg-white/5 text-gray-300 border border-white/10 rounded-tl-sm'}`}>
+                    <div className={`p-3 md:p-4 rounded-2xl max-w-[85%] wrap-anywhere text-sm leading-relaxed ${msg.sender === 'owner' ? 'bg-blue-600/20 text-blue-100 border border-blue-500/30 rounded-tr-sm' : 'bg-white/5 text-gray-300 border border-white/10 rounded-tl-sm'}`}>
                       {msg.content}
                     </div>
                   </div>

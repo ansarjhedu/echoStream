@@ -119,7 +119,7 @@ export default function AdminSupport() {
                     <span className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 px-1">
                       {msg.sender === 'admin' ? 'You' : activeTicket.ownerName} • {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                     </span>
-                    <div className={`p-3 md:p-4 rounded-2xl max-w-[85%] text-sm leading-relaxed ${msg.sender === 'admin' ? 'bg-red-600/20 text-red-100 border border-red-500/30 rounded-tr-sm' : 'bg-white/5 text-gray-300 border border-white/10 rounded-tl-sm'}`}>
+                    <div className={`p-3 md:p-4 rounded-2xl max-w-[85%] text-sm wrap-anywhere leading-relaxed ${msg.sender === 'admin' ? 'bg-red-600/20 text-red-100 border border-red-500/30 rounded-tr-sm' : 'bg-white/5 text-gray-300 border border-white/10 rounded-tl-sm'}`}>
                       {msg.content}
                     </div>
                   </div>
