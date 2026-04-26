@@ -295,7 +295,8 @@ const replyToTicket=async(req,res)=>{
                 status:"in_progress",
                 conversation:[{
                     sender:"admin",
-                    content:content
+                    content:content,
+                    timestamp:Date.now()
                 }]
             },
             {new:true}

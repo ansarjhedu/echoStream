@@ -33,7 +33,7 @@ const supportSchema = new Schema({
             type:String,
             required:true
         },
-        createdAt:{
+        timestamp:{
             type:Date,
             default:Date.now
         }

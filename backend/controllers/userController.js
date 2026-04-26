@@ -226,7 +226,8 @@ const logoutUser = async (req, res) => {
         conversation:[{
           sender:"owner",
           images:images,
-          content:message
+          content:message,
+          timestamp:Date.now()
         }]
     });
 
@@ -284,9 +285,10 @@ const logoutUser = async (req, res) => {
       }
 
       ticket.conversation.push({
-        conent:content,
+        content:content,
         sender:"owner",
-        images:images?images:[]
+        images:images?images:[],
+        timestamp:Date.now()
       })
 
       return res.status(200).json({
