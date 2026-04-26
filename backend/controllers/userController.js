@@ -279,7 +279,7 @@ const logoutUser = async (req, res) => {
       const images=req.files ? req.files.map(file=>file.path): [];
 
 
-      const ticket=await Support.findOne({_id:ticketId, owner:req.user._id});
+      const ticket=await Support.find({_id:ticketId, owner:req.user._id});
       if(!ticket || ticket.owner.toString() !== req.user._id.toString() || ticket.status==="resolved"){
         return res.status(404).json({message:ticket.status==="resolved"?"Ticket has been resolved by admin generate a new one":"Unauthorized or Ticket does not exist"})
       }
