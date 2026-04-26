@@ -112,7 +112,7 @@ export default function AdminSupport() {
             </div>
 
             {/* Admin Reply Logic */}
-            { ticket.conversation[ticket.conversation.length - 1].content ? (
+            { ticket.conversation[ticket.conversation.length - 1].content && ticket.conversation[ticket.conversation.length - 1].sender === 'admin' ? (
               <div className="p-4 rounded-lg bg-blue-500/10 border-l-2 border-blue-500">
                 <span className="text-blue-400 text-xs font-bold uppercase block mb-1">
                   Your Response sent on {new Date(ticket.conversation[ticket.conversation.length - 1].createdAt).toLocaleDateString()}
