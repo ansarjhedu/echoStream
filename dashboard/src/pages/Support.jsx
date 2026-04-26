@@ -55,7 +55,6 @@ export default function Support() {
   };
 
   const handleReply = async () => {
-    console.log("Replying to ticket:", activeTicketId, "with message:", replyText);
     if (!replyText.trim()) return;
     try {
       const res = await api.post(`/users/support/${activeTicketId}/reply`, { content: replyText });
