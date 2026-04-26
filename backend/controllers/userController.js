@@ -291,6 +291,7 @@ const logoutUser = async (req, res) => {
         timestamp:Date.now()
       })
 
+      await ticket.save();
       return res.status(200).json({
        data: ticket,
         message:"successfully replied to admin"
