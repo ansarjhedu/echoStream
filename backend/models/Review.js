@@ -49,7 +49,6 @@ const reviewSchema=new schema({
     disputedReason: {
        reason: {
         type: String,
-        
        },
        proofImages: [{
         type: String // Cloudinary URLs

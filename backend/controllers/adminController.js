@@ -207,7 +207,7 @@ const resolveDispute = async (req, res) => {
         review.status = resolution;
 
         // 🚨 THE ADMIN LOCK: If the store owner has disputed this 3 times, lock it forever.
-        if (review.disputeCount >= 3) {
+        if (review.disputedReason.count >= 3) {
             review.isLocked = true;
         }
 
