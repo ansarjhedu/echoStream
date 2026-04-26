@@ -96,7 +96,7 @@ note: Make sure to replace the placeholder values with actual product and custom
         </button>
       </div>
 
-      <div className="flex flex-col xl:flex-row gap-8 w-full min-h-0">
+      <div className="flex flex-col gap-8 w-full min-h-0">
         
         {/* LEFT COLUMN: CONTROLS */}
         <div className="w-full shrink-0 space-y-6">
