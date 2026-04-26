@@ -95,7 +95,7 @@ export default function Support() {
               >
                 <div className="flex justify-between items-start mb-1">
                   <h3 className="font-bold text-white truncate pr-2">{ticket.subject}</h3>
-                  <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${ticket.status === 'resolved' ? 'bg-green-500' : ticket.status === 'in_progress' ? 'bg-yellow-500' : 'bg-red-500'}`}></span>
+                  <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${ticket.status === 'resolved' ? 'bg-green-500' : ticket.status === 'in_progress' ? 'bg-yellow-500' : 'bg-red-500'}`}>{ticket.status === 'resolved' ? 'Resolved' : ticket.status === 'in_progress' ? 'In Progress' : 'Open'}</span>
                 </div>
                 <p className="text-xs text-gray-400 truncate">
                   {ticket.conversation && ticket.conversation.length > 0 ? ticket.conversation[ticket.conversation.length - 1].content : 'No messages yet'}
