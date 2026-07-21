@@ -12,7 +12,10 @@ const listUsers=async(req,res)=>{
         const allUsers= await User.find({role:"owner"}).sort({createdAt:-1});
        
         if(!allUsers || allUsers.length===0){
-            return res.status(404).json("Unable to find any user")
+            return res.status(200).json({
+                data:[],
+                message:"No users found"
+            })
         }
         return res.status(200).json({
             data:allUsers,
@@ -103,7 +106,7 @@ const listStores=async(req,res)=>{
      
         if(!stores || stores.length===0){
               return res
-            .status(400)
+            .status(200)
             .json({
                 data:[],
                 message:"No User has registered any store yet"})

@@ -3,7 +3,7 @@ import api from '../Api';
 import { useAuth } from '../context/AuthContext';
 import { 
   MessageSquare, CheckCircle, XCircle, AlertOctagon, 
-  ArrowLeft, Package, Star, Lock, Trash2, X
+  ArrowLeft, Package, Star, Lock, Trash2, X, Sparkles // <-- Added Sparkles icon!
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -17,10 +17,12 @@ export default function Reviews() {
   const [replyText, setReplyText] = useState({});
   const [lightboxImg, setLightboxImg] = useState(null);
 
-  // 🚨 NEW: Dispute Modal States
   const [disputeModalOpen, setDisputeModalOpen] = useState(false);
   const [disputeData, setDisputeData] = useState({ reviewId: null, content: '', images: null });
   const [disputeLoading, setDisputeLoading] = useState(false);
+
+  // 🚨 NEW: AI Loading State
+  const [aiLoading, setAiLoading] = useState(null);
 
   useEffect(() => {
     if (activeStore) fetchProducts();
@@ -51,7 +53,6 @@ export default function Reviews() {
     }
   };
 
-  // 🚨 UPDATED: Handles standard status changes (Approve/Reject for Guests)
   const handleStatusUpdate = async (id, status) => {
     try {
       await api.patch(`/store/${activeStore._id}/updateReview/${id}/status`, { status });
@@ -62,14 +63,13 @@ export default function Reviews() {
     }
   };
 
-  // 🚨 NEW: Handles Dispute Form Submission (Multipart/Form-Data)
   const submitDispute = async (e) => {
     e.preventDefault();
     if (!disputeData.content) return toast.error("Please provide a reason for the dispute.");
     
     setDisputeLoading(true);
     const payload = new FormData();
-    payload.append('status', 'disputed'); // Matches your backend check!
+    payload.append('status', 'disputed'); 
     payload.append('content', disputeData.content);
     
     if (disputeData.images) {
@@ -82,7 +82,6 @@ export default function Reviews() {
       const res = await api.patch(`/store/${activeStore._id}/updateReview/${disputeData.reviewId}/status`, payload, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      // Update UI with the new review data from backend
       setReviews(reviews.map(r => r._id === disputeData.reviewId ? res.data.data : r));
       setDisputeModalOpen(false);
       setDisputeData({ reviewId: null, content: '', images: null });
@@ -106,6 +105,27 @@ export default function Reviews() {
     }
   };
 
+  // 🚨 NEW: Handle AI Generation
+  const handleAiGenerate = async (review) => {
+    setAiLoading(review._id);
+    try {
+      const res = await api.post(`/store/${activeStore._id}/ai/generate-reply`, {
+        text: review.comment,
+        type: "review",
+        customerName: review.customerName,
+        rating: review.rating
+      });
+      
+      // Inject the AI's response directly into the text box for the merchant to edit
+      setReplyText(prev => ({ ...prev, [review._id]: res.data.data }));
+      toast.success("AI generated a response!");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to connect to AI.");
+    } finally {
+      setAiLoading(null);
+    }
+  };
+
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to permanently delete this guest review?")) return;
     try {
@@ -122,7 +142,7 @@ export default function Reviews() {
       pending: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
       approved: "bg-green-500/10 text-green-400 border-green-500/20",
       rejected: "bg-gray-500/10 text-gray-400 border-gray-500/20",
-      disputed: "bg-red-500/10 text-red-400 border-red-500/20" // Updated to match backend
+      disputed: "bg-red-500/10 text-red-400 border-red-500/20" 
     };
     return (
       <span className={`px-3 py-1 text-[10px] md:text-xs font-bold uppercase tracking-wider rounded-full border ${styles[status] || styles.pending}`}>
@@ -133,7 +153,6 @@ export default function Reviews() {
 
   if (!selectedProduct) {
     return (
-      // ... (KEEP PRODUCT LIST RENDER EXACTLY THE SAME)
       <div className="p-4 md:p-8 relative z-10">
         <h1 className="text-2xl md:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 mb-6 md:mb-8">
           Product Inventory
@@ -206,9 +225,6 @@ export default function Reviews() {
                 <div className="flex gap-2 bg-black/40 p-1.5 rounded-lg border border-white/5 opacity-100 md:opacity-50 md:group-hover:opacity-100 transition-opacity w-full sm:w-auto justify-end">
                   
                   {review.customerEmail ? (
-                    // ----------------------------------------------------
-                    // FLOW A: VERIFIED BUYER (Auto-approved, Dispute Only)
-                    // ----------------------------------------------------
                     review.isLocked ? (
                       <span className="px-3 py-1 text-xs font-bold text-red-400 bg-red-500/10 rounded-md border border-red-500/20 flex items-center gap-1">
                         <Lock size={14} /> Locked by Admin
@@ -220,22 +236,11 @@ export default function Reviews() {
                     ) : review.status === 'rejected' ? (
                       <span className="px-3 py-1 text-xs font-bold text-gray-400">Rejected by Admin</span>
                     ) : (
-                      // 🚨 NEW: Open Dispute Modal
-                      <button 
-                        onClick={() => {
-                          setDisputeData({ reviewId: review._id, content: '', images: null });
-                          setDisputeModalOpen(true);
-                        }}
-                        className="p-2 px-3 text-red-400 hover:bg-red-400/10 rounded-md transition-all flex items-center gap-2 text-xs font-bold" 
-                        title="Dispute Review"
-                      >
+                      <button onClick={() => { setDisputeData({ reviewId: review._id, content: '', images: null }); setDisputeModalOpen(true); }} className="p-2 px-3 text-red-400 hover:bg-red-400/10 rounded-md transition-all flex items-center gap-2 text-xs font-bold" title="Dispute Review">
                         <AlertOctagon size={16} /> Dispute ({3 - (review.disputeCount || 0)} left)
                       </button>
                     )
                   ) : (
-                    // ----------------------------------------------------
-                    // FLOW B: GUEST USER (Full manual control)
-                    // ----------------------------------------------------
                     <>
                       {review.status !== 'approved' && (
                         <button onClick={() => handleStatusUpdate(review._id, 'approved')} className="p-2 text-gray-400 hover:text-green-400 hover:bg-green-400/10 rounded-md" title="Approve Guest">
@@ -253,7 +258,6 @@ export default function Reviews() {
                       </button>
                     </>
                   )}
-
                 </div>
               </div>
 
@@ -272,16 +276,37 @@ export default function Reviews() {
                 </div>
               )}
 
-              {/* Merchant Reply */}
+              {/* 🚨 UPDATED: MERCHANT REPLY WITH AI BUTTON */}
               {review.merchantReply ? (
                 <div className="mt-4 p-3 md:p-4 rounded-xl bg-purple-500/10 border-l-2 border-purple-500">
                   <span className="text-purple-400 text-sm font-bold flex items-center gap-2 mb-1"><MessageSquare size={14} /> Store Reply</span>
                   <p className="text-gray-300 text-sm">{review.merchantReply.content}</p>
                 </div>
               ) : (
-                <div className="flex gap-2 mt-4">
-                  <input type="text" placeholder="Write a public reply..." value={replyText[review._id] || ''} onChange={(e) => setReplyText({ ...replyText,[review._id]: e.target.value })} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-cyan-400" />
-                  <button onClick={() => handleReply(review._id)} className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-bold">Reply</button>
+                <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                  <textarea 
+                    rows="2"
+                    placeholder="Write a public reply..." 
+                    value={replyText[review._id] || ''} 
+                    onChange={(e) => setReplyText({ ...replyText,[review._id]: e.target.value })} 
+                    className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-cyan-400 custom-scrollbar resize-none text-sm" 
+                  />
+                  <div className="flex sm:flex-col gap-2">
+                    <button 
+                      onClick={() => handleAiGenerate(review)} 
+                      disabled={aiLoading === review._id}
+                      className="px-4 py-2 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-400 border border-indigo-500/30 rounded-lg font-bold text-xs flex-1 transition-all flex items-center justify-center gap-1 disabled:opacity-50"
+                    >
+                      {aiLoading === review._id ? 'Thinking...' : <><Sparkles size={14}/> AI Reply</>}
+                    </button>
+                    <button 
+                      onClick={() => handleReply(review._id)} 
+                      disabled={!replyText[review._id]}
+                      className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-bold text-xs flex-1 disabled:opacity-50"
+                    >
+                      Send
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -289,7 +314,7 @@ export default function Reviews() {
         </div>
       )}
       
-      {/* 🚨 NEW: DISPUTE MODAL */}
+      {/* DISPUTE MODAL */}
       {disputeModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-[#0A0F1A] border border-red-500/30 p-6 md:p-8 rounded-2xl w-full max-w-md shadow-2xl relative animate-fade-in-down">
@@ -304,32 +329,15 @@ export default function Reviews() {
             <form onSubmit={submitDispute} className="space-y-4">
               <div>
                 <label className="block text-xs md:text-sm text-gray-400 mb-2">Dispute Reason</label>
-                <textarea 
-                  required 
-                  rows="4" 
-                  value={disputeData.content} 
-                  onChange={(e) => setDisputeData({...disputeData, content: e.target.value})} 
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-all text-sm resize-none custom-scrollbar" 
-                  placeholder="e.g. This user is using profanity / never bought the item..." 
-                />
+                <textarea required rows="4" value={disputeData.content} onChange={(e) => setDisputeData({...disputeData, content: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-all text-sm resize-none custom-scrollbar" placeholder="e.g. This user is using profanity / never bought the item..." />
               </div>
 
               <div>
                 <label className="block text-xs md:text-sm text-gray-400 mb-2">Attach Proof (Max 3 Images)</label>
-                <input 
-                  type="file" 
-                  multiple 
-                  accept="image/*" 
-                  onChange={(e) => setDisputeData({...disputeData, images: e.target.files})} 
-                  className="w-full text-xs text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-red-500/10 file:text-red-400 hover:file:bg-red-500/20 cursor-pointer transition-all" 
-                />
+                <input type="file" multiple accept="image/*" onChange={(e) => setDisputeData({...disputeData, images: e.target.files})} className="w-full text-xs text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-red-500/10 file:text-red-400 hover:file:bg-red-500/20 cursor-pointer transition-all" />
               </div>
 
-              <button 
-                type="submit" 
-                disabled={disputeLoading} 
-                className="w-full bg-gradient-to-r from-red-500 to-orange-600 hover:from-red-400 hover:to-orange-500 py-3 rounded-xl font-bold text-white shadow-[0_0_15px_rgba(239,68,68,0.3)] transition-all disabled:opacity-50 mt-2 text-sm"
-              >
+              <button type="submit" disabled={disputeLoading} className="w-full bg-gradient-to-r from-red-500 to-orange-600 hover:from-red-400 hover:to-orange-500 py-3 rounded-xl font-bold text-white shadow-[0_0_15px_rgba(239,68,68,0.3)] transition-all disabled:opacity-50 mt-2 text-sm">
                 {disputeLoading ? 'Submitting to Admin...' : 'Submit Dispute'}
               </button>
             </form>

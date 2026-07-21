@@ -4,103 +4,188 @@ import Token from "../models/Token.js";
 import Support from "../models/Support.js";
 import jwt from "jsonwebtoken";
 
+import sendEmail from "../utils/sendEmail.js"; // <-- Import the email utility!
+
 const registerUser = async (req, res) => {
   try {
-    //1. collect user data for registration and validate if any field is missing
-    const { email, password ,userName} = req.body;
+    const { email, password, userName } = req.body;
     if (!email || !password || !userName) {
-      return res
-        .status(400)
-        .json({ message: "Please provide all required fields" });
+      return res.status(400).json({ message: "Please provide all required fields" });
     }
 
-    //2. check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res
-        .status(400)
-        .json({ message: "User already exists with this email" });
+    let user = await User.findOne({ email });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpire = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    if (user) {
+      if (user.isVerified) {
+        // 🚨 Standard block: User is already fully registered and verified
+        return res.status(400).json({ message: "User already exists with this email" });
+      } else {
+        // 🚨 THE UPSERT FIX: They abandoned the OTP screen earlier. Overwrite their ghost account!
+        user.userName = userName;
+        user.password = password; // This will trigger the pre('save') hash automatically
+        user.otp = otp;
+        user.otpExpire = otpExpire;
+        await user.save();
+      }
+    } else {
+      // 🚨 Standard creation for a brand new user
+      user = await User.create({
+        email,
+        password,
+        userName,
+        otp,
+        otpExpire,
+        isVerified: false 
+      });
     }
 
-    //3. create new user
-    const user = await User.create({
-      email,
-      password,
-      userName
-    });
+    // 📧 The Email HTML
+    const messageHtml = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #333; border-radius: 10px; background-color: #0A0F1A; color: #fff;">
+          <h2 style="color: #06b6d4; text-align: center;">Welcome to EchoStream</h2>
+          <p style="color: #ccc;">Hi ${userName},</p>
+          <p style="color: #ccc;">Please verify your email address to complete your registration. Your One-Time Password (OTP) is:</p>
+          <div style="text-align: center; margin: 30px 0;">
+              <h1 style="font-size: 36px; letter-spacing: 8px; color: #a855f7; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px;">${otp}</h1>
+          </div>
+          <p style="color: #ccc;">This code is valid for 10 minutes.</p>
+      </div>
+    `;
 
-    //4.generate tokens (access and refresh) - can be implemented later when we have auth in place
-    const accessToken = await generateToken(user, res);
+    // 🚨 THE ROLLBACK FIX: If the email fails, we destroy the ghost account!
+    try {
+        await sendEmail({ 
+            email: user.email, 
+            subject: "EchoStream - Verify Your Email", 
+            html: messageHtml 
+        });
+    } catch (error) {
+        console.error("❌ Email failed to send, triggering database rollback:", error);
+        
+        // Wipe the user from the DB so they aren't permanently stuck!
+        await User.findByIdAndDelete(user._id);
+        
+        return res.status(500).json({ message: "Network error while sending email. Please try again." });
+    }
 
-    //4. return success response with user data (excluding password)
     res.status(201).json({
-      message: "User registered successfully",
-      user: {
-        _id: user._id,
-        email: user.email,
-        userName: user.userName,
-        role:user.role,
-        profilePic: user.profilePic,
-        accessToken: {
-          message:
-            "copy this token and use it in the header for authentication in future requests",
-          token: accessToken,
-        },
-      },
+      message: "Verification code sent successfully.",
+      email: user.email 
     });
+    
   } catch (error) {
     console.error("Error in registerUser", error);
     res.status(500).json({ message: "Server error" });
   }
 };
 
+const verifyOTP = async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+
+        if (!email || !otp) return res.status(400).json({ message: "Email and OTP are required" });
+
+        // Select the hidden OTP fields
+        const user = await User.findOne({ email }).select("+otp +otpExpire");
+
+        if (!user) return res.status(404).json({ message: "User not found" });
+        if (user.isVerified) return res.status(400).json({ message: "User is already verified. Please log in." });
+        if (user.otp !== otp) return res.status(400).json({ message: "Invalid OTP code" });
+        if (user.otpExpire < Date.now()) return res.status(400).json({ message: "OTP has expired. Please request a new one." });
+
+        // Mark as verified and clear OTP
+        user.isVerified = true;
+        user.otp = undefined;
+        user.otpExpire = undefined;
+        await user.save();
+
+        // Generate Tokens and Log them in!
+        const accessToken = await generateToken(user, res);
+
+        res.status(200).json({
+            message: "Email verified successfully!",
+            user: {
+                _id: user._id,
+                email: user.email,
+                userName: user.userName,
+                role: user.role,
+                profilePic: user.profilePic,
+                accessToken: { token: accessToken }
+            }
+        });
+    } catch (error) {
+        console.error("Error in verifyOTP", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+const resendOTP = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const user = await User.findOne({ email });
+
+        if (!user) return res.status(404).json({ message: "User not found" });
+        if (user.isVerified) return res.status(400).json({ message: "User is already verified" });
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        user.otp = otp;
+        user.otpExpire = new Date(Date.now() + 10 * 60 * 1000);
+        await user.save();
+
+        const messageHtml = `
+            <div style="font-family: Arial, sans-serif; padding: 20px;">
+                <h2 style="color: #06b6d4;">EchoStream Security</h2>
+                <p>Your new One-Time Password (OTP) is:</p>
+                <h1 style="font-size: 32px; letter-spacing: 5px; color: #8b5cf6;">${otp}</h1>
+            </div>
+        `;
+
+        await sendEmail({ email: user.email, subject: "EchoStream - New OTP Code", html: messageHtml });
+        res.status(200).json({ message: "A new OTP has been sent to your email." });
+    } catch (error) {
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
 const loginUser = async (req, res) => {
     try {
-        
-        //1. collect login credentials and validate
         const { email, password } = req.body;
-  if (!email || !password) {
-    return res
-      .status(400)
-      .json({ message: "Please provide email and password" });
-  }
+        if (!email || !password) return res.status(400).json({ message: "Please provide email and password" });
 
-  //2. find user by email
-  const user = await User.findOne({ email }).select("+password");
-  if (!user) {
-    return res.status(400).json({ message: "Invalid email or password" });
-  }
+        const user = await User.findOne({ email }).select("+password");
+        if (!user) return res.status(400).json({ message: "Invalid email or password" });
 
-  //3. compare password
-  const isMatch = await user.matchPassword(password);
-  if (!isMatch) {
-      return res.status(400).json({ message: "Invalid email or password" });
-  }
+        const isMatch = await user.matchPassword(password);
 
-  //4. generate tokens (access and refresh) 
-  const accessToken = await generateToken(user, res);
+        if (!isMatch) return res.status(400).json({ message: "Invalid email or password" });
 
-  //5. return success response with user data (excluding password)
-  res.status(200).json({
-      message: user.role==="admin"?"Admin logged in successfully":"User logged in successfully",
-      user: {
-          _id: user._id,
-          email: user.email,
-          userName: user.userName,
-          role:user.role,
-          profilePic: user.profilePic,
-          accessToken: {
-              message:
-              "copy this token and use it in the header for authentication in future requests",
-              token: accessToken,
-            },
-        },
-    });
-  } catch (error) {
+        // 🚨 NEW SECURITY RULE: Block unverified users!
+        
+        if (!user.isVerified) {
+            return res.status(403).json({ 
+                message: "Please verify your email address to access your account.", 
+                unverifiedEmail: user.email 
+            });
+        }
+
+        const accessToken = await generateToken(user, res);
+        res.status(200).json({
+            message: user.role === "admin" ? "Admin logged in successfully" : "User logged in successfully",
+            user: {
+                _id: user._id, email: user.email, userName: user.userName,
+                role: user.role, profilePic: user.profilePic,
+                accessToken: { token: accessToken }
+            }
+        });
+    } catch (error) {
         console.error("Error in loginUser", error);
         res.status(500).json({ message: "Server error" });
+    }
 };
-}
+
 
 const logoutUser = async (req, res) => {
     try {
@@ -297,4 +382,4 @@ const logoutUser = async (req, res) => {
         return res.status(500).json("Internal Server Error ")
     }
   }
-export { registerUser, loginUser, logoutUser, refreshToken,updateUserCredentials, generateTicket,getTickets,replyToAdmin };
+export { registerUser, loginUser, logoutUser, refreshToken,updateUserCredentials, generateTicket,getTickets,replyToAdmin, verifyOTP,resendOTP };

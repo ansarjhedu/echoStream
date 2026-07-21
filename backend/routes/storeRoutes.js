@@ -2,6 +2,7 @@ import { Router } from "express";
 import {authUser,authStore} from "../middlewares/authUser.js";
 import { createStore, myStores,getStoreById,updateStoreStatus,getStoreAnalytics , updateWidgetConfig} from "../controllers/storeController.js";
 import { updateReviewStatus, getStoreProducts, merchantReplyToReview, getReviews, } from "../controllers/reviewController.js";
+import { generateSmartReply } from "../controllers/aiController.js";
 import { upload } from "../utils/cloudinary.js";
 
 
@@ -21,6 +22,8 @@ storeRouter.get('/:id/products',authUser,authStore,getStoreProducts);
 storeRouter.patch('/:id/updateReview/:reviewId/status',authUser,authStore,upload.array('images', 3),updateReviewStatus);
 storeRouter.get('/:id/reviews',authUser,authStore,getReviews);
 storeRouter.post('/:id/reviews/:reviewId/reply',authUser,authStore,merchantReplyToReview);
+storeRouter.post('/:id/ai/generate-reply', authUser, authStore, generateSmartReply);
+
 
 
 

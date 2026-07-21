@@ -24,8 +24,20 @@ const app=express();
 const port= process.env.PORT || 5000;
 
 
-connectDB();
-cleanupCron.start(); // Start the cron job scheduler
+connectDB().then(() => {
+    // Only start the background workers AFTER the DB is connected
+    cleanupCron();
+
+    // Only start the Express server AFTER the DB is connected
+    if (process.env.NODE_ENV !== 'production') {
+        app.listen(port, () => {
+            console.log(`🚀 Server is running on port http://localhost:${port}`);
+        });
+    }
+}).catch(err => {
+    console.error("Failed to start server due to DB connection issue:", err);
+});
+
 
 // app.use(cors({
 //     origin: [
@@ -39,7 +51,8 @@ cleanupCron.start(); // Start the cron job scheduler
 // 1. Update CORS (We will add your live frontend URL later, use an array for now)
 const allowedOrigins =[
   "http://localhost:5173", 
-  "https://echo-stream-5nch.vercel.app/" // You will change this later!
+  "https://echo-stream-5nch.vercel.app/",
+  "http://127.0.0.1:5500"// You will change this later!
 ];
 // Replace your old CORS config with this dynamic one:
 app.use(cors({
@@ -67,12 +80,4 @@ app.get("/",(req,res)=>{
     res.send("Hello World");
 }
 );
-
-
-
-
-
-    app.listen(port, () => {
-        console.log(`Server is running on port http://localhost:${port}`);
-    });
 

@@ -2,28 +2,22 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import api from '../Api';
 import { setAccessToken } from '../Api';
 import { toast } from 'react-toastify';
+
 const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
 let initialized = false;
 
 export const AuthProvider = ({ children }) => {
-  const[user, setUser] = useState(null);
-  
-  // NEW: Keep track of the currently selected store
+  const [user, setUser] = useState(null);
   const [activeStore, setActiveStore] = useState(() => {
     const saved = sessionStorage.getItem('active_store');
     return saved ? JSON.parse(saved) : null;
   });
-  
-  const[loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
 
-  // Sync activeStore to sessionStorage
   useEffect(() => {
-    if (activeStore) {
-      sessionStorage.setItem('active_store', JSON.stringify(activeStore));
-    } else {
-      sessionStorage.removeItem('active_store');
-    }
+    if (activeStore) sessionStorage.setItem('active_store', JSON.stringify(activeStore));
+    else sessionStorage.removeItem('active_store');
   }, [activeStore]);
 
   useEffect(() => {
@@ -32,11 +26,7 @@ export const AuthProvider = ({ children }) => {
     
     const checkSession = async () => {
       const hasSession = localStorage.getItem('has_session');
-
-      if (!hasSession) {
-        setLoading(false);
-        return; 
-      }
+      if (!hasSession) { setLoading(false); return; }
 
       try {
         const res = await api.post('/users/refresh');
@@ -44,50 +34,46 @@ export const AuthProvider = ({ children }) => {
         setUser(res.data.user);
       } catch (error) {
         toast.error("Session expired. Please log in again.");
-        setUser(null);
-        setActiveStore(null); // Clear active store on logout
-        localStorage.removeItem('has_session');
-      } finally {
-        setLoading(false); 
-      }
+        setUser(null); setActiveStore(null); localStorage.removeItem('has_session');
+      } finally { setLoading(false); }
     };
-    
     checkSession();
   },[]);
 
+  // 1. LOGIN
   const login = async (email, password) => {
     const res = await api.post('/users/login', { email, password });
-    
     setAccessToken(res.data.user.accessToken.token); 
     const userProfile = { ...res.data.user };
     delete userProfile.accessToken; 
-    
     setUser(userProfile);
     localStorage.setItem('has_session', 'true'); 
   };
 
-  // UPDATED: Now accepts userName instead of storeName
+  // 2. REGISTER (Does NOT log in, just returns the response)
   const register = async (userName, email, password, confirmPassword) => {
-    const res = await api.post('/users/register', { userName, email, password, confirmPassword });
-    
+    return await api.post('/users/register', { userName, email, password, confirmPassword });
+  };
+
+  // 3. VERIFY OTP (Logs them in!)
+  const verifyOtp = async (email, otp) => {
+    const res = await api.post('/users/verify-otp', { email, otp });
     setAccessToken(res.data.user.accessToken.token); 
     const userProfile = { ...res.data.user };
     delete userProfile.accessToken; 
-    
     setUser(userProfile);
     localStorage.setItem('has_session', 'true');
   };
-  
+
+  // 4. RESEND OTP
+  const resendOtp = async (email) => {
+    return await api.post('/users/resend-otp', { email });
+  };
+
   const logout = async () => {
-    try {
-      await api.post('/users/logout');
-    } catch (err) {
-      toast.error("Logout failed. Please try again.");
-    } finally {
-      setAccessToken(null);
-      setUser(null);
-      setActiveStore(null); // Clear active store
-      localStorage.removeItem('has_session');
+    try { await api.post('/users/logout'); } catch (err) {} 
+    finally {
+      setAccessToken(null); setUser(null); setActiveStore(null); localStorage.removeItem('has_session');
     }
   };
 
@@ -103,8 +89,8 @@ export const AuthProvider = ({ children }) => {
   }
 
   return (
-    // Export activeStore and setActiveStore!
-    <AuthContext.Provider value={{ user, activeStore, setActiveStore, login, register, logout }}>
+    // Make sure to expose the new functions!
+    <AuthContext.Provider value={{ user, activeStore, setActiveStore, login, register, verifyOtp, resendOtp, logout }}>
       {children}
     </AuthContext.Provider>
   );

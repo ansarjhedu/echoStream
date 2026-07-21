@@ -40,7 +40,19 @@ const userSchema=new Schema({
     deletedAt:{
         type:Date,
         default:null
-        }
+        },
+    isVerified: {
+        type: Boolean,
+        default: false
+    },
+    otp: {
+        type: String, // We store this as a string to preserve leading zeros (e.g. "049213")
+        select: false // Hide from normal queries for security
+    },
+    otpExpire: {
+        type: Date,
+        select: false
+    },
 },{timestamps:true});
 
 userSchema.pre("save",async function(next){
