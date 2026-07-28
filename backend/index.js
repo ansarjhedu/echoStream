@@ -3,81 +3,82 @@ dotenv.config();
 import dns from "dns";
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
+// (Note: dns.setServers is usually not needed for Vercel and can sometimes cause issues. 
+// If MongoDB Atlas times out, it's better to rely on standard DNS resolution in the cloud.)
+
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
+
 import connectDB from "./config/mongoDB.js";
 import userRouter from "./routes/userRoute.js";
-import cookieParser from "cookie-parser";
 import adminRouter from "./routes/adminRoutes.js";
 import publicRouter from "./routes/publicRoutes.js";
 import storeRouter from "./routes/storeRoutes.js";
-// import { fileURLToPath } from "url";
-// import path from "path";
-import cleanupCron from "./services/cronjobs.js";
+import startCronJobs from "./services/cronjobs.js"; // Renamed for clarity!
 
+const app = express();
+const port = process.env.PORT || 5000;
 
-// const __filename = fileURLToPath(import.meta.url);
-// const __dirname = path.dirname(__filename);
-
-
-const app=express();
-const port= process.env.PORT || 5000;
-
-
-connectDB().then(() => {
-    // Only start the background workers AFTER the DB is connected
-    cleanupCron();
-
-    // Only start the Express server AFTER the DB is connected
-    if (process.env.NODE_ENV !== 'production') {
-        app.listen(port, () => {
-            console.log(`🚀 Server is running on port http://localhost:${port}`);
-        });
-    }
-}).catch(err => {
-    console.error("Failed to start server due to DB connection issue:", err);
-});
-
-
-// app.use(cors({
-//     origin: [
-//         "http://localhost:5173",
-//         "https://echo-stream-5nch.vercel.app",
-//     ],
-//          credentials: true
-// }));
-
-
-// 1. Update CORS (We will add your live frontend URL later, use an array for now)
-const allowedOrigins =[
-  "http://localhost:5173", 
-  "https://echo-stream-5nch.vercel.app/",
-  "http://127.0.0.1:5500"// You will change this later!
+// ==========================================
+// 1. MIDDLEWARE & CORS (MUST BE AT THE TOP)
+// ==========================================
+const allowedAdminOrigins = [
+    "http://localhost:5173",          
+    "http://127.0.0.1:5173",          
+    "http://127.0.0.1:5500",          
+    "https://echo-stream-5nch.vercel.app" // Your Live Dashboard
 ];
-// Replace your old CORS config with this dynamic one:
-app.use(cors({
-    origin: function (origin, callback) {
-        // By passing the 'origin' directly back, we dynamically allow ANY website 
-        // to use the public widget, while still satisfying the browser's strict 
-        // requirement for credentials (cookies) in the Admin Dashboard!
-        callback(null, origin || '*');
-    },
-    credentials: true
-}));
+
+const corsOptionsDelegate = (req, callback) => {
+    let corsOptions;
+    if (req.originalUrl.startsWith('/api/public')) {
+        corsOptions = { origin: true, credentials: false }; 
+    } else {
+        const origin = req.header('Origin');
+        if (allowedAdminOrigins.includes(origin) || !origin) {
+            corsOptions = { origin: true, credentials: true };
+        } else {
+            corsOptions = { origin: false };
+        }
+    }
+    callback(null, corsOptions);
+};
+
+app.use(cors(corsOptionsDelegate));
 app.use(express.json());
 app.use(cookieParser());
 
-// // 2. HOST THE WIDGET (Local CDN)
-// // This serves any file placed inside the "widget-dist" folder
-// app.use("/widget", express.static(path.join(__dirname, "widget-dist")));
+// ==========================================
+// 2. REGISTER ROUTES
+// ==========================================
+app.use("/api/users", userRouter);
+app.use("/api/admin", adminRouter);
+app.use("/api/public", publicRouter);
+app.use("/api/store", storeRouter);
 
-app.use("/api/users",userRouter);
-app.use("/api/admin",adminRouter);
-app.use("/api/public",publicRouter);
-app.use("/api/store",storeRouter);
+app.get("/", (req, res) => {
+    res.send("EchoStream API is live.");
+});
 
-app.get("/",(req,res)=>{
-    res.send("Hello World");
-}
-);
+// ==========================================
+// 3. DATABASE & SERVER INITIALIZATION
+// ==========================================
+// We connect to the DB. Since Vercel keeps the function "warm" between requests,
+// connectDB() should be smart enough not to reconnect if it's already connected!
+connectDB().then(() => {
+    // Start background workers
+    startCronJobs();
 
+    // Start local server ONLY if we are not on Vercel
+    if (process.env.NODE_ENV !== 'production') {
+        app.listen(port, () => {
+            console.log(`🚀 Local Server running on http://localhost:${port}`);
+        });
+    }
+}).catch(err => {
+    console.error("DB Connection Failed:", err);
+});
+
+// 🚨 MANDATORY FOR VERCEL: Export the fully configured app!
+export default app;
