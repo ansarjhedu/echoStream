@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '../Api';
 import { setAccessToken } from '../Api';
 import { toast } from 'react-toastify';
@@ -6,6 +6,20 @@ import { toast } from 'react-toastify';
 const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
 let initialized = false;
+
+const normalizeUser = (raw = {}) => {
+  const userProfile = { ...raw };
+  delete userProfile.accessToken;
+  return {
+    ...userProfile,
+    role: userProfile.role || null,
+    storeRole: userProfile.storeRole || 'support',
+    permissions: userProfile.permissions || [],
+    parentAccount: userProfile.parentAccount || null,
+    staffScope: userProfile.staffScope || null,
+    parentRole: userProfile.parentRole || null,
+  };
+};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -31,7 +45,7 @@ export const AuthProvider = ({ children }) => {
       try {
         const res = await api.post('/users/refresh');
         setAccessToken(res.data.accessToken);
-        setUser(res.data.user);
+        setUser(normalizeUser(res.data.user));
       } catch (error) {
         toast.error("Session expired. Please log in again.");
         setUser(null); setActiveStore(null); localStorage.removeItem('has_session');
@@ -44,10 +58,10 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const res = await api.post('/users/login', { email, password });
     setAccessToken(res.data.user.accessToken.token); 
-    const userProfile = { ...res.data.user };
-    delete userProfile.accessToken; 
-    setUser(userProfile);
-    localStorage.setItem('has_session', 'true'); 
+    const normalized = normalizeUser(res.data.user);
+    setUser(normalized);
+    localStorage.setItem('has_session', 'true');
+    return normalized;
   };
 
   // 2. REGISTER (Does NOT log in, just returns the response)
@@ -59,10 +73,10 @@ export const AuthProvider = ({ children }) => {
   const verifyOtp = async (email, otp) => {
     const res = await api.post('/users/verify-otp', { email, otp });
     setAccessToken(res.data.user.accessToken.token); 
-    const userProfile = { ...res.data.user };
-    delete userProfile.accessToken; 
-    setUser(userProfile);
+    const normalized = normalizeUser(res.data.user);
+    setUser(normalized);
     localStorage.setItem('has_session', 'true');
+    return normalized;
   };
 
   // 4. RESEND OTP
@@ -70,10 +84,48 @@ export const AuthProvider = ({ children }) => {
     return await api.post('/users/resend-otp', { email });
   };
 
+  const requestLoginOtp = async (email) => {
+    return await api.post('/users/login-otp/request', { email });
+  };
+
+  const verifyLoginOtp = async (email, otp) => {
+    const res = await api.post('/users/login-otp/verify', { email, otp });
+    const tokenValue = res.data.user?.accessToken?.token || res.data.accessToken;
+    setAccessToken(tokenValue);
+    const normalized = normalizeUser(res.data.user);
+    setUser(normalized);
+    localStorage.setItem('has_session', 'true');
+    return normalized;
+  };
+
+  const loginWithGoogle = async (credential) => {
+    const res = await api.post('/users/auth/google', { credential });
+    const tokenValue = res.data.user?.accessToken?.token || res.data.accessToken;
+    setAccessToken(tokenValue);
+    const normalized = normalizeUser(res.data.user);
+    setUser(normalized);
+    localStorage.setItem('has_session', 'true');
+    return { user: normalized, isNewUser: Boolean(res.data.isNewUser) };
+  };
+
+  // 5. ACCEPT STAFF INVITE (Logs them in!)
+  const acceptInvite = async ({ email, token, password, confirmPassword, userName }) => {
+    const res = await api.post('/users/accept-invite', {
+      email, token, password, confirmPassword, userName,
+    });
+    const tokenValue = res.data.accessToken || res.data.user?.accessToken?.token;
+    setAccessToken(tokenValue);
+    const normalized = normalizeUser(res.data.user);
+    setUser(normalized);
+    localStorage.setItem('has_session', 'true');
+    return { ...res.data, user: normalized };
+  };
+
   const logout = async () => {
     try { await api.post('/users/logout'); } catch (err) {} 
     finally {
       setAccessToken(null); setUser(null); setActiveStore(null); localStorage.removeItem('has_session');
+      sessionStorage.removeItem('echo_workspace_mode');
     }
   };
 
@@ -89,8 +141,12 @@ export const AuthProvider = ({ children }) => {
   }
 
   return (
-    // Make sure to expose the new functions!
-    <AuthContext.Provider value={{ user, activeStore, setActiveStore, login, register, verifyOtp, resendOtp, logout }}>
+    <AuthContext.Provider value={{
+      user, setUser, activeStore, setActiveStore,
+      login, register, verifyOtp, resendOtp,
+      requestLoginOtp, verifyLoginOtp, loginWithGoogle,
+      acceptInvite, logout,
+    }}>
       {children}
     </AuthContext.Provider>
   );

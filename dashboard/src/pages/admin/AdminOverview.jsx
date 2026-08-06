@@ -19,19 +19,28 @@ export default function AdminOverview() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const[statRes, storeRes, userRes, dispRes, ticketRes] = await Promise.all([
+        const settled = await Promise.allSettled([
           api.get('/admin/analytics'),
           api.get('/admin/store/list'),
           api.get('/admin/user/list'),
           api.get('/admin/disputes'),
           api.get('/admin/support/list')
         ]);
-        
-        setAnalytics(statRes.data?.data || statRes.data || null);
-        setStores(storeRes.data?.storesWithOwner || storeRes.data?.data ||[]);
-        setUsers(userRes.data?.data ||[]);
-        setDisputes(dispRes.data?.data ||[]);
-        setTickets(ticketRes.data?.data ||[]); 
+        const [statRes, storeRes, userRes, dispRes, ticketRes] = settled;
+
+        if (statRes.status === 'fulfilled') {
+          setAnalytics(statRes.value.data?.data || statRes.value.data || null);
+        }
+        if (storeRes.status === 'fulfilled') {
+          setStores(storeRes.value.data?.storesWithOwner || storeRes.value.data?.data || []);
+        }
+        if (userRes.status === 'fulfilled') setUsers(userRes.value.data?.data || []);
+        if (dispRes.status === 'fulfilled') setDisputes(dispRes.value.data?.data || []);
+        if (ticketRes.status === 'fulfilled') setTickets(ticketRes.value.data?.data || []);
+
+        if (settled.every((r) => r.status === 'rejected')) {
+          toast.error("Admin fetch failed");
+        }
       } catch (error) {
         toast.error("Admin fetch failed");
       } finally {
@@ -145,7 +154,12 @@ export default function AdminOverview() {
   };
 
   if (loading) return <div className="p-12 text-red-400 animate-pulse flex gap-2"><Activity/> Gathering Platform Telemetry...</div>;
-  const openTicketsCount = tickets.filter(t => t.status !== 'resolved').length;
+  // Pending Disputes: status === disputed && not soft-deleted
+  const pendingDisputesCount = disputes.filter(
+    (d) => d.status === 'disputed' && !d.isDeleted
+  ).length;
+  // Open Support Tickets: status !== resolved
+  const openTicketsCount = tickets.filter((t) => t.status !== 'resolved').length;
 
   return (
     <div className="p-4 md:p-10 relative overflow-y-auto h-full z-10 w-full overflow-x-hidden no-scrollbar">
@@ -164,7 +178,7 @@ export default function AdminOverview() {
           <h3 className="text-xl font-bold text-white mb-2">Welcome back, {user?.userName}</h3>
           <p className="text-gray-300 text-sm md:text-base leading-relaxed">
             EchoStream is hosting <strong>{analytics?.activeStores || 0} active widgets</strong> across <strong>{analytics?.totalUsers || 0} active owners.</strong> 
-            {disputes.length > 0 ? <span className="text-red-400 ml-1 font-bold"> {disputes.length} disputes need attention!</span> : ' No disputes today.'}
+            {pendingDisputesCount > 0 ? <span className="text-red-400 ml-1 font-bold"> {pendingDisputesCount} disputes need attention!</span> : ' No disputes today.'}
             {openTicketsCount > 0 ? <span className="text-yellow-400 ml-1 font-bold"> You have {openTicketsCount} open support tickets!</span> : ' No open support tickets.'}
           </p>
         </div>
@@ -174,7 +188,7 @@ export default function AdminOverview() {
         <StatCard title="Total Owners" value={analytics?.totalUsers || 0} />
         <StatCard title="Total Stores" value={analytics?.totalStores || 0} />
         <StatCard title="Active Widgets" value={analytics?.activeStores || 0} color="text-green-400" />
-        <StatCard title="Pending Disputes" value={disputes.length} color="text-red-400" />
+        <StatCard title="Pending Disputes" value={pendingDisputesCount} color="text-red-400" />
         <StatCard title="Open Tickets" value={openTicketsCount} color="text-yellow-400" />
       </div>
 

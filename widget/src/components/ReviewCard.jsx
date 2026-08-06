@@ -1,49 +1,126 @@
-import StarRating from "./StarRating";
-import { useState } from "react";
-const ReviewCard = ({ review, minimal = false }) => {
-  const[lightboxImg, setLightboxImg] = useState(null);
+import React from 'react';
+import { BadgeCheck } from 'lucide-react';
+import StarRating from './StarRating';
+import { useWidget } from '../context/WidgetContext';
+
+const VARIANT_STYLES = {
+  list: 'p-5 rounded-2xl border shadow-sm hover:shadow-md',
+  classic: 'p-5 rounded-none border-0 border-b px-0 shadow-none',
+  glass: 'p-5 rounded-2xl border shadow-sm backdrop-blur-md hover:shadow-md',
+  grid: 'p-4 rounded-2xl border shadow-sm h-full hover:shadow-md',
+  carousel: 'p-5 rounded-2xl border shadow-sm h-full hover:shadow-md',
+  brutal: 'p-5 md:p-6 rounded-none border-4 border-black shadow-[-4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 hover:translate-x-0.5',
+  minimal: 'p-4 rounded-none border-0 border-b px-0 shadow-none',
+};
+
+const CLAMP = {
+  list: 'line-clamp-2',
+  classic: 'line-clamp-2',
+  glass: 'line-clamp-2',
+  carousel: 'line-clamp-2',
+  brutal: 'line-clamp-2',
+  minimal: 'line-clamp-2',
+  grid: 'line-clamp-3',
+};
+
+const TRANSPARENT_BG = new Set(['minimal', 'classic']);
+
+/**
+ * Compact stream card. Full detail lives in ReviewDetailModal.
+ * @param {'list'|'classic'|'grid'|'carousel'|'brutal'|'minimal'|'glass'} variant
+ */
+const ReviewCard = ({ review, variant = 'list', minimal = false }) => {
+  const { openReviewDetail, isEcom } = useWidget();
+  const resolvedVariant = minimal && variant === 'list' ? 'minimal' : variant;
+  const shell = VARIANT_STYLES[resolvedVariant] || VARIANT_STYLES.list;
+  const clamp = CLAMP[resolvedVariant] || CLAMP.list;
+  const photoCount = Array.isArray(review.images) ? review.images.length : 0;
+
+  const onActivate = () => openReviewDetail(review);
+
+  const onKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onActivate();
+    }
+  };
 
   return (
-    <>
-      <div className={`p-5 rounded-2xl border transition-all hover:shadow-md ${minimal ? 'bg-transparent border-b border-t-0 border-x-0 rounded-none px-0' : 'shadow-sm'}`} style={{ backgroundColor: minimal ? 'transparent' : 'var(--echo-input)', borderColor: 'var(--echo-border)' }}>
-        <div className="flex flex-col sm:flex-row justify-between items-start mb-3 gap-2">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold" style={{ backgroundColor: 'var(--echo-primary)', color: 'var(--echo-bg)' }}>
-              {review.customerName.charAt(0)}
-            </div>
-            <div>
-              <h4 className="font-bold">{review.customerName}</h4>
-              <span className="text-xs opacity-50">{new Date(review.createdAt).toLocaleDateString()}</span>
-            </div>
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onActivate}
+      onKeyDown={onKeyDown}
+      className={`${shell} min-h-[44px] cursor-pointer transition-all text-left outline-none focus-visible:ring-2`}
+      style={{
+        backgroundColor: TRANSPARENT_BG.has(resolvedVariant) ? 'transparent' : 'var(--echo-input)',
+        borderColor: resolvedVariant === 'brutal' ? '#000' : 'var(--echo-border)',
+        ['--tw-ring-color']: 'var(--echo-primary)',
+      }}
+      aria-label={`Open review by ${review.customerName}`}
+    >
+      <div className="flex flex-col sm:flex-row justify-between items-start mb-3 gap-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0"
+            style={{ backgroundColor: 'var(--echo-primary)', color: 'var(--echo-bg)' }}
+          >
+            {(review.customerName || '?').charAt(0)}
           </div>
-          <StarRating rating={review.rating} />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="font-bold truncate">{review.customerName}</h4>
+              {review.isVerifiedBuyer && (
+                <span
+                  className="inline-flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border shrink-0"
+                  style={{
+                    color: 'var(--echo-primary)',
+                    borderColor: 'var(--echo-primary)',
+                    backgroundColor: 'var(--echo-bg)',
+                  }}
+                >
+                  <BadgeCheck size={10} /> Verified
+                </span>
+              )}
+              {review.source === 'google' && (
+                <span
+                  className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border shrink-0 opacity-80"
+                  style={{
+                    borderColor: 'var(--echo-border)',
+                    backgroundColor: 'var(--echo-bg)',
+                  }}
+                >
+                  Google
+                </span>
+              )}
+            </div>
+            <span className="text-xs opacity-50">
+              {new Date(review.createdAt).toLocaleDateString()}
+            </span>
+          </div>
         </div>
-        
-        <p className="text-sm opacity-90 leading-relaxed mb-4">{review.comment}</p>
-        
-        {review.images && review.images.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            {review.images.map((img, idx) => (
-              <img key={idx} src={img} alt="Upload" onClick={() => setLightboxImg(img)} className="w-20 h-20 object-cover rounded-lg border cursor-pointer hover:scale-105 transition-transform" style={{ borderColor: 'var(--echo-border)' }} />
-            ))}
-          </div>
-        )}
-
-        {review.merchantReply && (
-          <div className="mt-4 p-4 rounded-xl border-l-4" style={{ backgroundColor: 'var(--echo-bg)', borderColor: 'var(--echo-primary)' }}>
-            <span className="font-bold text-xs block mb-1 opacity-60 uppercase tracking-widest">Store Reply</span>
-            <p className="text-sm opacity-90">{review.merchantReply.content}</p>
-          </div>
-        )}
+        <StarRating rating={review.rating} />
       </div>
 
-      {/* Lightbox */}
-      {lightboxImg && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 p-4" onClick={() => setLightboxImg(null)}>
-          <img src={lightboxImg} className="max-w-full max-h-[90vh] object-contain rounded-lg border border-white/20" onClick={e => e.stopPropagation()} />
+      <p className={`text-sm opacity-90 leading-relaxed ${clamp}`}>{review.comment}</p>
+
+      {isEcom && photoCount > 0 && (
+        <div className="mt-3">
+          <span
+            className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border"
+            style={{
+              borderColor: 'var(--echo-border)',
+              backgroundColor: 'var(--echo-bg)',
+              color: 'var(--echo-text)',
+            }}
+          >
+            <span aria-hidden="true">📷</span>
+            {photoCount} {photoCount === 1 ? 'Photo' : 'Photos'}
+          </span>
         </div>
       )}
-    </>
+    </div>
   );
 };
-export default ReviewCard
+
+export default ReviewCard;

@@ -1,23 +1,42 @@
 import React from 'react';
-import { RenderMockupStars } from '../../pages/Integration';
+import { RenderMockupStars } from './RenderMockupStars';
+import MockupReviewCard from './MockupReviewCard';
 
+/** Mirrors widget GlassmorphismLayout */
 export default function GlassmorphismMockup({ reviews }) {
   return (
-    <div className="p-6 relative backdrop-blur-xl" style={{ backgroundColor: 'color-mix(in srgb, var(--bg-color) 80%, transparent)' }}>
-      <div className="flex justify-between items-center mb-6 pb-4 border-b border-white/10">
-        <h3 className="text-xl font-bold">Customer Reviews</h3>
-        <button className="px-4 py-2 rounded-full font-bold text-sm" style={{ backgroundColor: 'var(--p-color)', color: 'var(--bg-color)' }}>Write Review</button>
-      </div>
-      <div className="space-y-4">
-        {reviews.map(r => (
-          <div key={r.id} className="p-4 rounded-xl border border-white/10" style={{ backgroundColor: 'color-mix(in srgb, var(--t-color) 3%, transparent)' }}>
-            <div className="flex justify-between mb-2">
-              <div><span className="font-bold block">{r.name}</span><span className="text-xs opacity-50">{r.date}</span></div>
-              <RenderMockupStars rating={r.rating} />
+    <div className="p-6 md:p-10 relative" style={{ backgroundColor: 'var(--bg-color)', color: 'var(--t-color)' }}>
+      <div
+        className="absolute top-0 left-0 w-64 h-64 rounded-full blur-[100px] opacity-20 pointer-events-none"
+        style={{ backgroundColor: 'var(--p-color)' }}
+      />
+      <div className="relative z-10">
+        <div
+          className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 pb-6 border-b"
+          style={{ borderColor: 'var(--echo-border, color-mix(in srgb, var(--t-color) 15%, transparent))' }}
+        >
+          <div>
+            <h2 className="font-extrabold tracking-tight" style={{ fontSize: 'var(--echo-title-size, 1.5rem)' }}>
+              Customer Reviews
+            </h2>
+            <div className="flex items-center gap-3 mt-2">
+              <RenderMockupStars rating={5} />
+              <span className="opacity-80 text-sm">4.5 out of 5 (124 reviews)</span>
             </div>
-            <p className="text-sm opacity-90">{r.comment}</p>
           </div>
-        ))}
+          <button
+            type="button"
+            className="mt-4 md:mt-0 min-h-[44px] px-6 py-3 rounded-full font-bold shadow-lg"
+            style={{ backgroundColor: 'var(--p-color)', color: 'var(--bg-color)' }}
+          >
+            Write a Review
+          </button>
+        </div>
+        <div className="max-h-[500px] overflow-y-auto no-scrollbar space-y-4 md:space-y-6 pr-1">
+          {reviews.map((r) => (
+            <MockupReviewCard key={r.id} variant="glass" review={r} />
+          ))}
+        </div>
       </div>
     </div>
   );

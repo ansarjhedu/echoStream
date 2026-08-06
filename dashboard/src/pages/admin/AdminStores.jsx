@@ -4,15 +4,17 @@ import api from '../../Api';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import { Store, Ban, CheckCircle, Clock, RefreshCcw, User, LayoutDashboard } from 'lucide-react';
+import { isMasterAdmin, hasPerm } from '../../utils/permissionHelpers';
 
 export default function AdminStores() {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [storeFilter, setStoreFilter] = useState('all');
 
-  // Bring in Auth Context and Router Navigation
-  const { setActiveStore } = useAuth();
+  const { setActiveStore, user } = useAuth();
   const navigate = useNavigate();
+  const master = isMasterAdmin(user);
+  const canImpersonate = master || hasPerm(user, 'stores_read') || hasPerm(user, 'moderation');
 
   useEffect(() => {
     fetchStores();
@@ -21,7 +23,7 @@ export default function AdminStores() {
   const fetchStores = async () => {
     try {
       const res = await api.get('/admin/store/list');
-      setStores(res.data.data || res.data.storesWithOwner ||[]); // Fallback in case payload naming changes
+      setStores(res.data.data || res.data.storesWithOwner ||[]);
     } catch (error) {
       toast.error("Failed to fetch stores");
     } finally {
@@ -30,6 +32,9 @@ export default function AdminStores() {
   };
 
   const toggleStoreStatus = async (storeId, currentStatus) => {
+    if (!master) {
+      return toast.error("Only the Master Super Admin can suspend stores.");
+    }
     if(!window.confirm(`Are you sure you want to ${currentStatus === 'live' ? 'SUSPEND' : 'ACTIVATE'} this store?`)) return;
     try {
       const newStatus = currentStatus === 'live' ? 'suspended' : 'live';
@@ -37,11 +42,14 @@ export default function AdminStores() {
       setStores(stores.map(s => s._id === storeId ? { ...s, status: newStatus, isActive: newStatus === 'live' } : s));
       toast.success(`Store has been ${newStatus === 'live' ? 'activated' : 'suspended'}.`);
     } catch (error) {
-      toast.error("Failed to update store status");
+      toast.error(error.response?.data?.message || "Failed to update store status");
     }
   };
 
   const restoreStoreAction = async (storeId) => {
+    if (!master) {
+      return toast.error("Only the Master Super Admin can restore stores.");
+    }
     if(!window.confirm("Restore this deleted store? It will go live immediately and all products/reviews will be recovered.")) return;
     try {
       await api.patch(`/admin/store/${storeId}/restore`);
@@ -52,15 +60,17 @@ export default function AdminStores() {
     }
   };
 
-  // 🚨 NEW: God Mode / Impersonate Store
   const handleImpersonateStore = (store) => {
+    if (!canImpersonate) {
+      return toast.error("Access Denied: Insufficient Permissions");
+    }
     if (store.isDeleted) {
       toast.warning("You must restore this store before accessing its workspace.");
       return;
     }
     setActiveStore(store); 
     navigate('/workspace/analytics/overview');
-    toast.success(`Entered Admin God Mode for ${store.storeName}`);
+    toast.success(`Entered ${master ? 'Admin' : 'Scoped'} God Mode for ${store.storeName}`);
   };
 
   const getDaysLeft = (deletedAt) => {
@@ -145,33 +155,40 @@ export default function AdminStores() {
                 <td className="p-5 text-right">
                   <div className="flex justify-end gap-2">
                     {store.isDeleted ? (
-                      <button 
-                        onClick={() => restoreStoreAction(store._id)} 
-                        className="p-2 px-4 bg-green-500/10 text-green-400 hover:bg-green-500/30 rounded-lg border border-green-500/30 transition-all inline-flex items-center gap-2 text-xs font-bold"
-                      >
-                        <RefreshCcw size={14} /> Restore Store
-                      </button>
+                      master ? (
+                        <button 
+                          onClick={() => restoreStoreAction(store._id)} 
+                          className="p-2 px-4 bg-green-500/10 text-green-400 hover:bg-green-500/30 rounded-lg border border-green-500/30 transition-all inline-flex items-center gap-2 text-xs font-bold"
+                        >
+                          <RefreshCcw size={14} /> Restore Store
+                        </button>
+                      ) : (
+                        <span className="text-xs text-gray-500 italic">Master restore only</span>
+                      )
                     ) : (
                       <>
-                        {/* THE NEW GOD MODE BUTTON */}
-                        <button 
-                          onClick={() => handleImpersonateStore(store)} 
-                          className="px-4 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-2 transition-all bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/30"
-                        >
-                          <LayoutDashboard size={14}/> Access Workspace
-                        </button>
+                        {canImpersonate && (
+                          <button 
+                            onClick={() => handleImpersonateStore(store)} 
+                            className="px-4 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-2 transition-all bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/30"
+                          >
+                            <LayoutDashboard size={14}/> Access Workspace
+                          </button>
+                        )}
 
-                        <button 
-                          onClick={() => toggleStoreStatus(store._id, store.status)} 
-                          className={`px-4 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-2 transition-all ${
-                            store.status === 'live' 
-                              ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30' 
-                              : 'bg-green-500/10 text-green-400 hover:bg-green-500/20 border border-green-500/30'
-                          }`}
-                        >
-                          {store.status === 'live' ? <Ban size={14}/> : <CheckCircle size={14}/>} 
-                          {store.status === 'live' ? 'Suspend' : 'Activate'}
-                        </button>
+                        {master && (
+                          <button 
+                            onClick={() => toggleStoreStatus(store._id, store.status)} 
+                            className={`px-4 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-2 transition-all ${
+                              store.status === 'live' 
+                                ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30' 
+                                : 'bg-green-500/10 text-green-400 hover:bg-green-500/20 border border-green-500/30'
+                            }`}
+                          >
+                            {store.status === 'live' ? <Ban size={14}/> : <CheckCircle size={14}/>} 
+                            {store.status === 'live' ? 'Suspend' : 'Activate'}
+                          </button>
+                        )}
                       </>
                     )}
                   </div>

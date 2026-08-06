@@ -6,6 +6,8 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   plugins: [react(), cssInjectedByJsPlugin(), tailwindcss()],
   build: {
+    outDir: '../dashboard/public/widget',
+    emptyOutDir: false,
     rollupOptions: {
       output: {
         // Force Vite to output a single file named "echo-widget.js"

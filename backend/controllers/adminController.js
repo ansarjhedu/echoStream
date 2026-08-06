@@ -5,6 +5,8 @@ import Product from "../models/Product.js";
 import Support from "../models/Support.js";
 import mongoose from "mongoose";
 import crypto from "crypto";
+import { applyDisputeDecision } from "./aiController.js";
+import { notifyUser } from "../services/notificationService.js";
 
 const listUsers=async(req,res)=>{
 
@@ -44,12 +46,14 @@ const deleteUser=async(req,res)=>{
         return res.status(500).json("Error while deleting user")
        }
        const userStores=await Store.find({owner:userId});
+       const storeIds = userStores.map((s) => s._id);
             //soft delete all stores of this user
         await Store.updateMany({owner:userId},{$set:{isDeleted:true, deletedAt:Date.now(), status:"deleted", isActive:false}});
-            //soft delete all products of this user
-        await Product.updateMany({owner:userId},{$set:{isDeleted:true, deletedAt:Date.now()}});
-            //soft delete all reviews of this user
-        await Review.updateMany({owner:userId},{$set:{isDeleted:true, deletedAt:Date.now()}});
+            //soft delete products/reviews via store ids (models have no owner field)
+        if (storeIds.length) {
+            await Product.updateMany({store: {$in: storeIds}},{$set:{isDeleted:true, deletedAt:Date.now()}});
+            await Review.updateMany({store: {$in: storeIds}},{$set:{isDeleted:true, deletedAt:Date.now()}});
+        }
         
          return res.status(200).json({
             data:deletedUser,
@@ -75,12 +79,13 @@ const restoreUser=async(req,res)=>{
         return res.status(500).json("Error while restoring user")
          }
          const userStores=await Store.find({owner:userId});
+         const storeIds = userStores.map((s) => s._id);
             //restore all stores of this user
         await Store.updateMany({owner:userId},{$set:{isDeleted:false, deletedAt:null, status:"live", isActive:true}});
-            //restore all products of this user
-        await Product.updateMany({owner:userId},{$set:{isDeleted:false, deletedAt:null}});
-            //restore all reviews of this user
-        await Review.updateMany({owner:userId},{$set:{isDeleted:false, deletedAt:null}});
+        if (storeIds.length) {
+            await Product.updateMany({store: {$in: storeIds}},{$set:{isDeleted:false, deletedAt:null}});
+            await Review.updateMany({store: {$in: storeIds}},{$set:{isDeleted:false, deletedAt:null}});
+        }
          
             return res.status(200).json({
             data:restoredUser,
@@ -165,7 +170,7 @@ const getPlatformAnalytics = async (req, res) => {
             User.countDocuments({ isDeleted: false, role: "owner" }),
             Store.countDocuments({ isActive: true, isDeleted: false }),
             Store.countDocuments({ isDeleted: false }),
-            Review.countDocuments({ status: "dispute", isDeleted: false }),
+            Review.countDocuments({ status: "disputed", isDeleted: false }),
             Support.countDocuments({ status: { $ne: "resolved" } }) // Count of open tickets for AdminOverview
         ]);
 
@@ -197,33 +202,39 @@ const getDisputedReviews = async (req, res) => {
 const resolveDispute = async (req, res) => {
     try {
         const { reviewId } = req.params;
-        const { resolution } = req.body; // Frontend sends 'approved' or 'rejected'
-
-        if (!["approved", "rejected"].includes(resolution)) {
-            return res.status(400).json("Invalid resolution status. Must be 'approved' or 'rejected'.");
+        const { resolution, reason } = req.body;
+        // approve_dispute → admin agrees with merchant → status rejected (hidden)
+        // reject_dispute  → admin disagrees with merchant → status approved (live again)
+        if (!["approve_dispute", "reject_dispute"].includes(resolution)) {
+            return res.status(400).json({
+                message: "Invalid resolution. Use 'approve_dispute' or 'reject_dispute'.",
+            });
         }
 
         const review = await Review.findById(reviewId);
-        if (!review) return res.status(404).json("Review not found");
-
-        // Apply the admin's ruling
-        review.status = resolution;
-
-        // 🚨 THE ADMIN LOCK: If the store owner has disputed this 3 times, lock it forever.
-        if (review.disputedReason.count >= 3) {
-            review.isLocked = true;
+        if (!review) return res.status(404).json({ message: "Review not found" });
+        if (review.status !== "disputed") {
+            return res.status(400).json({ message: "Only disputed reviews can be resolved." });
         }
 
-        await review.save();
-        
-        // Recalculate stats because an admin just changed a star rating's visibility!
-        await recalculateProductStats(review.product); 
+        const adminReason =
+            (reason && String(reason).trim()) ||
+            (resolution === 'approve_dispute'
+                ? 'A platform admin reviewed your claim and upheld the dispute. The review is no longer shown on your widget.'
+                : 'A platform admin reviewed your claim and declined the dispute. The review remains live on your widget.');
 
-        return res.status(200).json({ 
-            data: review, 
-            message: review.isLocked 
-                ? `Dispute resolved. Review marked as ${resolution} and is now PERMANENTLY LOCKED.` 
-                : `Dispute resolved. Review marked as ${resolution}.` 
+        const updated = await applyDisputeDecision(review, {
+            decision: resolution,
+            reason: adminReason,
+            resolvedBy: 'admin',
+            confidence: null,
+        });
+
+        return res.status(200).json({
+            data: updated,
+            message: updated.isLocked
+                ? `Dispute resolved. Review is ${updated.status} and permanently locked.`
+                : `Dispute resolved. Review marked as ${updated.status}.`,
         });
     } catch (error) {
         console.log(error);
@@ -266,18 +277,29 @@ const restoreStore = async (req, res) => {
 
 const getTicketsFromUsers=async(req,res)=>{
     try {
-        const tickets=await Support.find({status:{ $ne: "resolved" }}).sort({createdAt:-1});
-
-        if(!tickets || tickets.length===0 ){
-            return res.status(200).json({
-                data:[],
-                message:"No support tickets found from users"
-            })
+        const filterParam = (req.query.filter || 'all').toLowerCase();
+        const allowed = ['all', 'open', 'in_progress', 'resolved', 'pending'];
+        if (!allowed.includes(filterParam)) {
+            return res.status(400).json({ message: "Invalid filter. Use all|open|in_progress|resolved." });
         }
+
+        const allTickets = await Support.find({}).sort({ updatedAt: -1, createdAt: -1 });
+        const summary = {
+            total: allTickets.length,
+            open: allTickets.filter((t) => t.status === 'open').length,
+            in_progress: allTickets.filter((t) => t.status === 'in_progress').length,
+            resolved: allTickets.filter((t) => t.status === 'resolved').length,
+        };
+        const statusFilter = filterParam === 'pending' ? 'open' : filterParam;
+        const data = statusFilter === 'all'
+            ? allTickets
+            : allTickets.filter((t) => t.status === statusFilter);
+
         return res.status(200).json({
-            data:tickets,
-            message:"Support tickets fetched successfully"
-        })
+            data,
+            summary,
+            message: "Support tickets fetched successfully"
+        });
     }
     catch (error) {
         console.log(error)
@@ -308,6 +330,16 @@ const replyToTicket=async(req,res)=>{
         });
         ticket.status="in_progress"; // Mark as in_progress when admin replies
         await ticket.save();
+
+        notifyUser({
+            userId: ticket.owner,
+            type: 'support_reply',
+            title: 'New support reply',
+            message: String(content).slice(0, 200),
+            link: `/hub/support?ticket=${ticket._id}`,
+            important: true,
+            meta: { ticketId: String(ticket._id) },
+        });
         
         return res.status(200).json({
             data:ticket,
@@ -330,6 +362,15 @@ const replyToTicket=async(req,res)=>{
         if(!ticket){
             return res.status(404).json("Support ticket not found")
         }
+        notifyUser({
+            userId: ticket.owner,
+            type: 'support_resolved',
+            title: 'Support ticket resolved',
+            message: `Your ticket "${ticket.subject}" was marked resolved.`,
+            link: `/hub/support?ticket=${ticket._id}`,
+            important: true,
+            meta: { ticketId: String(ticket._id) },
+        });
         return res.status(200).json({
             data:ticket,
             message:"Support ticket marked as resolved successfully"
@@ -340,5 +381,33 @@ const replyToTicket=async(req,res)=>{
     }
 }
 
-        // Add `restoreStore` to your exports!
-export { listUsers, deleteUser, listStores, updateStore, getPlatformAnalytics, getDisputedReviews, resolveDispute, restoreStore,restoreUser, getTicketsFromUsers, replyToTicket, resolveTicket};
+/** Claim / accept an open ticket (sets assignee + in_progress). */
+const claimTicket = async (req, res) => {
+    try {
+        const ticket = await Support.findById(req.params.id);
+        if (!ticket) return res.status(404).json({ message: 'Support ticket not found' });
+        if (ticket.status === 'resolved') {
+            return res.status(400).json({ message: 'Resolved tickets cannot be claimed.' });
+        }
+
+        ticket.assignedTo = req.user._id;
+        ticket.claimedAt = new Date();
+        ticket.status = 'in_progress';
+        ticket.conversation.push({
+            sender: 'admin',
+            submittedBy: req.user.userName,
+            content: `${req.user.userName} accepted this ticket and is now handling it.`,
+        });
+        await ticket.save();
+
+        return res.status(200).json({
+            data: ticket,
+            message: 'Ticket accepted.',
+        });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+};
+
+export { listUsers, deleteUser, listStores, updateStore, getPlatformAnalytics, getDisputedReviews, resolveDispute, restoreStore,restoreUser, getTicketsFromUsers, replyToTicket, resolveTicket, claimTicket};

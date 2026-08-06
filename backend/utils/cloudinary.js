@@ -10,8 +10,39 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET 
 });
 
-console.log(process.env.CLOUDINARY_API_KEY)
+/**
+ * Extract Cloudinary public_id from a full delivery URL.
+ * Handles optional transformations and version segments.
+ */
+export const extractCloudinaryPublicId = (url) => {
+    if (!url || typeof url !== 'string' || !url.includes('cloudinary.com')) return null;
+    try {
+        const afterUpload = url.split('/upload/')[1];
+        if (!afterUpload) return null;
+        // Strip transforms (e.g. c_limit,w_800/) and version (v123456/)
+        const withoutVersion = afterUpload.replace(/^(?:[^/]+\/)*v\d+\//, '');
+        return withoutVersion.replace(/\.[a-zA-Z0-9]+(\?.*)?$/, '');
+    } catch {
+        return null;
+    }
+};
 
+/**
+ * Destroy one or many Cloudinary assets by delivery URL.
+ */
+export const deleteCloudinaryImages = async (urls = []) => {
+    const list = (Array.isArray(urls) ? urls : [urls]).filter(Boolean);
+    const publicIds = [...new Set(list.map(extractCloudinaryPublicId).filter(Boolean))];
+    if (publicIds.length === 0) return;
+
+    await Promise.allSettled(
+        publicIds.map((publicId) =>
+            cloudinary.uploader.destroy(publicId).catch((err) => {
+                console.error(`Cloudinary destroy failed for ${publicId}:`, err?.message || err);
+            })
+        )
+    );
+};
 
 const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
@@ -23,3 +54,4 @@ const storage = new CloudinaryStorage({
 });
 
 export const upload = multer({ storage: storage });
+export { cloudinary };

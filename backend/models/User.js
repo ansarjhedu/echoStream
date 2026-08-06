@@ -14,8 +14,31 @@ const userSchema=new Schema({
     },
     role:{
         type:String,
-        enum:['owner','admin'],
+        enum:['owner','admin','staff'],
         default: "owner"
+    },
+    storeRole: {
+        type: String,
+        enum: ['administrator', 'editor', 'support', 'custom'],
+        default: 'support'
+    },
+    parentAccount: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+    },
+    permissions: [{
+        type: String,
+        enum: [
+            // Store staff
+            'moderation', 'products', 'integrations', 'settings', 'disputes', 'tickets',
+            // Platform staff
+            'stores_read', 'users_read', 'disputes_resolve', 'support_queue', 'analytics_platform'
+        ]
+    }],
+    tokenVersion: {
+        type: Number,
+        default: 0
     },
     email:{
         type:String,
@@ -25,10 +48,21 @@ const userSchema=new Schema({
     },
     password:{
         type:String,
-        required:true,
+        required: function () {
+            return this.authProvider !== 'google';
+        },
         select:false,
-        
-
+    },
+    authProvider: {
+        type: String,
+        enum: ['local', 'google'],
+        default: 'local',
+    },
+    googleId: {
+        type: String,
+        default: null,
+        sparse: true,
+        unique: true,
     },
     profilePic:{
         type:String,
@@ -53,14 +87,28 @@ const userSchema=new Schema({
         type: Date,
         select: false
     },
+    otpPurpose: {
+        type: String,
+        enum: ['signup', 'login', 'reset'],
+        select: false,
+    },
+    inviteToken: {
+        type: String,
+        select: false
+    },
+    inviteTokenExpire: {
+        type: Date,
+        select: false
+    },
 },{timestamps:true});
 
 userSchema.pre("save",async function(next){
-    if(!this.isModified("password") ){
-        return ;
+    if(!this.isModified("password") || !this.password){
+        return next();
     }
     const salt=await bcrypt.genSalt(10);
     this.password=await bcrypt.hash(this.password,salt);
+    next();
 });
 
 // userSchema.pre(/^find/, function(next){  // <-- Notice NO QUOTES around /^find/

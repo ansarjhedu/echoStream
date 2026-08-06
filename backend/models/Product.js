@@ -31,9 +31,8 @@ const productSchema=new schema({
          }
 },{timestamps:true});
 
-productSchema.pre(/^find/, function(next){  // <-- Notice NO QUOTES around /^find/
-    this.find({isDeleted: {$ne: true}});
-    //next();
+productSchema.pre(/^find/, function () {
+    this.where({ isDeleted: { $ne: true } });
 });
 productSchema.index({store:1,productHandle:1},{unique:true});
 

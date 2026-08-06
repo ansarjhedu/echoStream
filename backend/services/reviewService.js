@@ -1,5 +1,6 @@
 import Product from "../models/Product.js";
 import Review from "../models/Review.js";
+import mongoose from "mongoose";
 
 const createReviewWithDiscovery=async(storeId, reviewData)=>{
     try {
@@ -20,6 +21,7 @@ const createReviewWithDiscovery=async(storeId, reviewData)=>{
             new:true,
             setDefaultsOnInsert:true,
         })
+        // Lifecycle: every new submission is approved and visible on the public widget immediately.
         const review=await Review.create({
             product:product._id,
             productTitle:reviewData.productTitle,
@@ -28,8 +30,10 @@ const createReviewWithDiscovery=async(storeId, reviewData)=>{
             customerEmail: reviewData.customerEmail,
             rating:reviewData.rating,
             comment:reviewData.comment,
-            status:"approved", // default status for new reviews
+            status: "approved",
+            isVerifiedBuyer: Boolean(reviewData.isVerifiedBuyer),
             images: reviewData.images || [],
+            disputeCount: 0,
         });
         return review;
         
@@ -41,9 +45,20 @@ const createReviewWithDiscovery=async(storeId, reviewData)=>{
 }
 
 const recalculateProductStats = async (productId) => {
-    // Aggregation Pipeline: Math done at the Database level
+    const pid =
+        productId instanceof mongoose.Types.ObjectId
+            ? productId
+            : new mongoose.Types.ObjectId(String(productId));
+
+    // Aggregation ignores schema pre-hooks — exclude soft-hidden reviews explicitly.
     const stats = await Review.aggregate([
-        { $match: { product: productId, status: "approved" } },
+        {
+            $match: {
+                product: pid,
+                status: "approved",
+                isDeleted: { $ne: true },
+            },
+        },
         {
             $group: {
                 _id: "$product",
@@ -53,7 +68,6 @@ const recalculateProductStats = async (productId) => {
         }
     ]);
 
-    // If no reviews left (all deleted), reset to 0
     const finalStats = stats.length > 0 
         ? { avgRating: Math.round(stats[0].avgRating * 10) / 10, totalReviews: stats[0].totalReviews }
         : { avgRating: 0, totalReviews: 0 };

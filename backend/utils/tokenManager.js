@@ -6,10 +6,12 @@ const generateToken=async(user,res)=>{
         // Generate access token and refresh token
         const accessToken=jwt.sign({
         userId:user._id,
+        tokenVersion: user.tokenVersion || 0,
     },process.env.JWT_ACCESS_SECRET,{ expiresIn:"15m"});
 
     const refreshToken=jwt.sign({
         userId:user._id,
+        tokenVersion: user.tokenVersion || 0,
     },process.env.JWT_REFRESH_SECRET,{ expiresIn:"7d"});
 
     // Store refresh token in database

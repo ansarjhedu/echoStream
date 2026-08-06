@@ -7,3 +7,11 @@ export const reviewLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
 });
+
+export const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // Max 5 attempts per IP per window
+    message: { message: "Too many authentication attempts. Please try again in 15 minutes." },
+    standardHeaders: true,
+    legacyHeaders: false,
+});   

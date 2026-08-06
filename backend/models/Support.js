@@ -22,9 +22,13 @@ const supportSchema = new Schema({
     conversation:[{
         sender:{
             type:String,
-            enum:["owner","admin"],
+            enum:["owner","admin","agent"],
             default:"owner",
             required:true
+        },
+        submittedBy:{
+            type:String,
+            default:null
         },
         images:[{
             type:String
@@ -42,10 +46,21 @@ const supportSchema = new Schema({
         type:String,
         enum:["open","in_progress","resolved"],
         default:"open",
-    }
-    
-  
-   
+    },
+    source: {
+        type: String,
+        enum: ['manual', 'chatbot'],
+        default: 'manual',
+    },
+    assignedTo: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+    },
+    claimedAt: {
+        type: Date,
+        default: null,
+    },
 }, { timestamps: true });
 
 export default mongoose.model("Support", supportSchema);

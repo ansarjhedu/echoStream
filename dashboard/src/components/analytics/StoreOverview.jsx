@@ -11,7 +11,7 @@ export default function StoreOverview({ products, reviews }) {
   // 2. Core Stats Calculation
   const stats = useMemo(() => {
     const approved = reviews.filter(r => r.status === 'approved');
-    const disputed = reviews.filter(r => r.status === 'dispute'); // Swapped pending for disputed!
+    const disputed = reviews.filter(r => r.status === 'disputed');
     
     const avgRating = approved.length > 0 
       ? (approved.reduce((sum, r) => sum + r.rating, 0) / approved.length).toFixed(1) : 0;
@@ -20,7 +20,7 @@ export default function StoreOverview({ products, reviews }) {
       totalProducts: products.length,
       totalReviews: reviews.length,
       approvedReviews: approved.length,
-      disputedReviews: disputed.length, // Now tracking disputes
+      disputedReviews: disputed.length,
       avgRating,
       approvalRate: reviews.length > 0 ? Math.round((approved.length / reviews.length) * 100) : 0
     };
@@ -57,13 +57,13 @@ export default function StoreOverview({ products, reviews }) {
 
   // 5. Pie Chart Distribution
   const statusData = useMemo(() => {
-    const counts = { approved: 0, pending: 0, rejected: 0, dispute: 0 };
+    const counts = { approved: 0, pending: 0, rejected: 0, disputed: 0 };
     reviews.forEach(r => { if (counts[r.status] !== undefined) counts[r.status]++; });
     return[
       { name: 'Approved', value: counts.approved, color: '#10b981' },
       { name: 'Pending', value: counts.pending, color: '#f59e0b' },
       { name: 'Rejected', value: counts.rejected, color: '#6b7280' },
-      { name: 'Disputed', value: counts.dispute, color: '#ef4444' },
+      { name: 'Disputed', value: counts.disputed, color: '#ef4444' },
     ].filter(d => d.value > 0);
   }, [reviews]);
 

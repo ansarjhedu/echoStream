@@ -5,6 +5,15 @@
   color-scheme: dark;
 }
 
+/* Hidden scrollbars for review feeds / carousels */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Custom Animations */
 @keyframes fadeInDown {
   from {

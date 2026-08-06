@@ -20,7 +20,32 @@ const storeSchema=new Schema({
         primaryColor: { type: String, default: '#06b6d4' }, // Default Cyan
         backgroundColor: { type: String, default: '#0A0F1A' }, // Default Dark
         textColor: { type: String, default: '#ffffff' }, // Default Light
-        fontFamily: { type: String, default: 'system-ui, sans-serif' }
+        fontFamily: { type: String, default: 'system-ui, sans-serif' },
+        fontSize: { type: Number, default: 15 },
+        fontWeight: { type: Number, default: 400 },
+        titleFontSize: { type: Number, default: 22 },
+        lineHeight: { type: Number, default: 1.5 },
+        carouselAutoplay: { type: Boolean, default: true },
+        carouselIntervalMs: { type: Number, default: 3500 },
+        carouselShowArrows: { type: Boolean, default: true },
+    },
+    websiteUrl: {
+        type: String,
+        default: null,
+    },
+    siteMeta: {
+        title: { type: String, default: null },
+        description: { type: String, default: null },
+        image: { type: String, default: null },
+        favicon: { type: String, default: null },
+    },
+    googleReviews: {
+        placeId: { type: String, default: null },
+        businessName: { type: String, default: null },
+        minRating: { type: Number, default: 1, min: 1, max: 5 },
+        connected: { type: Boolean, default: false },
+        lastSyncedAt: { type: Date, default: null },
+        importedCount: { type: Number, default: 0 },
     },
     owner:{
         type: mongoose.Schema.Types.ObjectId,

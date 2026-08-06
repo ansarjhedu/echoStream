@@ -1,4 +1,3 @@
-
 import { WidgetProvider, useWidget } from './context/WidgetContext';
 import { ShieldAlert } from 'lucide-react';
 import GlassmorphismLayout from './components/Layouts/GlassmorphismLayout';
@@ -7,9 +6,10 @@ import MinimalLayout from './components/Layouts/MinimalLayout'
 import GridLayout from './components/Layouts/GridLayout';
 import CarouselLayout from './components/Layouts/CarouselLayout';
 import BrutalismLayout from './components/Layouts/BrutalismLayout';
+import ReviewDetailModal from './components/ReviewDetailModal';
 
 function InnerWidget() {
-  const { config, widgetError, loading, reviews, stats, isFormOpen, setIsFormOpen } = useWidget();
+  const { config, widgetError, loading } = useWidget();
 
   if (loading) {
     return (
@@ -48,15 +48,21 @@ function InnerWidget() {
         '--echo-primary': config.primaryColor,
         '--echo-bg': config.backgroundColor,
         '--echo-text': config.textColor,
+        '--echo-title-size': `${config.titleFontSize || 22}px`,
         // MAGIC CSS: Creates a 15% opacity version of the text color for borders, perfect for dark OR light mode!
         '--echo-border': `color-mix(in srgb, ${config.textColor} 15%, transparent)`,
         '--echo-input': `color-mix(in srgb, ${config.textColor} 5%, transparent)`,
         fontFamily: config.fontFamily,
+        fontSize: `${config.fontSize || 15}px`,
+        fontWeight: config.fontWeight || 400,
+        lineHeight: config.lineHeight || 1.5,
         backgroundColor: 'var(--echo-bg)',
         color: 'var(--echo-text)'
       }}
     >
       {renderLayout()}
+
+      <ReviewDetailModal />
       
       {/* Branding */}
       <div className="pt-6 pb-4 border-t text-center opacity-60 text-xs" style={{ borderColor: 'var(--echo-border)' }}>
@@ -66,9 +72,9 @@ function InnerWidget() {
   );
 }
 
-export default function WidgetWrapper({ apiKey, productHandle, productTitle, customerName, customerEmail }) {
+export default function WidgetWrapper({ apiKey, productHandle, productTitle, customerName, customerEmail, verificationHash }) {
   return (
-    <WidgetProvider apiKey={apiKey} productHandle={productHandle} productTitle={productTitle} customerName={customerName} customerEmail={customerEmail}>
+    <WidgetProvider apiKey={apiKey} productHandle={productHandle} productTitle={productTitle} customerName={customerName} customerEmail={customerEmail} verificationHash={verificationHash}>
       <InnerWidget />
     </WidgetProvider>
   );

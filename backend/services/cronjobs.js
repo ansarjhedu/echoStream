@@ -3,6 +3,29 @@ import Review from '../models/Review.js';
 import Product from '../models/Product.js';
 import Store from '../models/Store.js'; 
 import User from '../models/User.js';
+import Support from '../models/Support.js';
+import { deleteCloudinaryImages } from '../utils/cloudinary.js';
+
+const collectReviewImageUrls = (reviews = []) => {
+    const urls = [];
+    for (const review of reviews) {
+        if (Array.isArray(review.images)) urls.push(...review.images);
+        if (Array.isArray(review.disputedReason?.proofImages)) {
+            urls.push(...review.disputedReason.proofImages);
+        }
+    }
+    return urls;
+};
+
+const collectSupportImageUrls = (tickets = []) => {
+    const urls = [];
+    for (const ticket of tickets) {
+        for (const msg of ticket.conversation || []) {
+            if (Array.isArray(msg.images)) urls.push(...msg.images);
+        }
+    }
+    return urls;
+};
 
 // We wrap it in a function so index.js can control exactly when it starts!
 const startCronJobs = () => {
@@ -26,7 +49,11 @@ const startCronJobs = () => {
                 const storeIds = expiredStores.map(store => store._id);
                 console.log(`🗑️ Permanently deleting ${storeIds.length} expired stores and their data...`);
 
-                // CASCADE DELETE: Wipe all children belonging to these stores!
+                // Purge Cloudinary assets before cascade hard-delete
+                const storeReviews = await Review.find({ store: { $in: storeIds } })
+                    .select('images disputedReason.proofImages');
+                await deleteCloudinaryImages(collectReviewImageUrls(storeReviews));
+
                 await Review.deleteMany({ store: { $in: storeIds } });
                 await Product.deleteMany({ store: { $in: storeIds } });
                 await Store.deleteMany({ _id: { $in: storeIds } });
@@ -38,11 +65,20 @@ const startCronJobs = () => {
             const expiredUsers = await User.find({ 
                 isDeleted: true, 
                 deletedAt: { $lte: thirtyDaysAgo } 
-            }).select('_id');
+            }).select('_id profilePic');
 
             if (expiredUsers.length > 0) {
                 const userIds = expiredUsers.map(user => user._id);
                 console.log(`🗑️ Permanently deleting ${userIds.length} expired users...`);
+
+                // Purge profile pictures
+                await deleteCloudinaryImages(expiredUsers.map((u) => u.profilePic).filter(Boolean));
+
+                // Purge support ticket images, then hard-delete tickets owned by these users
+                const tickets = await Support.find({ owner: { $in: userIds } }).select('conversation.images');
+                await deleteCloudinaryImages(collectSupportImageUrls(tickets));
+                await Support.deleteMany({ owner: { $in: userIds } });
+
                 await User.deleteMany({ _id: { $in: userIds } });
             }
 
@@ -59,6 +95,12 @@ const startCronJobs = () => {
             // ==========================================
             // 3. CLEAN UP INDIVIDUAL EXPIRED PRODUCTS & REVIEWS
             // ==========================================
+            const expiredReviews = await Review.find({
+                isDeleted: true,
+                deletedAt: { $lte: thirtyDaysAgo }
+            }).select('images disputedReason.proofImages');
+
+            await deleteCloudinaryImages(collectReviewImageUrls(expiredReviews));
             await Review.deleteMany({ isDeleted: true, deletedAt: { $lte: thirtyDaysAgo } });
             await Product.deleteMany({ isDeleted: true, deletedAt: { $lte: thirtyDaysAgo } });
 

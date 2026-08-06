@@ -1,28 +1,55 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../Api';
-import { AlertOctagon, CheckCircle, X, User, Star } from 'lucide-react'; // <-- Added new icons
+import { AlertOctagon, CheckCircle, X, User, Star, Sparkles } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { refreshAdminBadges } from '../../utils/adminBadges';
 
 export default function AdminDisputes() {
   const[disputes, setDisputes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const[lightboxImg, setLightboxImg] = useState(null); // <-- Added Lightbox state
+  const[lightboxImg, setLightboxImg] = useState(null);
+  const [aiBusy, setAiBusy] = useState(null);
 
-  useEffect(() => {
+  const loadDisputes = () =>
     api.get('/admin/disputes')
        .then(res => setDisputes(res.data.data ||[]))
-       .catch(err => toast.error("Failed to load disputes"))
+       .catch(() => toast.error("Failed to load disputes"))
        .finally(() => setLoading(false));
+
+  useEffect(() => {
+    loadDisputes();
   },[]);
 
   const resolveDispute = async (reviewId, resolution) => {
-    if(!window.confirm(`Mark this review as ${resolution.toUpperCase()}?`)) return;
+    const label = resolution === 'approve_dispute'
+      ? 'APPROVE this dispute (hide the review)?'
+      : 'REJECT this dispute (restore the review live)?';
+    if (!window.confirm(label)) return;
     try {
-      await api.patch(`/admin/disputes/${reviewId}/resolve`, { resolution });
-      setDisputes(disputes.filter(d => d._id !== reviewId)); 
-      toast.success(`Dispute resolved. Review ${resolution}.`);
-    } catch (error) { 
-      toast.error("Failed to resolve dispute");
+      const res = await api.patch(`/admin/disputes/${reviewId}/resolve`, { resolution });
+      setDisputes((prev) => prev.filter((d) => d._id !== reviewId));
+      refreshAdminBadges();
+      toast.success(res.data?.message || 'Dispute resolved.');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to resolve dispute');
+    }
+  };
+
+  const aiResolve = async (reviewId) => {
+    setAiBusy(reviewId);
+    try {
+      const res = await api.post(`/admin/disputes/${reviewId}/ai-resolve`);
+      if (res.data.applied) {
+        setDisputes((prev) => prev.filter((d) => d._id !== reviewId));
+        refreshAdminBadges();
+      } else {
+        await loadDisputes();
+      }
+      toast.success(res.data?.message || 'AI finished analysis.');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'AI resolve failed');
+    } finally {
+      setAiBusy(null);
     }
   };
 
@@ -49,17 +76,42 @@ export default function AdminDisputes() {
               <div>
                 <h3 className="font-bold text-white text-xl mb-1">{review.productTitle}</h3>
                 <p className="text-sm text-gray-400 font-mono">Store: <span className="text-cyan-400">{review.store?.storeName}</span></p>
-                <div className="text-xs text-gray-500 mt-1">Dispute Strike: {review.disputeCount} / 3</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Dispute Strike: {review.disputeCount || review.disputedReason?.count || 0} / 3
+                </div>
               </div>
-              <div className="flex gap-2 w-full md:w-auto">
-                <button onClick={() => resolveDispute(review._id, 'approved')} className="flex-1 md:flex-none px-4 py-2 bg-green-500/10 text-green-400 hover:bg-green-500/20 rounded-lg text-sm font-bold border border-green-500/30 transition-colors">
-                  Rule: Approve Review
+              <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                <button
+                  type="button"
+                  disabled={aiBusy === review._id}
+                  onClick={() => aiResolve(review._id)}
+                  className="flex-1 md:flex-none px-4 py-2 bg-indigo-500/15 text-indigo-300 hover:bg-indigo-500/25 rounded-lg text-sm font-bold border border-indigo-500/30 transition-colors inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  <Sparkles size={14} /> {aiBusy === review._id ? 'AI analyzing…' : 'AI Resolve'}
                 </button>
-                <button onClick={() => resolveDispute(review._id, 'rejected')} className="flex-1 md:flex-none px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg text-sm font-bold border border-red-500/30 transition-colors">
-                  Rule: Reject Review
+                <button
+                  type="button"
+                  onClick={() => resolveDispute(review._id, 'approve_dispute')}
+                  className="flex-1 md:flex-none px-4 py-2 bg-green-500/10 text-green-400 hover:bg-green-500/20 rounded-lg text-sm font-bold border border-green-500/30 transition-colors"
+                >
+                  Approve Dispute
+                </button>
+                <button
+                  type="button"
+                  onClick={() => resolveDispute(review._id, 'reject_dispute')}
+                  className="flex-1 md:flex-none px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg text-sm font-bold border border-red-500/30 transition-colors"
+                >
+                  Reject Dispute
                 </button>
               </div>
             </div>
+
+            {review.disputeResolution?.reason && !review.disputeResolution?.resolvedAt && (
+              <div className="mb-4 p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/25 text-sm text-indigo-100">
+                <span className="text-[10px] uppercase tracking-wider font-bold text-indigo-300 block mb-1">AI recommendation (pending)</span>
+                {review.disputeResolution.reason}
+              </div>
+            )}
 
             {/* BLOCK 1: Original Customer Review */}
             <div className="bg-black/40 p-4 rounded-xl border border-white/5 relative mb-4">

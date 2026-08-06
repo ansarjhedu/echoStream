@@ -43,8 +43,26 @@ const reviewSchema=new schema({
     },
     status:{
         type:String,
-        enum:["approved","rejected","disputed"],
+        enum:["pending","approved","rejected","disputed"],
         default:"approved",
+    },
+    isVerifiedBuyer: {
+        type: Boolean,
+        default: false,
+    },
+    source: {
+        type: String,
+        enum: ['native', 'google'],
+        default: 'native',
+    },
+    externalId: {
+        type: String,
+        default: null,
+    },
+    disputeCount: {
+        type: Number,
+        default: 0,
+        max: 3,
     },
     disputedReason: {
        reason: {
@@ -59,6 +77,22 @@ const reviewSchema=new schema({
         max:3
        },
        createdAt: Date
+    },
+    /** Outcome shown to the store owner after AI or admin resolution */
+    disputeResolution: {
+        decision: {
+            type: String,
+            enum: ['approve_dispute', 'reject_dispute'],
+            default: undefined,
+        },
+        reason: { type: String, default: null },
+        resolvedBy: {
+            type: String,
+            enum: ['ai', 'admin'],
+            default: undefined,
+        },
+        confidence: { type: Number, default: null },
+        resolvedAt: { type: Date, default: null },
     },
     isLocked: {
         type: Boolean,
@@ -75,12 +109,14 @@ const reviewSchema=new schema({
 },{timestamps:true});
 
 
-reviewSchema.pre(/^find/, function(next){  // <-- Notice NO QUOTES around /^find/
-    this.find({isDeleted: {$ne: true}});
-    // next();
+reviewSchema.pre(/^find/, function () {
+    if (!this.getOptions()?.includeDeleted) {
+        this.where({ isDeleted: { $ne: true } });
+    }
 });
 reviewSchema.index({ product: 1, status: 1 });
 reviewSchema.index({ store: 1, createdAt: -1 });
+reviewSchema.index({ store: 1, source: 1, externalId: 1 }, { unique: true, partialFilterExpression: { externalId: { $type: 'string' } } });
 
 const Review=mongoose.model("Review",reviewSchema);
 export default Review;

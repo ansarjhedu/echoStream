@@ -2,7 +2,7 @@ import axios from 'axios';
 
 
 const api = axios.create({
-  baseURL: import.meta.env.BACKEND_URL || 'https://echo-stream-pi.vercel.app/api',
+  baseURL: import.meta.env.VITE_BACKEND_URL || 'https://echo-stream-pi.vercel.app/api',
   withCredentials: true, 
 });
 
@@ -11,7 +11,7 @@ let accessToken = null;
 export const setAccessToken = (token) => {
   accessToken = token;
 };
-
+ 
 // 1. Attach Access Token
 api.interceptors.request.use((config) => {
   if (accessToken) {
@@ -37,8 +37,6 @@ api.interceptors.response.use(
       try {
         // Ping the refresh route using the simplified api object
         const res = await api.post('/users/refresh');
-        console.log(res)
-        
         setAccessToken(res.data.accessToken);
         originalRequest.headers.Authorization = `Bearer ${res.data.accessToken}`;
         
