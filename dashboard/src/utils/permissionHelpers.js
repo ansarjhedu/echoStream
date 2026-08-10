@@ -1,6 +1,6 @@
 export const ROLE_PRESETS = {
-  administrator: ['moderation', 'products', 'integrations', 'settings', 'disputes', 'tickets'],
-  editor: ['moderation', 'products', 'integrations'],
+  administrator: ['moderation', 'products', 'integrations', 'settings', 'disputes', 'tickets', 'campaigns'],
+  editor: ['moderation', 'products', 'campaigns'],
   support: ['tickets'],
 };
 
@@ -20,6 +20,7 @@ export const PLATFORM_ROLE_PRESETS = {
 
 export const STORE_PERM_GROUPS = [
   { title: 'Store Management', keys: ['moderation', 'products', 'integrations', 'settings'] },
+  { title: 'Growth', keys: ['campaigns'] },
   { title: 'Disputes', keys: ['disputes'] },
   { title: 'Support', keys: ['tickets'] },
 ];

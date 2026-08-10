@@ -5,15 +5,12 @@ import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify'; // <-- Import Toast
 import { 
   Store, Plus, Server, ShoppingCart, ChevronRight, 
-  X, AlertCircle, Ban, CheckCircle, Trash, Clock, Lock 
+  Ban, CheckCircle, Trash, Clock, Lock 
 } from 'lucide-react';
 
 export default function StoresHub() {
   const [stores, setStores] = useState([]);
   const[loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ storeName: '', storeType: 'ecommerce', storeHosting: 'shopify' });
-  const [submitLoading, setSubmitLoading] = useState(false);
   
   const { user, setActiveStore } = useAuth();
   const navigate = useNavigate();
@@ -29,22 +26,6 @@ export default function StoresHub() {
       toast.error("Failed to fetch your stores.");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleCreateStore = async (e) => {
-    e.preventDefault();
-    setSubmitLoading(true);
-    try {
-      const res = await api.post('/store/create', formData);
-      setStores([res.data.data, ...stores]);
-      setIsModalOpen(false);
-      setFormData({ storeName: '', storeType: 'ecommerce', storeHosting: 'shopify' });
-      toast.success("Store initialized successfully! 🚀");
-    } catch (err) {
-      toast.error(err.response?.data?.message || err.response?.data || "Failed to create store");
-    } finally {
-      setSubmitLoading(false);
     }
   };
 
@@ -115,7 +96,7 @@ export default function StoresHub() {
           {user?.role === 'admin' ? (
              <button onClick={() => navigate('/hub/admin/overview')} className="flex items-center gap-2 bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30 px-6 py-3 rounded-xl font-bold transition-all">Go to Admin Portal</button>
           ) : isOwner ? (
-            <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-[0_0_20px_rgba(34,211,238,0.3)]"><Plus size={20} /> Initialize New Store</button>
+            <button onClick={() => navigate('/hub/onboarding/store')} className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-[0_0_20px_rgba(34,211,238,0.3)]"><Plus size={20} /> Initialize New Store</button>
           ) : null}
         </header>
 
@@ -126,18 +107,23 @@ export default function StoresHub() {
             <Store size={64} className="mx-auto mb-6 text-gray-600" />
             <h2 className="text-2xl font-bold mb-2">No Stores Found</h2>
             <p className="text-gray-400 mb-8 max-w-md mx-auto text-sm md:text-base">{isOwner ? "You haven't initialized any stores yet. Create one to generate your unique API key and start collecting reviews." : "No stores are available on your parent account yet."}</p>
-            {isOwner && <button onClick={() => setIsModalOpen(true)} className="bg-white/5 border border-white/10 hover:bg-white/10 text-white px-8 py-3 rounded-xl font-bold transition-all">Create First Store</button>}
+            {isOwner && <button onClick={() => navigate('/hub/onboarding/store')} className="bg-white/5 border border-white/10 hover:bg-white/10 text-white px-8 py-3 rounded-xl font-bold transition-all">Create First Store</button>}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {stores.map(store => {
               const isLocked = store.isDeleted || ["suspended", "disputed"].includes(store.status);
+              const previewImg = store.siteMeta?.image || store.siteMeta?.favicon;
               return (
                 <div key={store._id} className={`group bg-white/[0.02] border border-white/10 p-5 md:p-6 rounded-2xl backdrop-blur-xl transition-all duration-300 flex flex-col justify-between min-h-[260px] ${isLocked ? 'opacity-75 grayscale-[30%]' : 'hover:bg-white/[0.05] hover:border-cyan-500/50 hover:shadow-[0_0_30px_rgba(34,211,238,0.15)] cursor-pointer'}`}>
                   <div onClick={() => handleStoreClick(store)}>
                     <div className="flex justify-between items-start mb-4">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center border border-white/10 group-hover:border-cyan-500/50 transition-colors">
-                        <ShoppingCart className="text-cyan-400 w-6 h-6" />
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center border border-white/10 group-hover:border-cyan-500/50 transition-colors overflow-hidden">
+                        {previewImg ? (
+                          <img src={previewImg} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                        ) : (
+                          <ShoppingCart className="text-cyan-400 w-6 h-6" />
+                        )}
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         {store.isDeleted ? (
@@ -150,9 +136,12 @@ export default function StoresHub() {
                       </div>
                     </div>
                     <h3 className="text-xl font-bold text-white group-hover:text-cyan-300 transition-colors truncate">{store.storeName}</h3>
+                    {store.websiteUrl && (
+                      <p className="text-[11px] text-gray-500 truncate mt-1">{store.websiteUrl}</p>
+                    )}
                     <div className="flex justify-between items-center pt-2 mt-2 mb-4">
                       <div className="flex items-center gap-2 text-sm text-gray-400 capitalize">
-                        <Server size={14} /> {store.storeType} {/* Updated to storeType */}
+                        <Server size={14} /> {store.storeType}
                       </div>
                       {!isLocked && <ChevronRight className="text-gray-600 group-hover:text-cyan-400 transition-colors" />}
                     </div>
@@ -183,32 +172,6 @@ export default function StoresHub() {
           </div>
         )}
       </div>
-
-      {/* CREATE STORE MODAL */}
-      {isModalOpen && isOwner && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-[#0A0F1A] border border-white/10 p-6 md:p-8 rounded-2xl w-full max-w-md shadow-2xl relative animate-fade-in-down">
-            <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"><X size={24} /></button>
-            <h2 className="text-xl md:text-2xl font-bold text-white mb-6">Initialize New Store</h2>
-            <form onSubmit={handleCreateStore} className="space-y-4 md:space-y-5">
-              <div>
-                <label className="block text-xs md:text-sm text-gray-400 mb-2">Store Name</label>
-                <input type="text" required value={formData.storeName} onChange={(e) => setFormData({...formData, storeName: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 md:py-3 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-sm md:text-base" placeholder="e.g. CyberTech Gadgets" />
-              </div>
-              <div>
-                <label className="block text-xs md:text-sm text-gray-400 mb-2">Store Type</label>
-                <select value={formData.storeType} onChange={(e) => setFormData({...formData, storeType: e.target.value})} className="w-full bg-black border border-white/10 rounded-xl px-4 py-2.5 md:py-3 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all appearance-none text-sm md:text-base">
-                  <option value="ecommerce">eCommerce</option>
-                  <option value="blog">Blog / Content</option>
-                  <option value="portfolio">Portfolio</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <button type="submit" disabled={submitLoading} className="w-full bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 py-3 rounded-xl font-bold text-white shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all disabled:opacity-50 mt-2 text-sm md:text-base">{submitLoading ? 'Deploying...' : 'Create Store'}</button>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

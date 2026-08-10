@@ -1,0 +1,27 @@
+import mongoose from 'mongoose';
+
+const campaignSchema = new mongoose.Schema(
+  {
+    store: { type: mongoose.Schema.Types.ObjectId, ref: 'Store', required: true, index: true },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    subject: { type: String, required: true },
+    bodyText: { type: String, required: true },
+    filters: {
+      productId: { type: String, default: null },
+      emailSearch: { type: String, default: null },
+      minRating: { type: Number, default: null },
+    },
+    recipientCount: { type: Number, default: 0 },
+    sentCount: { type: Number, default: 0 },
+    failedCount: { type: Number, default: 0 },
+    status: {
+      type: String,
+      enum: ['draft', 'sent', 'partial'],
+      default: 'sent',
+    },
+  },
+  { timestamps: true }
+);
+
+const Campaign = mongoose.model('Campaign', campaignSchema);
+export default Campaign;

@@ -1,0 +1,23 @@
+# Local env / secrets
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# FYP proposal artifacts (keep local only)
+scripts/
+EchoStream-FYP-Proposal*.docx
+UE-FYP-Proposal*.docx
+*.docx
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

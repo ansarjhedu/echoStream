@@ -21,11 +21,11 @@ const googleClient = () => {
   return new OAuth2Client(clientId);
 };
 
-const ALLOWED_STAFF_PERMISSIONS = ['moderation', 'products', 'integrations', 'settings', 'disputes', 'tickets'];
+const ALLOWED_STAFF_PERMISSIONS = ['moderation', 'products', 'integrations', 'settings', 'disputes', 'tickets', 'campaigns'];
 const ALLOWED_STORE_ROLES = ['administrator', 'editor', 'support', 'custom'];
 const ROLE_PRESETS = {
-  administrator: ['moderation', 'products', 'integrations', 'settings', 'disputes', 'tickets'],
-  editor: ['moderation', 'products'],
+  administrator: ['moderation', 'products', 'integrations', 'settings', 'disputes', 'tickets', 'campaigns'],
+  editor: ['moderation', 'products', 'campaigns'],
   support: ['tickets'],
 };
 

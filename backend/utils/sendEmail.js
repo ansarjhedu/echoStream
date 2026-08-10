@@ -30,10 +30,11 @@ const sendEmail = async (options) => {
   });
 
   const message = {
-    from: `${fromName} <${fromEmail}>`,
+    from: `${options.fromName || fromName} <${fromEmail}>`,
     to: options.email,
     subject: options.subject,
     html: options.html,
+    ...(options.replyTo ? { replyTo: options.replyTo } : {}),
   };
 
   const info = await transporter.sendMail(message);

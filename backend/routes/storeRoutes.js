@@ -11,6 +11,12 @@ import {
 } from "../controllers/googleReviewsController.js";
 import { generateSmartReply } from "../controllers/aiController.js";
 import { upload } from "../utils/cloudinary.js";
+import {
+  getCampaignAudience,
+  draftCampaignCopy,
+  sendCampaign,
+  listCampaigns,
+} from "../controllers/campaignController.js";
 
 
 
@@ -42,6 +48,12 @@ storeRouter.post('/:id/reviews/bulk-hide', authUser, authStore, checkPermission(
 storeRouter.get('/:id/disputes',authUser,authStore,checkPermission(['moderation','disputes']),getStoreDisputes);
 storeRouter.post('/:id/reviews/:reviewId/reply',authUser,authStore,checkPermission('moderation'),merchantReplyToReview);
 storeRouter.post('/:id/ai/generate-reply', authUser, authStore, checkPermission('moderation'), generateSmartReply);
+
+// Email campaigns — owner or staff with `campaigns` permission
+storeRouter.get('/:id/campaigns/audience', authUser, authStore, checkPermission('campaigns'), getCampaignAudience);
+storeRouter.get('/:id/campaigns', authUser, authStore, checkPermission('campaigns'), listCampaigns);
+storeRouter.post('/:id/campaigns/draft', authUser, authStore, checkPermission('campaigns'), draftCampaignCopy);
+storeRouter.post('/:id/campaigns/send', authUser, authStore, checkPermission('campaigns'), sendCampaign);
 
 
 

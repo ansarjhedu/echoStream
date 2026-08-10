@@ -31,7 +31,7 @@ const userSchema=new Schema({
         type: String,
         enum: [
             // Store staff
-            'moderation', 'products', 'integrations', 'settings', 'disputes', 'tickets',
+            'moderation', 'products', 'integrations', 'settings', 'disputes', 'tickets', 'campaigns',
             // Platform staff
             'stores_read', 'users_read', 'disputes_resolve', 'support_queue', 'analytics_platform'
         ]

@@ -5,6 +5,7 @@ import Store from "../models/Store.js";
 import crypto from "crypto";
 import { notifyUser } from "../services/notificationService.js";
 import { autoResolveDisputeWithAi } from "./aiController.js";
+import { sendReviewThankYouEmail } from "../services/reviewMailService.js";
 
 const createReview=async(req,res)=>{
 
@@ -55,7 +56,7 @@ const createReview=async(req,res)=>{
         const review=await createReviewWithDiscovery(req.store._id, reviewData);
         await recalculateProductStats(review.product);
 
-        const store = await Store.findById(req.store._id).select('owner storeName');
+        const store = await Store.findById(req.store._id).select('owner storeName storeType');
         if (store?.owner) {
             notifyUser({
                 userId: store.owner,
@@ -65,6 +66,13 @@ const createReview=async(req,res)=>{
                 link: '/workspace/reviews',
                 important: review.rating <= 2,
                 meta: { reviewId: String(review._id), storeId: String(store._id), rating: review.rating },
+            });
+        }
+
+        // Store-branded thank-you (ecommerce only) — do not block the API response
+        if (store?.storeType === 'ecommerce') {
+            sendReviewThankYouEmail({ store, review }).catch((err) => {
+                console.error('review thank-you email failed', err?.message || err);
             });
         }
         

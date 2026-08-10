@@ -36,6 +36,7 @@ import TeamManagement from './pages/TeamManagement';
 import StaffSetup from './pages/StaffSetup';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import AcceptInvite from './pages/AcceptInvite';
+import EmailCampaigns from './pages/EmailCampaigns';
 
 import AdminOverview from './pages/admin/AdminOverview';
 import AdminDisputes from './pages/admin/AdminDisputes';
@@ -138,7 +139,7 @@ const WorkspaceGuard = ({ children }) => {
     // Portfolio / blog workspaces: commerce-only surfaces are hidden (Reviews stays available)
     if (
       presenceWorkspace &&
-      (path.includes('/analytics') || path.includes('/disputes'))
+      (path.includes('/analytics') || path.includes('/disputes') || path.includes('/campaigns'))
     ) {
       toast.info('That section is for commerce stores. Opening Widgets.');
       navigate('/workspace/widgets', { replace: true });
@@ -153,6 +154,10 @@ const WorkspaceGuard = ({ children }) => {
     }
 
     let denied = false;
+
+    if (path.includes('/campaigns') && !hasPerm(user, 'campaigns')) {
+      denied = true;
+    }
 
     if (
       (path.includes('/integration') ||
@@ -250,6 +255,7 @@ export default function App() {
                     <Routes>
                       <Route path="reviews" element={<Reviews />} />
                       <Route path="disputes" element={<StoreDisputes />} />
+                      <Route path="campaigns" element={<EmailCampaigns />} />
                       <Route path="analytics/*" element={<Analytics />} />
                       <Route path="integration" element={<Integration />} />
                       <Route path="widgets" element={<WidgetCatalog />} />

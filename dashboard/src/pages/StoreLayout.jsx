@@ -1,7 +1,7 @@
 import { useAuth } from "../context/AuthContext";
 import { useState, useEffect } from "react";
 import { useLocation, Link, Navigate } from "react-router-dom";
-import { X, Menu, BarChart3, Package, ArrowLeft, User, AlertOctagon, LayoutTemplate, Palette, Globe2, MessageSquare } from "lucide-react";
+import { X, Menu, BarChart3, Package, ArrowLeft, User, AlertOctagon, LayoutTemplate, Palette, Globe2, MessageSquare, Mail } from "lucide-react";
 import logo from '../assets/logo.png';
 import api from '../Api';
 import { hasPerm, isSupportOnly, getPostLoginPath, canAccessAdminPortal, canManageWidgets, isPresenceType } from '../utils/permissionHelpers';
@@ -29,9 +29,11 @@ const StoreLayout = ({ children }) => {
   const showPresenceReviews = isPresence && (hasPerm(user, 'moderation') || hasPerm(user, 'products') || user?.role === 'owner');
   const showDisputes = !isPresence && (hasPerm(user, 'moderation') || hasPerm(user, 'disputes'));
   const showWidgets = canManageWidgets(user);
+  const showCampaigns = !isPresence && (user?.role === 'owner' || user?.role === 'admin' || hasPerm(user, 'campaigns'));
   const isWidgetsActive = location.pathname.includes('/widgets');
   const isDesignLabActive = location.pathname.includes('/design-lab') || location.pathname.includes('/integration');
   const isReviewsActive = location.pathname.includes('/reviews');
+  const isCampaignsActive = location.pathname.includes('/campaigns');
 
   useEffect(() => {
     if (!activeStore?._id || !showDisputes) {
@@ -126,6 +128,11 @@ const StoreLayout = ({ children }) => {
               <Link to="/workspace/disputes" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/disputes') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                 <AlertOctagon size={20} className={location.pathname.includes('/disputes') ? "text-orange-400" : ""} /> Disputes
                 <NavBadge count={pendingDisputes} />
+              </Link>
+            )}
+            {showCampaigns && (
+              <Link to="/workspace/campaigns" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isCampaignsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                <Mail size={20} className={isCampaignsActive ? "text-cyan-400" : ""} /> Email Campaigns
               </Link>
             )}
             {showWidgets && (
