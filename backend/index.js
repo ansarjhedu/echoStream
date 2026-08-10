@@ -19,15 +19,24 @@ import startCronJobs from "./services/cronjobs.js"; // Renamed for clarity!
 const app = express();
 const port = process.env.PORT || 5000;
 
+// Vercel / reverse proxies set X-Forwarded-For — required by express-rate-limit
+app.set('trust proxy', 1);
+
 // ==========================================
 // 1. MIDDLEWARE & CORS (MUST BE AT THE TOP)
 // ==========================================
 const allowedAdminOrigins = [
-    "http://localhost:5173",          
-    "http://127.0.0.1:5173",          
-    "http://127.0.0.1:5500",          
-    "https://echo-stream-5nch.vercel.app" // Your Live Dashboard
-];
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5500",
+    "https://echo-stream-5nch.vercel.app",
+    "https://echostream-eight.vercel.app",
+    process.env.FRONTEND_URL,
+    process.env.FRONTEND_BASE_URL,
+    ...(process.env.CORS_ORIGINS || "").split(","),
+]
+    .map((origin) => String(origin || "").trim().replace(/\/$/, ""))
+    .filter(Boolean);
 
 const corsOptionsDelegate = (req, callback) => {
     let corsOptions;

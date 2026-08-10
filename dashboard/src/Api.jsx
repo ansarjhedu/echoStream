@@ -1,11 +1,13 @@
 import axios from 'axios';
 
+const backendBase = (import.meta.env.VITE_BACKEND_URL || 'https://echo-stream-pi.vercel.app/api')
+  .trim()
+  .replace(/^['"]|['"]$/g, '');
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_BACKEND_URL || 'https://echo-stream-pi.vercel.app/api',
+  baseURL: backendBase,
   withCredentials: true, 
 });
-
 let accessToken = null;
 
 export const setAccessToken = (token) => {
@@ -42,10 +44,12 @@ api.interceptors.response.use(
         
         return api(originalRequest);
       } catch (refreshError) {
-        // If the refresh cookie is expired, log them out and redirect
+        // If the refresh cookie is expired, clear session (avoid hard redirect loops on /login)
         setAccessToken(null);
         localStorage.removeItem('has_session');
-        window.location.href = '/login';
+        if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/forgot-password')) {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshError);
       }
     }

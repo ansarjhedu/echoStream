@@ -9,10 +9,10 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";
 
-import sendEmail from "../utils/sendEmail.js"; // <-- Import the email utility!
+import sendEmail, { isEmailTransportError } from "../utils/sendEmail.js";
 
 const googleClient = () => {
-  const clientId = (process.env.GOOGLE_CLIENT_ID || '').trim();
+  const clientId = (process.env.GOOGLE_CLIENT_ID || '').trim().replace(/^['"]|['"]$/g, '');
   if (!clientId) {
     const err = new Error('GOOGLE_CLIENT_ID is not configured');
     err.code = 'MISSING_GOOGLE_CLIENT';
@@ -300,8 +300,9 @@ const logoutUser = async (req, res) => {
   // 2. Clear Cookie
   res.clearCookie("refreshToken", {
     httpOnly: true,
-    sameSite: process.env.NODE_ENV === "development"?"Strict":"Lax" ,
-    secure: process.env.NODE_ENV !== "development",
+    sameSite: process.env.NODE_ENV === "production" ? "None" : "Strict",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
   });
 
   res.status(200).json({ message: "User logged out successfully" });
@@ -904,6 +905,11 @@ const requestLoginOtp = async (req, res) => {
         return res.status(200).json({ message: "If that email is registered, a login code was sent." });
     } catch (error) {
         console.error("Error in requestLoginOtp", error);
+        if (isEmailTransportError(error)) {
+            return res.status(503).json({
+                message: "Email service unavailable. Check SMTP_USER / SMTP_PASS (Gmail App Password) and FROM_EMAIL on the server.",
+            });
+        }
         return res.status(500).json({ message: "Server error" });
     }
 };
@@ -981,6 +987,11 @@ const requestPasswordReset = async (req, res) => {
         });
     } catch (error) {
         console.error("Error in requestPasswordReset", error);
+        if (isEmailTransportError(error)) {
+            return res.status(503).json({
+                message: "Email service unavailable. Check SMTP_USER / SMTP_PASS (Gmail App Password) and FROM_EMAIL on the server.",
+            });
+        }
         return res.status(500).json({ message: "Server error" });
     }
 };
@@ -1032,7 +1043,7 @@ const googleAuthLogin = async (req, res) => {
       return res.status(400).json({ message: 'Google credential is required.' });
     }
 
-    const clientId = (process.env.GOOGLE_CLIENT_ID || '').trim();
+    const clientId = (process.env.GOOGLE_CLIENT_ID || '').trim().replace(/^['"]|['"]$/g, '');
     if (!clientId) {
       return res.status(503).json({ message: 'Google Sign-In is not configured (missing GOOGLE_CLIENT_ID).' });
     }
@@ -1112,6 +1123,12 @@ const googleAuthLogin = async (req, res) => {
     console.error('googleAuthLogin', error);
     if (error.code === 'MISSING_GOOGLE_CLIENT') {
       return res.status(503).json({ message: 'Google Sign-In is not configured.' });
+    }
+    const msg = String(error.message || '');
+    if (/audience|wrong recipient|token used too early|invalid token signature/i.test(msg)) {
+      return res.status(401).json({
+        message: 'Google Client ID mismatch or unauthorized origin. Ensure GOOGLE_CLIENT_ID matches VITE_GOOGLE_CLIENT_ID and your dashboard URL is listed under Authorized JavaScript origins.',
+      });
     }
     return res.status(401).json({ message: 'Google authentication failed. Please try again.' });
   }

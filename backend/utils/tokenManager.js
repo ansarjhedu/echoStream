@@ -22,12 +22,13 @@ const generateToken=async(user,res)=>{
     });
    
     
-    // Set refresh token in HTTP-only cookie
+    // Set refresh token in HTTP-only cookie (cross-site dashboard ↔ API on Vercel)
     res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === "production"?"None":"Strict",
+        sameSite: process.env.NODE_ENV === "production" ? "None" : "Strict",
         secure: process.env.NODE_ENV === "production",
-         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: "/",
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
     
     return accessToken;

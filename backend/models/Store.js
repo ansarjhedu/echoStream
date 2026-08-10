@@ -79,11 +79,11 @@ const storeSchema=new Schema({
 
 },{timestamps:true})
 
-storeSchema.pre('save',async function(next){
-            if(this.isNew && !this.apiKey){
-        this.apiKey=crypto.randomBytes(16).toString("hex");
-    }
-})
+storeSchema.pre('save', async function () {
+  if (this.isNew && !this.apiKey) {
+    this.apiKey = crypto.randomBytes(16).toString('hex');
+  }
+});
 
 // storeSchema.pre(/^find/, function(next){  // <-- Notice NO QUOTES around /^find/
 //     this.find({isDeleted: {$ne: true}});

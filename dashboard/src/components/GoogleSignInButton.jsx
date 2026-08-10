@@ -29,11 +29,12 @@ function loadGisScript() {
  * Calls onCredential(idToken) when the user completes sign-in.
  */
 export default function GoogleSignInButton({ onCredential, disabled = false, text = 'continue_with' }) {
+  const wrapRef = useRef(null);
   const btnRef = useRef(null);
   const onCredentialRef = useRef(onCredential);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const clientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim().replace(/^['"]|['"]$/g, '');
 
   useEffect(() => {
     onCredentialRef.current = onCredential;
@@ -41,10 +42,30 @@ export default function GoogleSignInButton({ onCredential, disabled = false, tex
 
   useEffect(() => {
     let cancelled = false;
+    let resizeObserver;
+
     if (!clientId) {
       setError('Google Sign-In is not configured (VITE_GOOGLE_CLIENT_ID).');
       return undefined;
     }
+
+    const renderButton = () => {
+      if (!btnRef.current || !window.google?.accounts?.id) return;
+      const parentWidth = wrapRef.current?.clientWidth || btnRef.current.clientWidth || 320;
+      // GIS requires an integer width; keep it inside the card on phones
+      const width = Math.max(240, Math.min(Math.floor(parentWidth), 400));
+
+      btnRef.current.innerHTML = '';
+      window.google.accounts.id.renderButton(btnRef.current, {
+        type: 'standard',
+        theme: 'outline',
+        size: 'large',
+        text,
+        shape: 'pill',
+        width,
+        logo_alignment: 'left',
+      });
+    };
 
     (async () => {
       try {
@@ -58,19 +79,17 @@ export default function GoogleSignInButton({ onCredential, disabled = false, tex
           },
           auto_select: false,
           cancel_on_tap_outside: true,
+          // Helps on some mobile browsers / ITP
+          use_fedcm_for_prompt: false,
         });
 
-        btnRef.current.innerHTML = '';
-        window.google.accounts.id.renderButton(btnRef.current, {
-          type: 'standard',
-          theme: 'outline',
-          size: 'large',
-          text,
-          shape: 'pill',
-          width: 320,
-          logo_alignment: 'left',
-        });
+        renderButton();
         if (!cancelled) setReady(true);
+
+        if (typeof ResizeObserver !== 'undefined' && wrapRef.current) {
+          resizeObserver = new ResizeObserver(() => renderButton());
+          resizeObserver.observe(wrapRef.current);
+        }
       } catch (err) {
         if (!cancelled) setError(err.message || 'Google Sign-In unavailable');
       }
@@ -78,6 +97,7 @@ export default function GoogleSignInButton({ onCredential, disabled = false, tex
 
     return () => {
       cancelled = true;
+      resizeObserver?.disconnect();
     };
   }, [clientId, text]);
 
@@ -90,8 +110,17 @@ export default function GoogleSignInButton({ onCredential, disabled = false, tex
   }
 
   return (
-    <div className={`w-full flex flex-col items-center gap-2 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
-      <div ref={btnRef} className="min-h-[44px] flex justify-center w-full overflow-hidden" />
+    <div
+      ref={wrapRef}
+      className={`w-full flex flex-col items-center gap-2 relative z-20 ${
+        disabled ? 'opacity-50 pointer-events-none' : ''
+      }`}
+    >
+      {/* No overflow-hidden — clipped GIS iframes become untappable on mobile */}
+      <div
+        ref={btnRef}
+        className="min-h-11 w-full flex justify-center touch-manipulation [&_iframe]:max-w-full"
+      />
       {!ready && !error && <p className="text-xs text-gray-500">Loading Google…</p>}
       {error && <p className="text-xs text-red-400 text-center">{error}</p>}
     </div>
