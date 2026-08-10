@@ -5,6 +5,19 @@ const WidgetContext = createContext();
 export const useWidget = () => useContext(WidgetContext);
 
 const PAGE_LIMIT = 10;
+const PROD_PUBLIC_API = 'https://echo-stream-pi.vercel.app/api/public';
+const DEV_PUBLIC_API = 'http://localhost:3000/api/public';
+
+/** Embeddable widget must call the public API; never ship a localhost base from a leftover .env. */
+function resolvePublicApiBase() {
+  const fromEnv = String(import.meta.env.VITE_API_BASE || '').trim();
+  const isLocal = /localhost|127\.0\.0\.1/i.test(fromEnv);
+  if (import.meta.env.PROD) {
+    if (fromEnv && !isLocal) return fromEnv;
+    return PROD_PUBLIC_API;
+  }
+  return fromEnv || DEV_PUBLIC_API;
+}
 
 export const WidgetProvider = ({ apiKey, productHandle, productTitle, customerName, customerEmail, verificationHash, children }) => {
   const [reviews, setReviews] = useState([]);
@@ -36,7 +49,7 @@ export const WidgetProvider = ({ apiKey, productHandle, productTitle, customerNa
   const isEcom = storeType === 'ecommerce';
 
   const api = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE || 'https://echo-stream-pi.vercel.app/api/public',
+    baseURL: resolvePublicApiBase(),
     headers: { 'x-api-key': apiKey }
   });
 

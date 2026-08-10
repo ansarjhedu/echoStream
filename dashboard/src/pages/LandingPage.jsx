@@ -270,7 +270,7 @@ export default function LandingPage() {
             <ul className="space-y-3 text-sm text-gray-300">
               {[
                 "Presence embeds: API key only — no product title fields",
-                "Commerce embeds: product handle + optional verified-buyer HMAC",
+                "Commerce embeds: product handle + title — shoppers review in-widget",
                 "Draft vs Publish so unfinished experiments never hit production",
               ].map((t) => (
                 <li key={t} className="flex gap-2 items-start">
@@ -363,7 +363,7 @@ export default function LandingPage() {
                 },
                 {
                   t: "Publish",
-                  d: "Copy the embed. Presence needs only an API key.",
+                  d: "Copy the embed. Presence needs an API key; Commerce adds product handle + title.",
                 },
                 {
                   t: "Prove",
@@ -388,9 +388,9 @@ export default function LandingPage() {
               Trust without the theater
             </h3>
             <p className="text-sm text-gray-400 leading-relaxed mb-6">
-              Commerce verified buyers use server-side HMAC — never computed in
-              the browser. Disputes escalate to platform review. Presence sites
-              stay simple: no fake product fields in the snippet.
+              Paste the snippet and go — shoppers review in the widget. Optional
+              verified-buyer HMAC is advanced only. Disputes escalate to platform
+              review. Presence stays API-key simple.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Link

@@ -9,6 +9,7 @@ export default function ReviewForm() {
     setIsFormOpen,
     customerName,
     customerEmail,
+    verificationHash,
     isEcom,
   } = useWidget();
 
@@ -22,37 +23,17 @@ export default function ReviewForm() {
   const [hoverRating, setHoverRating] = useState(0);
   const [status, setStatus] = useState({ loading: false, message: '', error: false });
 
-  if (!isFormOpen) return null;
+  // Optional host injection (logged-in shopper). Otherwise guests type name/email in the form.
+  const identityLocked = Boolean(customerName && customerEmail);
 
-  // Commerce embeds require verified customer injection; Presence allows guest fields.
-  if (isEcom && !customerEmail) {
-    return (
-      <div
-        className="mb-8 p-8 rounded-2xl text-center border"
-        style={{ backgroundColor: 'var(--echo-input)', borderColor: 'var(--echo-border)' }}
-      >
-        <h3 className="text-xl font-bold mb-2">Login Required</h3>
-        <p className="opacity-70 mb-6">
-          You must be logged into your store account to leave a verified review.
-        </p>
-        <button
-          type="button"
-          onClick={() => setIsFormOpen(false)}
-          className="px-6 py-2 rounded-lg font-bold transition-all border"
-          style={{ borderColor: 'var(--echo-border)' }}
-        >
-          Close
-        </button>
-      </div>
-    );
-  }
+  if (!isFormOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus({ loading: true, message: '', error: false });
 
-    const name = isEcom ? customerName : formState.guestName.trim();
-    const email = isEcom ? customerEmail : formState.guestEmail.trim();
+    const name = identityLocked ? customerName : formState.guestName.trim();
+    const email = identityLocked ? customerEmail : formState.guestEmail.trim();
 
     if (!name || !email) {
       setStatus({ loading: false, message: 'Name and email are required.', error: true });
@@ -75,7 +56,9 @@ export default function ReviewForm() {
       await submitReview(formData);
       setStatus({
         loading: false,
-        message: isEcom ? 'Review submitted securely!' : 'Thanks — your review is live!',
+        message: verificationHash
+          ? 'Thanks — your verified review is live!'
+          : 'Thanks — your review is live!',
         error: false,
       });
       setFormState({ guestName: '', guestEmail: '', rating: 5, comment: '', images: null });
@@ -102,10 +85,13 @@ export default function ReviewForm() {
 
       <form onSubmit={handleSubmit} className="space-y-5 w-full">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full">
-          {isEcom ? (
-            <div className="w-full flex items-center gap-3 rounded-lg px-4 py-3 border" style={inputStyle}>
+          {identityLocked ? (
+            <div className="w-full flex items-center gap-3 rounded-lg px-4 py-3 border md:col-span-1" style={inputStyle}>
               <span className="opacity-70 text-sm truncate">
                 Reviewing as <strong style={{ color: 'var(--echo-primary)' }}>{customerName}</strong>
+                {verificationHash ? (
+                  <span className="ml-2 opacity-60">(verified buyer)</span>
+                ) : null}
               </span>
             </div>
           ) : (
@@ -132,7 +118,7 @@ export default function ReviewForm() {
           )}
 
           <div
-            className={`w-full flex justify-between items-center rounded-lg px-4 py-3 border ${isEcom ? '' : 'md:col-span-2'}`}
+            className={`w-full flex justify-between items-center rounded-lg px-4 py-3 border ${identityLocked ? '' : 'md:col-span-2'}`}
             style={inputStyle}
           >
             <span className="opacity-70 text-sm">Rating:</span>
@@ -174,7 +160,7 @@ export default function ReviewForm() {
           className="w-full py-3 rounded-lg font-bold shadow-lg transition-all disabled:opacity-50"
           style={{ backgroundColor: 'var(--echo-primary)', color: 'var(--echo-bg)' }}
         >
-          {status.loading ? 'Submitting…' : isEcom ? 'Submit Secure Review' : 'Submit Review'}
+          {status.loading ? 'Submitting…' : 'Submit Review'}
         </button>
 
         {status.message && (
