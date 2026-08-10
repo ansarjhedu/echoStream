@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import sendEmail from './sendEmail.js';
+import sendEmail from '../utils/sendEmail.js';
 
 function getGeminiClientOrNull() {
   const apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
