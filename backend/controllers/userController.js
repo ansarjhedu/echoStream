@@ -10,6 +10,8 @@ import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";
 
 import sendEmail, { isEmailTransportError } from "../utils/sendEmail.js";
+import { PLAN_CATALOG, getPlanLimits, isWithinLimit, resolvePlanId } from "../utils/plans.js";
+import Campaign from "../models/Campaign.js";
 
 const googleClient = () => {
   const clientId = (process.env.GOOGLE_CLIENT_ID || '').trim().replace(/^['"]|['"]$/g, '');
@@ -66,6 +68,7 @@ const buildUserPayload = (user, accessToken, extras = {}) => ({
   permissions: user.permissions || [],
   parentAccount: user.parentAccount || null,
   profilePic: user.profilePic,
+  plan: resolvePlanId(user.plan),
   staffScope: extras.staffScope || null,
   parentRole: extras.parentRole || null,
   ...(accessToken ? { accessToken: { token: accessToken } } : {}),
@@ -533,6 +536,20 @@ const inviteStaff = async (req, res) => {
   try {
     if (req.user.role !== 'owner') {
       return res.status(403).json({ message: "Only store owners can invite staff members" });
+    }
+
+    const owner = await User.findById(req.user._id).select('plan userName');
+    const limits = getPlanLimits(owner?.plan);
+    const seatUsed = await User.countDocuments({
+      parentAccount: req.user._id,
+      role: 'staff',
+      isDeleted: { $ne: true },
+    });
+    if (!isWithinLimit(seatUsed, limits.maxTeamSeats)) {
+      return res.status(403).json({
+        message: `Team seat limit reached for the ${limits.name} plan (${limits.maxTeamSeats === -1 ? 'unlimited' : limits.maxTeamSeats}). Upgrade in Billing.`,
+        code: 'PLAN_SEAT_LIMIT',
+      });
     }
 
     const { email, userName, storeRole, permissions } = req.body;
@@ -1134,4 +1151,85 @@ const googleAuthLogin = async (req, res) => {
   }
 };
 
-export { registerUser, loginUser, logoutUser, refreshToken,updateUserCredentials, generateTicket,getTickets,replyToAdmin, verifyOTP,resendOTP, inviteStaff, resendInvite, acceptInvite, getStaffMembers, updateStaffPermissions, revokeStaffAccess, getOwnerNavBadges, requestLoginOtp, verifyLoginOtp, requestPasswordReset, resetPasswordWithOtp, googleAuthLogin };
+const getBillingSummary = async (req, res) => {
+  try {
+    const ownerId = req.user.role === 'staff' ? req.user.parentAccount : req.user._id;
+    if (!ownerId) {
+      return res.status(400).json({ message: 'No billing account found.' });
+    }
+    const owner = await User.findById(ownerId).select('plan planUpdatedAt userName email role');
+    if (!owner || (owner.role !== 'owner' && owner.role !== 'admin')) {
+      // Platform admins see catalog only
+      if (req.user.role === 'admin' || req.user.staffScope === 'platform') {
+        return res.status(200).json({
+          data: {
+            audience: 'platform',
+            catalog: Object.values(PLAN_CATALOG),
+            note: 'Billing plans apply to merchant owner accounts. Platform operators are not billed here.',
+          },
+        });
+      }
+      return res.status(403).json({ message: 'Billing is available to account owners.' });
+    }
+
+    const limits = getPlanLimits(owner.plan);
+    const storesUsed = await Store.countDocuments({ owner: ownerId, isDeleted: { $ne: true } });
+    const seatsUsed = await User.countDocuments({
+      parentAccount: ownerId,
+      role: 'staff',
+      isDeleted: { $ne: true },
+    });
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const storeIds = (await Store.find({ owner: ownerId, isDeleted: { $ne: true } }).select('_id')).map((s) => s._id);
+    const campaignsUsed = await Campaign.countDocuments({
+      store: { $in: storeIds },
+      createdAt: { $gte: monthStart },
+      status: { $in: ['sent', 'partial'] },
+    });
+
+    return res.status(200).json({
+      data: {
+        audience: 'merchant',
+        plan: limits,
+        planUpdatedAt: owner.planUpdatedAt,
+        usage: {
+          stores: storesUsed,
+          teamSeats: seatsUsed,
+          campaignsThisMonth: campaignsUsed,
+        },
+        catalog: Object.values(PLAN_CATALOG),
+        stripe: { status: 'stub', message: 'Stripe checkout will plug in here — plans are enforceable now.' },
+      },
+    });
+  } catch (error) {
+    console.error('getBillingSummary', error);
+    return res.status(500).json({ message: 'Failed to load billing.' });
+  }
+};
+
+/** Stub plan switcher until Stripe is wired — owners can demo Growth/Pro for FYP. */
+const updateBillingPlan = async (req, res) => {
+  try {
+    if (req.user.role !== 'owner') {
+      return res.status(403).json({ message: 'Only account owners can change plans.' });
+    }
+    const next = resolvePlanId(req.body?.plan);
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    user.plan = next;
+    user.planUpdatedAt = new Date();
+    await user.save();
+    return res.status(200).json({
+      message: `Plan updated to ${PLAN_CATALOG[next].name} (demo — Stripe pending).`,
+      data: { plan: PLAN_CATALOG[next] },
+      user: buildUserPayload(user, null, await resolveUserStaffMeta(user)),
+    });
+  } catch (error) {
+    console.error('updateBillingPlan', error);
+    return res.status(500).json({ message: 'Failed to update plan.' });
+  }
+};
+
+export { registerUser, loginUser, logoutUser, refreshToken,updateUserCredentials, generateTicket,getTickets,replyToAdmin, verifyOTP,resendOTP, inviteStaff, resendInvite, acceptInvite, getStaffMembers, updateStaffPermissions, revokeStaffAccess, getOwnerNavBadges, requestLoginOtp, verifyLoginOtp, requestPasswordReset, resetPasswordWithOtp, googleAuthLogin, getBillingSummary, updateBillingPlan };

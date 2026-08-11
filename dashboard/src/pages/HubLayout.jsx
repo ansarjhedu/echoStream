@@ -1,7 +1,7 @@
 import { useAuth } from "../context/AuthContext";
 import { useState, useEffect } from "react";
 import { useLocation, Link } from "react-router-dom";
-import { Menu, X, UserIcon, Activity, AlertOctagon, StoreIcon, Users, LogOut, LifeBuoy, LayoutDashboard, Globe2, Bell } from "lucide-react";
+import { Menu, X, UserIcon, Activity, AlertOctagon, StoreIcon, Users, LogOut, LifeBuoy, LayoutDashboard, Globe2, Bell, CreditCard } from "lucide-react";
 import logo from '../assets/logo.png';
 import api from '../Api';
 import {
@@ -227,6 +227,11 @@ const HubLayout = ({ children }) => {
             <Link to="/hub/profile" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/profile') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
               <UserIcon size={20} className={location.pathname.includes('/profile') ? "text-purple-400" : ""} /> Profile Settings
             </Link>
+            {(user?.role === 'owner' || isMasterAdmin(user) || isPlatformStaff(user)) && (
+              <Link to="/hub/billing" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/billing') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                <CreditCard size={20} className={location.pathname.includes('/billing') ? 'text-cyan-400' : ''} /> Billing
+              </Link>
+            )}
           </nav>
         </div>
 

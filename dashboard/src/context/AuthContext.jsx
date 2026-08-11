@@ -16,6 +16,7 @@ const normalizeUser = (raw = {}) => {
     storeRole: userProfile.storeRole || 'support',
     permissions: userProfile.permissions || [],
     parentAccount: userProfile.parentAccount || null,
+    plan: userProfile.plan || 'free',
     staffScope: userProfile.staffScope || null,
     parentRole: userProfile.parentRole || null,
   };

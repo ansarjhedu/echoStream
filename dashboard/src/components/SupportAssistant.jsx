@@ -1,26 +1,50 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MessageCircle, X, Send, Bot, User, LifeBuoy, Minimize2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import api from '../Api';
+import { useAuth } from '../context/AuthContext';
+
+function isPlatformAudience(user) {
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+  if (user.role === 'staff' && user.staffScope === 'platform') return true;
+  return false;
+}
 
 /**
- * Floating EchoStream support assistant (platform FAQ + human escalation).
+ * Floating EchoStream support assistant — merchant FAQ + ticket escalation,
+ * or platform-ops guidance (no ticket escalation).
  */
 export default function SupportAssistant() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const platformOps = isPlatformAudience(user);
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [escalating, setEscalating] = useState(false);
-  const [messages, setMessages] = useState([
-    {
-      role: 'assistant',
-      content:
-        'Hi — I’m EchoBot. Ask me anything about EchoStream (widgets, Design Lab, Presence vs Commerce, Google Reviews, tickets…). Say “talk to a human” anytime to open a support ticket.',
-    },
-  ]);
+
+  const welcome = useMemo(
+    () =>
+      platformOps
+        ? 'Hi — I’m EchoBot for platform ops. Ask about Support Queue, Disputes, Stores, Users, or platform analytics. I won’t open merchant tickets from here.'
+        : 'Hi — I’m EchoBot. Ask about widgets, Design Lab, Presence vs Commerce, campaigns, Billing, Google Reviews… Say “talk to a human” anytime to open a support ticket.',
+    [platformOps]
+  );
+
+  const [messages, setMessages] = useState([{ role: 'assistant', content: welcome }]);
   const endRef = useRef(null);
+  const welcomeSeeded = useRef(false);
+
+  useEffect(() => {
+    if (!welcomeSeeded.current) {
+      welcomeSeeded.current = true;
+      setMessages([{ role: 'assistant', content: welcome }]);
+      return;
+    }
+    setMessages([{ role: 'assistant', content: welcome }]);
+  }, [welcome]);
 
   useEffect(() => {
     if (open) endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -44,14 +68,19 @@ export default function SupportAssistant() {
       const { reply, escalate } = res.data.data || {};
       setMessages((prev) => [...prev, { role: 'assistant', content: reply || '…' }]);
 
-      if (escalate) {
+      if (escalate && !platformOps) {
         await runEscalation(text, [...nextHistory, { role: 'assistant', content: reply }]);
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Assistant unavailable.');
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: 'Sorry — I hit an error. Try again, or open Help & Support manually.' },
+        {
+          role: 'assistant',
+          content: platformOps
+            ? 'Sorry — I hit an error. Try again, or open the Support Queue manually.'
+            : 'Sorry — I hit an error. Try again, or open Help & Support manually.',
+        },
       ]);
     } finally {
       setSending(false);
@@ -59,6 +88,11 @@ export default function SupportAssistant() {
   };
 
   const runEscalation = async (summary, history) => {
+    if (platformOps) {
+      toast.info('Platform operators use the Support Queue — no merchant ticket from EchoBot.');
+      navigate('/hub/admin/support');
+      return;
+    }
     setEscalating(true);
     try {
       const res = await api.post('/users/assistant/escalate', {
@@ -94,20 +128,26 @@ export default function SupportAssistant() {
             <div className="flex items-center gap-2 min-w-0">
               <Bot className="text-cyan-400 shrink-0" size={18} />
               <div className="min-w-0">
-                <p className="text-sm font-bold text-white truncate">EchoBot Support</p>
-                <p className="text-[10px] text-gray-500 uppercase tracking-wider">Platform guide</p>
+                <p className="text-sm font-bold text-white truncate">
+                  {platformOps ? 'EchoBot Ops' : 'EchoBot Support'}
+                </p>
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider">
+                  {platformOps ? 'Platform guide' : 'Merchant guide'}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-1">
-              <button
-                type="button"
-                title="Talk to a human"
-                disabled={escalating}
-                onClick={() => runEscalation('User requested a human agent from the chat header.', messages)}
-                className="p-2 text-yellow-400/90 hover:bg-white/5 rounded-lg disabled:opacity-40"
-              >
-                <LifeBuoy size={16} />
-              </button>
+              {!platformOps && (
+                <button
+                  type="button"
+                  title="Talk to a human"
+                  disabled={escalating}
+                  onClick={() => runEscalation('User requested a human agent from the chat header.', messages)}
+                  className="p-2 text-yellow-400/90 hover:bg-white/5 rounded-lg disabled:opacity-40"
+                >
+                  <LifeBuoy size={16} />
+                </button>
+              )}
               <button type="button" onClick={() => setOpen(false)} className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg">
                 <Minimize2 size={16} />
               </button>
@@ -142,7 +182,7 @@ export default function SupportAssistant() {
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about EchoStream…"
+              placeholder={platformOps ? 'Ask about platform ops…' : 'Ask about EchoStream…'}
               className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400"
             />
             <button

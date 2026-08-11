@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import sendEmail from '../utils/sendEmail.js';
+import { isEmailSuppressed } from '../utils/emailCompliance.js';
 
 function getGeminiClientOrNull() {
   const apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
@@ -88,6 +89,9 @@ export async function sendReviewThankYouEmail({ store, review }) {
   if (!store || store.storeType !== 'ecommerce') return { skipped: true, reason: 'not_ecommerce' };
   const email = String(review?.customerEmail || '').trim();
   if (!email || !email.includes('@')) return { skipped: true, reason: 'no_email' };
+  if (await isEmailSuppressed(email, store._id)) {
+    return { skipped: true, reason: 'suppressed' };
+  }
 
   const storeName = store.storeName || 'Our store';
   const base = fallbackCopy({
@@ -115,12 +119,18 @@ export async function sendReviewThankYouEmail({ store, review }) {
   return { sent: true };
 }
 
-export function buildCampaignHtml({ storeName, bodyText, unsubscribeNote }) {
+export function buildCampaignHtml({ storeName, bodyText, unsubscribeNote, unsubscribeUrl }) {
   const paragraphs = escapeHtml(bodyText)
     .split(/\n+/)
     .filter(Boolean)
     .map((line) => `<p style="margin:0 0 12px;line-height:1.55;color:#1f2937;">${line}</p>`)
     .join('');
+  const note =
+    unsubscribeNote ||
+    `You are receiving this because you left a review for ${storeName}.`;
+  const unsubLink = unsubscribeUrl
+    ? `<p style="margin:8px 0 0;font-size:11px;line-height:1.4;"><a href="${escapeHtml(unsubscribeUrl)}" style="color:#64748b;text-decoration:underline;">Unsubscribe from store emails</a></p>`
+    : '';
   return `
   <div style="font-family:Georgia,serif;max-width:560px;margin:0 auto;padding:24px;">
     <p style="margin:0 0 20px;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#64748b;">
@@ -129,8 +139,9 @@ export function buildCampaignHtml({ storeName, bodyText, unsubscribeNote }) {
     ${paragraphs}
     <hr style="border:none;border-top:1px solid #e2e8f0;margin:28px 0 12px;" />
     <p style="margin:0;font-size:11px;color:#94a3b8;line-height:1.4;">
-      ${escapeHtml(unsubscribeNote || `You are receiving this because you left a review for ${storeName}.`)}
+      ${escapeHtml(note)}
       Delivered via EchoStream on behalf of ${escapeHtml(storeName)}.
     </p>
+    ${unsubLink}
   </div>`;
 }

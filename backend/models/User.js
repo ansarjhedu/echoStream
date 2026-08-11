@@ -75,6 +75,16 @@ const userSchema=new Schema({
         type:Date,
         default:null
         },
+    /** SaaS plan skeleton — Stripe can map later */
+    plan: {
+        type: String,
+        enum: ['free', 'growth', 'pro'],
+        default: 'free',
+    },
+    planUpdatedAt: {
+        type: Date,
+        default: null,
+    },
     isVerified: {
         type: Boolean,
         default: false

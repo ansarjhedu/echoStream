@@ -14,6 +14,7 @@ const campaignSchema = new mongoose.Schema(
     recipientCount: { type: Number, default: 0 },
     sentCount: { type: Number, default: 0 },
     failedCount: { type: Number, default: 0 },
+    suppressedCount: { type: Number, default: 0 },
     status: {
       type: String,
       enum: ['draft', 'sent', 'partial'],

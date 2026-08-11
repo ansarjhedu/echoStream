@@ -37,6 +37,7 @@ import StaffSetup from './pages/StaffSetup';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import AcceptInvite from './pages/AcceptInvite';
 import EmailCampaigns from './pages/EmailCampaigns';
+import Billing from './pages/Billing';
 
 import AdminOverview from './pages/admin/AdminOverview';
 import AdminDisputes from './pages/admin/AdminDisputes';
@@ -231,6 +232,7 @@ export default function App() {
                     <Route path="support" element={<Support />} />
                     <Route path="notifications" element={<Notifications />} />
                     <Route path="team" element={<OwnerRoute><TeamManagement variant="store" /></OwnerRoute>} />
+                    <Route path="billing" element={<Billing />} />
 
                     <Route path="admin/overview" element={<AdminPortalRoute><PlatformPermRoute perm={['analytics_platform', 'stores_read']}><AdminOverview /></PlatformPermRoute></AdminPortalRoute>} />
                     <Route path="admin/disputes" element={<AdminPortalRoute><PlatformPermRoute perm="disputes_resolve"><AdminDisputes /></PlatformPermRoute></AdminPortalRoute>} />

@@ -5,6 +5,11 @@ import Review from '../models/Review.js';
 import Store from '../models/Store.js';
 import { recalculateProductStats } from '../services/reviewService.js';
 import { notifyUser } from '../services/notificationService.js';
+import {
+  MERCHANT_KNOWLEDGE,
+  PLATFORM_OPS_KNOWLEDGE,
+  isPlatformOperator,
+} from '../utils/echoBotKnowledge.js';
 
 /** Lazy client — ESM can evaluate controllers before dotenv finishes loading. */
 function getGeminiClient() {
@@ -17,49 +22,6 @@ function getGeminiClient() {
     // Force Gemini Developer API (API key), never Vertex ADC.
     return new GoogleGenAI({ apiKey, vertexai: false });
 }
-
-const PLATFORM_KNOWLEDGE = `
-You are EchoBot, the in-dashboard support assistant for EchoStream — a B2B SaaS for reviews, trust widgets, and support.
-
-ONLY answer questions about EchoStream. If asked about unrelated topics, politely refuse and steer back to the platform.
-
-## Product modes
-- Commerce (ecommerce stores): product reviews, Moderation, Disputes, Analytics, Widgets, Design Lab, Google Reviews, Email Campaigns, auto thank-you emails after reviews.
-- Presence (portfolio / blog): site-level reviews (product handle = portfolio|blog, title = site), Widget Catalog, Design Lab, Google Reviews, Reviews list with Hide controls. No product Analytics/Disputes/Campaigns chrome.
-
-## Core features to guide on
-1. Landing & auth: Presence signup vs Register a Store; login, register, OTP verify, forgot password, login with OTP, Google sign-in, password show/hide.
-2. Hub: My Stores (commerce) vs Presence Home (portfolio/blog); Team invites; Help & Support tickets; Profile.
-3. Store onboarding: paste your website URL during Initialize / Store Onboarding — EchoStream fetches a live preview (title, description, image) so you confirm the right site before saving.
-4. Widget Catalog → select layout → Design Lab (colors, typography, carousel motion) → Save & Publish → copy embed snippet (HTML / React / Next.js tabs).
-5. Embeds are copy-paste simple — no server code required:
-   - Presence: data-api-key + data-product-handle={portfolio|blog} + data-product-title=site.
-   - Commerce: data-api-key + data-product-handle + data-product-title. Shoppers type name/email in the widget form and can attach photos.
-6. Multi-product (Commerce): put the same snippet in the product page TEMPLATE and bind handle/title to the current product (Shopify product.handle/title, WooCommerce slug/name, React route params). EchoStream does NOT need a product array or catalog sync — each unique productHandle is its own review bucket (lazy-created on first review). Product A can have 100 reviews while Product B shows 0 / empty. Design Lab explains this under “Use on all products”.
-7. Optional verified-buyer badge (advanced, not required for install):
-   - Keep API key on the merchant server only.
-   - Compute verificationHash = HMAC-SHA256(customerEmail, apiKey) as hex (Node: crypto.createHmac('sha256', apiKey).update(email).digest('hex')).
-   - Inject data-customer-name, data-customer-email, data-verification-hash on the widget for logged-in buyers.
-   - Never compute the hash in the browser. Without HMAC, reviews still work — they just won't show as verified buyer.
-8. Google Reviews: user pastes their Place ID; platform uses GOOGLE_PLACES_API_KEY; min star filter; Sync imports reviews.
-9. Reviews: list/hide individual reviews; bulk-hide by max star rating; commerce may still have dispute history for older cases.
-10. Thank-you emails (Commerce only): after a shopper submits a product review, EchoStream can email them a store-branded thank-you (uses platform SMTP; From name can show the store).
-11. Email Campaigns (Commerce only, nav: Email Campaigns / Growth): filter reviewers by product, email search, and min rating; AI-draft subject/body; send a batch campaign. Needs owner/admin or staff with the "campaigns" permission. Existing staff may need the role re-saved + re-login if campaigns was added after they were invited.
-12. Support tickets: owners create tickets; platform admin Support Queue replies/resolves; EchoBot can escalate to a human ticket.
-13. Staff: store staff presets (administrator/editor/support); permissions include moderation, products, integrations, settings, disputes, tickets, campaigns; platform staff with support_queue.
-
-## Escalation rules
-If the user clearly wants a human agent, live support, or says they are stuck after guidance, respond briefly that you will open a support ticket, and set escalate=true in the JSON response.
-Do NOT escalate for simple how-to questions you can answer.
-
-## Response format
-Always respond with valid JSON only (no markdown fences):
-{
-  "reply": "helpful message to the user",
-  "escalate": false
-}
-When escalate is true, reply should confirm you are connecting them to a human and that a ticket will appear in Help & Support.
-`;
 
 const generateSmartReply = async (req, res) => {
     try {
@@ -166,12 +128,18 @@ const chatWithSupportBot = async (req, res) => {
             return res.status(400).json({ message: 'Message is required.' });
         }
 
+        const platformOps = isPlatformOperator(req.user);
+        const knowledge = platformOps ? PLATFORM_OPS_KNOWLEDGE : MERCHANT_KNOWLEDGE;
+        const roleLine = `Caller: role=${req.user?.role || 'unknown'}, staffScope=${req.user?.staffScope || 'n/a'}, storeRole=${req.user?.storeRole || 'n/a'}, permissions=${(req.user?.permissions || []).join(',') || 'none'}.`;
+
         const transcript = (Array.isArray(history) ? history : [])
             .slice(-12)
             .map((m) => `${m.role === 'user' ? 'User' : 'EchoBot'}: ${String(m.content || '').slice(0, 800)}`)
             .join('\n');
 
-        const prompt = `${PLATFORM_KNOWLEDGE}
+        const prompt = `${knowledge}
+
+${roleLine}
 
 Conversation so far:
 ${transcript || '(new conversation)'}
@@ -192,14 +160,14 @@ Return JSON only.`;
         try {
             parsed = JSON.parse(raw);
         } catch {
-            parsed = { reply: raw || 'I can help with EchoStream features. What would you like to know?', escalate: false };
+            parsed = { reply: raw || 'I can help with EchoStream. What would you like to know?', escalate: false };
         }
 
         const reply = String(parsed.reply || '').trim() || 'How can I help with EchoStream today?';
-        const escalate = Boolean(parsed.escalate);
+        const escalate = platformOps ? false : Boolean(parsed.escalate);
 
         return res.status(200).json({
-            data: { reply, escalate },
+            data: { reply, escalate, audience: platformOps ? 'platform' : 'merchant' },
             message: 'ok',
         });
     } catch (error) {
@@ -218,6 +186,13 @@ Return JSON only.`;
  */
 const escalateChatToHuman = async (req, res) => {
     try {
+        if (isPlatformOperator(req.user)) {
+            return res.status(403).json({
+                message: 'Platform operators cannot open merchant support tickets from EchoBot. Use the Support Queue instead.',
+                code: 'PLATFORM_NO_ESCALATE',
+            });
+        }
+
         const { summary, history = [] } = req.body || {};
         const targetOwnerId = req.user.role === 'staff' ? req.user.parentAccount : req.user._id;
         const ownerDoc = await User.findById(targetOwnerId).select('userName email');

@@ -11,6 +11,8 @@ import {
   Plus,
   ArrowRight,
   Globe2,
+  Link2,
+  Loader2,
 } from 'lucide-react';
 import {
   classifyWorkspaceMode,
@@ -29,9 +31,11 @@ export default function PresenceOverview() {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ storeName: '', storeType: 'portfolio' });
+  const [form, setForm] = useState({ storeName: '', storeType: 'portfolio', websiteUrl: '' });
   const [showCreate, setShowCreate] = useState(false);
   const [overview, setOverview] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
   const presenceSites = getActiveStores(stores).filter((s) => isPresenceType(s.storeType));
   const mode = classifyWorkspaceMode(stores);
@@ -62,6 +66,29 @@ export default function PresenceOverview() {
     return () => { alive = false; };
   }, [navigate]);
 
+  const handlePreviewUrl = async () => {
+    let normalized = form.websiteUrl.trim();
+    if (!normalized) return toast.error('Paste your site URL to preview.');
+    if (!/^https?:\/\//i.test(normalized)) normalized = `https://${normalized}`;
+    setLoadingPreview(true);
+    setPreview(null);
+    try {
+      const res = await api.post('/store/preview-url', { url: normalized });
+      const meta = res.data.data;
+      setPreview(meta);
+      setForm((prev) => ({
+        ...prev,
+        websiteUrl: meta.url || normalized,
+        storeName: prev.storeName || (meta.siteName || meta.title || '').slice(0, 80),
+      }));
+      toast.success('Preview loaded.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not preview that URL.');
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
   const handleCreateSite = async (e) => {
     e.preventDefault();
     if (!form.storeName.trim()) return toast.error('Give your site a name.');
@@ -70,16 +97,25 @@ export default function PresenceOverview() {
       const res = await api.post('/store/create', {
         storeName: form.storeName.trim(),
         storeType: form.storeType,
-        storeHosting: 'custom',
+        websiteUrl: preview?.url || form.websiteUrl || null,
+        siteMeta: preview
+          ? {
+              title: preview.title,
+              description: preview.description,
+              image: preview.image,
+              favicon: preview.favicon,
+            }
+          : undefined,
       });
       const site = res.data.data;
       setStores((prev) => [site, ...prev]);
       persistWorkspaceMode('presence');
       setShowCreate(false);
-      setForm({ storeName: '', storeType: 'portfolio' });
+      setForm({ storeName: '', storeType: 'portfolio', websiteUrl: '' });
+      setPreview(null);
       toast.success('Site workspace ready.');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to create site.');
+      toast.error(err.response?.data?.message || err.response?.data || 'Failed to create site.');
     } finally {
       setCreating(false);
     }
@@ -281,9 +317,48 @@ export default function PresenceOverview() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <form
             onSubmit={handleCreateSite}
-            className="w-full max-w-md bg-[#0A0F1A] border border-white/10 rounded-2xl p-6 shadow-2xl"
+            className="w-full max-w-md bg-[#0A0F1A] border border-white/10 rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
           >
             <h3 className="text-xl font-bold text-white mb-4">Create a site workspace</h3>
+
+            <label className="block text-xs text-gray-400 mb-1">Site URL (optional preview)</label>
+            <div className="flex gap-2 mb-3">
+              <div className="relative flex-1">
+                <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
+                <input
+                  value={form.websiteUrl}
+                  onChange={(e) => setForm({ ...form, websiteUrl: e.target.value })}
+                  className="w-full bg-black/40 border border-white/10 rounded-xl pl-9 pr-3 py-2.5 text-white text-sm focus:outline-none focus:border-emerald-400"
+                  placeholder="https://yoursite.com"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handlePreviewUrl}
+                disabled={loadingPreview}
+                className="min-h-[44px] px-3 rounded-xl text-xs font-bold bg-white/10 border border-white/10 text-white disabled:opacity-50 inline-flex items-center gap-1"
+              >
+                {loadingPreview ? <Loader2 className="animate-spin" size={14} /> : <Sparkles size={14} />}
+                Preview
+              </button>
+            </div>
+
+            {preview && (
+              <div className="mb-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 flex gap-3">
+                {(preview.image || preview.favicon) && (
+                  <img
+                    src={preview.image || preview.favicon}
+                    alt=""
+                    className="w-14 h-14 rounded-lg object-cover bg-black/40 shrink-0"
+                  />
+                )}
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-white truncate">{preview.title || preview.siteName}</p>
+                  <p className="text-[11px] text-gray-500 line-clamp-2 mt-0.5">{preview.description}</p>
+                </div>
+              </div>
+            )}
+
             <label className="block text-xs text-gray-400 mb-1">Site name</label>
             <input
               required
@@ -304,7 +379,10 @@ export default function PresenceOverview() {
             <div className="flex gap-2 justify-end">
               <button
                 type="button"
-                onClick={() => setShowCreate(false)}
+                onClick={() => {
+                  setShowCreate(false);
+                  setPreview(null);
+                }}
                 className="min-h-[44px] px-4 py-2 rounded-xl text-gray-400 hover:text-white"
               >
                 Cancel

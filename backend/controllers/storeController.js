@@ -2,7 +2,9 @@ import Store from '../models/Store.js'
 import Product from '../models/Product.js';
 import Review from '../models/Review.js';
 import Support from '../models/Support.js';
+import User from '../models/User.js';
 import { fetchPageMeta } from '../utils/pageMeta.js';
+import { getPlanLimits, isWithinLimit } from '../utils/plans.js';
 
 const createStore=async(req,res)=>{
     try {
@@ -15,6 +17,19 @@ const createStore=async(req,res)=>{
             return res
             .status(400)
             .json("One or more fields are missing")
+        }
+
+        const owner = await User.findById(req.user._id).select('plan');
+        const limits = getPlanLimits(owner?.plan);
+        const existingCount = await Store.countDocuments({
+            owner: req.user._id,
+            isDeleted: { $ne: true },
+        });
+        if (!isWithinLimit(existingCount, limits.maxStores)) {
+            return res.status(403).json({
+                message: `Store limit reached for the ${limits.name} plan (${limits.maxStores === -1 ? 'unlimited' : limits.maxStores}). Upgrade in Billing.`,
+                code: 'PLAN_STORE_LIMIT',
+            });
         }
 
         const existingStore= await Store.findOne({storeName,owner:req.user._id});

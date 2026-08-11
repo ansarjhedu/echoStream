@@ -35,6 +35,7 @@ const sendEmail = async (options) => {
     subject: options.subject,
     html: options.html,
     ...(options.replyTo ? { replyTo: options.replyTo } : {}),
+    ...(options.headers ? { headers: options.headers } : {}),
   };
 
   const info = await transporter.sendMail(message);

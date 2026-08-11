@@ -28,6 +28,7 @@ export default function EmailCampaigns() {
   const [products, setProducts] = useState([]);
   const [audience, setAudience] = useState([]);
   const [history, setHistory] = useState([]);
+  const [campaignSummary, setCampaignSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [drafting, setDrafting] = useState(false);
@@ -70,6 +71,7 @@ export default function EmailCampaigns() {
     try {
       const res = await api.get(`/store/${activeStore._id}/campaigns`);
       setHistory(res.data?.data || []);
+      setCampaignSummary(res.data?.summary || null);
     } catch {
       /* ignore */
     }
@@ -175,6 +177,22 @@ export default function EmailCampaigns() {
           <RefreshCw size={16} /> Refresh list
         </button>
       </header>
+
+      {campaignSummary && (
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            { label: 'Campaigns', value: campaignSummary.campaigns },
+            { label: 'Emails sent', value: campaignSummary.totalSent },
+            { label: 'Failed', value: campaignSummary.totalFailed },
+            { label: 'Delivery rate', value: `${campaignSummary.deliveryRate || 0}%` },
+          ].map((card) => (
+            <div key={card.label} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+              <p className="text-[10px] uppercase tracking-wider text-gray-500">{card.label}</p>
+              <p className="text-xl font-bold text-white mt-1">{card.value}</p>
+            </div>
+          ))}
+        </section>
+      )}
 
       {/* Filters — symmetric card */}
       <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 md:p-5">
@@ -347,7 +365,11 @@ export default function EmailCampaigns() {
               <li key={c._id} className="px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-sm">
                 <span className="font-medium text-gray-200 truncate">{c.subject}</span>
                 <span className="text-xs text-gray-500">
-                  {c.sentCount}/{c.recipientCount} sent · {new Date(c.createdAt).toLocaleString()}
+                  {c.sentCount}/{c.recipientCount} sent
+                  {c.failedCount ? ` · ${c.failedCount} failed` : ''}
+                  {c.suppressedCount ? ` · ${c.suppressedCount} unsubscribed` : ''}
+                  {' · '}
+                  {new Date(c.createdAt).toLocaleString()}
                 </span>
               </li>
             ))}

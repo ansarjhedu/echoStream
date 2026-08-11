@@ -12,6 +12,7 @@ export default function Analytics() {
   const { activeStore } = useAuth();
   const[products, setProducts] = useState([]);
   const [reviews, setReviews] = useState([]);
+  const [campaignSummary, setCampaignSummary] = useState(null);
   const[loading, setLoading] = useState(true);
   const location = useLocation();
 
@@ -24,12 +25,17 @@ export default function Analytics() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [prodRes, revRes] = await Promise.all([
+      const requests = [
         api.get(`/store/${activeStore._id}/products`),
-        api.get(`/store/${activeStore._id}/reviews`)
-      ]);
-      setProducts(prodRes.data.data ||[]);
-      setReviews(revRes.data ||[]); 
+        api.get(`/store/${activeStore._id}/reviews`),
+      ];
+      if (activeStore.storeType === 'ecommerce') {
+        requests.push(api.get(`/store/${activeStore._id}/campaigns`));
+      }
+      const results = await Promise.all(requests);
+      setProducts(results[0].data.data ||[]);
+      setReviews(results[1].data ||[]);
+      setCampaignSummary(results[2]?.data?.summary || null);
     } catch (error) {
       toast.error("Analytics fetch failed");
     } finally {
@@ -71,7 +77,7 @@ export default function Analytics() {
             {isProductsView ? (
               <ProductPerformance products={products} />
             ) : (
-              <StoreOverview products={products} reviews={reviews} />
+              <StoreOverview products={products} reviews={reviews} campaignSummary={campaignSummary} />
             )}
             
           </div>

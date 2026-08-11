@@ -3,9 +3,15 @@ import Review from '../models/Review.js';
 import Product from '../models/Product.js';
 import Store from '../models/Store.js';
 import Campaign from '../models/Campaign.js';
+import User from '../models/User.js';
 import sendEmail, { isEmailTransportError } from '../utils/sendEmail.js';
 import { buildCampaignHtml } from '../services/reviewMailService.js';
 import { GoogleGenAI } from '@google/genai';
+import { getPlanLimits, isWithinLimit } from '../utils/plans.js';
+import {
+  buildUnsubscribeUrl,
+  isEmailSuppressed,
+} from '../utils/emailCompliance.js';
 
 function assertCampaignAccess(req, res) {
   const role = req.user?.role;
@@ -189,20 +195,52 @@ const sendCampaign = async (req, res) => {
       return res.status(400).json({ message: 'Select at least one recipient with a valid email.' });
     }
 
-    const html = buildCampaignHtml({
-      storeName: store.storeName,
-      bodyText: String(bodyText),
-    });
+    const ownerId = req.user.role === 'staff' ? req.user.parentAccount : req.user._id;
+    const owner = await User.findById(ownerId).select('plan');
+    const limits = getPlanLimits(owner?.plan);
+    if (limits.maxCampaignsPerMonth >= 0) {
+      const start = new Date();
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+      const stores = await Store.find({ owner: ownerId, isDeleted: { $ne: true } }).select('_id');
+      const storeIds = stores.map((s) => s._id);
+      const used = await Campaign.countDocuments({
+        store: { $in: storeIds },
+        createdAt: { $gte: start },
+        status: { $in: ['sent', 'partial'] },
+      });
+      if (!isWithinLimit(used, limits.maxCampaignsPerMonth)) {
+        return res.status(403).json({
+          message: `Campaign limit reached for the ${limits.name} plan (${limits.maxCampaignsPerMonth}/month). Upgrade in Billing.`,
+          code: 'PLAN_CAMPAIGN_LIMIT',
+        });
+      }
+    }
 
     let sentCount = 0;
     let failedCount = 0;
+    let suppressedCount = 0;
     for (const email of recipients) {
       try {
+        if (await isEmailSuppressed(email, req.store._id)) {
+          suppressedCount += 1;
+          continue;
+        }
+        const unsubUrl = buildUnsubscribeUrl(email, req.store._id);
+        const html = buildCampaignHtml({
+          storeName: store.storeName,
+          bodyText: String(bodyText),
+          unsubscribeUrl: unsubUrl,
+        });
         await sendEmail({
           email,
           subject: String(subject).slice(0, 140),
           html,
           fromName: store.storeName,
+          headers: {
+            'List-Unsubscribe': `<${unsubUrl}>`,
+            'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+          },
         });
         sentCount += 1;
       } catch (err) {
@@ -229,11 +267,12 @@ const sendCampaign = async (req, res) => {
       recipientCount: recipients.length,
       sentCount,
       failedCount,
-      status: failedCount === 0 ? 'sent' : sentCount === 0 ? 'draft' : 'partial',
+      suppressedCount,
+      status: failedCount === 0 && sentCount > 0 ? 'sent' : sentCount === 0 ? 'draft' : 'partial',
     });
 
     return res.status(200).json({
-      message: `Campaign finished: ${sentCount} sent, ${failedCount} failed.`,
+      message: `Campaign finished: ${sentCount} sent, ${failedCount} failed, ${suppressedCount} suppressed.`,
       data: doc,
     });
   } catch (error) {
@@ -249,7 +288,44 @@ const listCampaigns = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(20)
       .lean();
-    return res.status(200).json({ data: rows });
+
+    const agg = await Campaign.aggregate([
+      { $match: { store: req.store._id } },
+      {
+        $group: {
+          _id: null,
+          campaigns: { $sum: 1 },
+          totalSent: { $sum: '$sentCount' },
+          totalFailed: { $sum: '$failedCount' },
+          totalSuppressed: { $sum: { $ifNull: ['$suppressedCount', 0] } },
+          totalRecipients: { $sum: '$recipientCount' },
+        },
+      },
+    ]);
+    const summary = agg[0]
+      ? {
+          campaigns: agg[0].campaigns,
+          totalSent: agg[0].totalSent,
+          totalFailed: agg[0].totalFailed,
+          totalSuppressed: agg[0].totalSuppressed,
+          totalRecipients: agg[0].totalRecipients,
+          deliveryRate:
+            agg[0].totalRecipients > 0
+              ? Math.round((agg[0].totalSent / agg[0].totalRecipients) * 100)
+              : 0,
+          lastCampaign: rows[0] || null,
+        }
+      : {
+          campaigns: 0,
+          totalSent: 0,
+          totalFailed: 0,
+          totalSuppressed: 0,
+          totalRecipients: 0,
+          deliveryRate: 0,
+          lastCampaign: null,
+        };
+
+    return res.status(200).json({ data: rows, summary });
   } catch (error) {
     console.error('listCampaigns', error);
     return res.status(500).json({ message: 'Failed to list campaigns.' });
