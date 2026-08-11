@@ -15,6 +15,7 @@ import adminRouter from "./routes/adminRoutes.js";
 import publicRouter from "./routes/publicRoutes.js";
 import storeRouter from "./routes/storeRoutes.js";
 import startCronJobs from "./services/cronjobs.js"; // Renamed for clarity!
+import { handleStripeWebhook } from "./controllers/billingController.js";
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -54,6 +55,14 @@ const corsOptionsDelegate = (req, callback) => {
 };
 
 app.use(cors(corsOptionsDelegate));
+
+// Stripe webhooks need the raw body — before express.json()
+app.post(
+  "/api/billing/webhook",
+  express.raw({ type: "application/json" }),
+  handleStripeWebhook
+);
+
 app.use(express.json());
 app.use(cookieParser());
 

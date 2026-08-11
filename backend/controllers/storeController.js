@@ -4,7 +4,7 @@ import Review from '../models/Review.js';
 import Support from '../models/Support.js';
 import User from '../models/User.js';
 import { fetchPageMeta } from '../utils/pageMeta.js';
-import { getPlanLimits, isWithinLimit } from '../utils/plans.js';
+import { isWithinLimit, getEntitlements } from '../utils/plans.js';
 
 const createStore=async(req,res)=>{
     try {
@@ -19,8 +19,8 @@ const createStore=async(req,res)=>{
             .json("One or more fields are missing")
         }
 
-        const owner = await User.findById(req.user._id).select('plan');
-        const limits = getPlanLimits(owner?.plan);
+        const owner = await User.findById(req.user._id).select('plan subscriptionStatus trialEndsAt currentPeriodEnd cancelAtPeriodEnd');
+        const limits = getEntitlements(owner).catalog;
         const existingCount = await Store.countDocuments({
             owner: req.user._id,
             isDeleted: { $ne: true },

@@ -1,8 +1,37 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../Api';
-import { toast } from 'react-toastify'; // <-- Import Toast
-import { User, Mail, Lock, Camera } from 'lucide-react';
+import { toast } from 'react-toastify';
+import { User, Mail, Lock, Camera, CreditCard } from 'lucide-react';
+
+function SubscriptionBadge({ user }) {
+  if (!user || user.role !== 'owner') return null;
+  const ent = user.entitlements;
+  const planName = ent?.catalog?.name || (user.plan === 'growth' ? 'Growth' : user.plan === 'pro' ? 'Pro' : 'Free');
+  const onTrial = Boolean(ent?.onTrial) || user.subscriptionStatus === 'trialing';
+  const ends = ent?.trialEndsAt || user.trialEndsAt || user.currentPeriodEnd;
+  const endLabel = ends
+    ? new Date(ends).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+    : null;
+
+  return (
+    <div className="mt-4 flex flex-col items-center gap-2">
+      <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border border-cyan-500/40 bg-cyan-500/10 text-cyan-300">
+        <CreditCard size={12} />
+        {onTrial ? `${planName} trial` : `${planName} plan`}
+      </span>
+      {endLabel && (
+        <p className="text-[11px] text-gray-500">
+          {onTrial ? 'Trial ends' : 'Period ends'} {endLabel}
+        </p>
+      )}
+      <Link to="/hub/billing" className="text-xs text-cyan-400 hover:text-cyan-300 font-semibold">
+        Manage billing →
+      </Link>
+    </div>
+  );
+}
 
 export default function Profile() {
   const { user } = useAuth(); 
@@ -82,6 +111,7 @@ export default function Profile() {
                 />
               </div>
               <p className="text-sm text-gray-400 mt-3">Click to update avatar</p>
+              <SubscriptionBadge user={user} />
             </div>
 
             <div className="space-y-4">

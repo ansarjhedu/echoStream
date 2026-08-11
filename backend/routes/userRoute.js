@@ -1,6 +1,14 @@
 import { Router } from "express";
-import { registerUser,loginUser,logoutUser, refreshToken, updateUserCredentials, generateTicket, getTickets,replyToAdmin, verifyOTP, resendOTP, inviteStaff, resendInvite, acceptInvite, getStaffMembers, updateStaffPermissions, revokeStaffAccess, getOwnerNavBadges, requestLoginOtp, verifyLoginOtp, requestPasswordReset, resetPasswordWithOtp, googleAuthLogin, getBillingSummary, updateBillingPlan} from "../controllers/userController.js";
+import { registerUser,loginUser,logoutUser, refreshToken, updateUserCredentials, generateTicket, getTickets,replyToAdmin, verifyOTP, resendOTP, inviteStaff, resendInvite, acceptInvite, getStaffMembers, updateStaffPermissions, revokeStaffAccess, getOwnerNavBadges, requestLoginOtp, verifyLoginOtp, requestPasswordReset, resetPasswordWithOtp, googleAuthLogin} from "../controllers/userController.js";
 import { chatWithSupportBot, escalateChatToHuman } from "../controllers/aiController.js";
+import {
+  getBillingSummary,
+  createCheckoutSession,
+  createBillingPortalSession,
+  cancelSubscription,
+  resumeSubscription,
+  updateBillingPlanDemo,
+} from "../controllers/billingController.js";
 import { listNotifications, markNotificationRead, markAllNotificationsRead } from "../controllers/notificationController.js";
 import { authUser, checkPermission } from "../middlewares/authUser.js";
 import { authLimiter } from "../middlewares/authLimiter.js";
@@ -38,7 +46,12 @@ userRouter.post('/support/:id/reply', authUser,checkPermission('tickets'),upload
 
 userRouter.post('/assistant/chat', authUser, authLimiter, chatWithSupportBot);
 userRouter.post('/assistant/escalate', authUser, authLimiter, escalateChatToHuman);
+
 userRouter.get('/billing', authUser, getBillingSummary);
-userRouter.patch('/billing/plan', authUser, updateBillingPlan);
+userRouter.post('/billing/checkout', authUser, createCheckoutSession);
+userRouter.post('/billing/portal', authUser, createBillingPortalSession);
+userRouter.post('/billing/cancel', authUser, cancelSubscription);
+userRouter.post('/billing/resume', authUser, resumeSubscription);
+userRouter.patch('/billing/plan', authUser, updateBillingPlanDemo);
 
 export default userRouter;

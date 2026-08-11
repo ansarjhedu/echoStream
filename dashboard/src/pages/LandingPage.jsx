@@ -10,38 +10,40 @@ import {
   ShieldCheck,
   Sparkles,
   ChevronRight,
+  Check,
 } from "lucide-react";
 import { setSignupIntent } from "../utils/permissionHelpers";
 import logo from "../assets/logo.png";
 import EchoWidgetEmbed from "../components/EchoWidgetEmbed";
-import { CatalogLayoutPreview, previewThemeStyle } from "../utils/widgetCatalog.jsx";
+import { CatalogLayoutPreview, previewThemeStyle, WIDGET_CATALOG } from "../utils/widgetCatalog.jsx";
 
 /** Optional live demo — set in dashboard .env, never commit real keys */
 const DEMO_WIDGET_API_KEY = import.meta.env.VITE_DEMO_WIDGET_API_KEY || "";
 const DEMO_WIDGET_HANDLE = import.meta.env.VITE_DEMO_WIDGET_HANDLE || "portfolio";
 const DEMO_WIDGET_TITLE = import.meta.env.VITE_DEMO_WIDGET_TITLE || "EchoStream";
 
-const layouts = [
+const PRICING = [
   {
-    name: "Glassmorphism",
-    blurb: "Frosted panels that feel premium on any dark host page.",
+    id: "free",
+    name: "Free",
+    price: "$0",
+    blurb: "Launch one workspace and prove the embed.",
+    highlights: ["1 store / site", "2 team seats", "2 campaigns / month", "Design Lab + widgets"],
   },
   {
-    name: "Classic",
-    blurb: "Amazon-style distribution bars shoppers already trust.",
+    id: "growth",
+    name: "Growth",
+    price: "$29",
+    blurb: "30-day trial unlocks Growth. Multi-store teams & campaigns.",
+    highlights: ["5 stores", "10 team seats", "20 campaigns / month", "Thank-you emails + AI draft"],
+    featured: true,
   },
   {
-    name: "Carousel",
-    blurb: "Auto-play social proof with snap, arrows, and pause-on-hover.",
-  },
-  {
-    name: "Minimal",
-    blurb: "Quiet typography for portfolios and editorial blogs.",
-  },
-  { name: "Grid", blurb: "Dense masonry of voices for high-volume catalogs." },
-  {
-    name: "Brutalism",
-    blurb: "Hard borders and offset shadows that refuse to be ignored.",
+    id: "pro",
+    name: "Pro",
+    price: "$79",
+    blurb: "Unlimited workspaces for scaling brands.",
+    highlights: ["Unlimited stores & seats", "Unlimited campaigns", "Priority support path", "Everything in Growth"],
   },
 ];
 
@@ -205,45 +207,36 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {layouts.map((l, i) => (
+            {WIDGET_CATALOG.map((l, i) => (
               <div
-                key={l.name}
-                className="group rounded-2xl border border-white/10 bg-[#0A0F1A]/80 p-5 hover:border-cyan-500/40 transition-colors"
+                key={l.id}
+                className="group rounded-2xl border border-white/10 bg-[#0A0F1A] p-4 hover:border-cyan-500/40 transition-colors flex flex-col"
                 style={{ animationDelay: `${i * 60}ms` }}
               >
-                <div className="h-28 mb-4 rounded-xl border border-white/5 bg-gradient-to-br from-white/5 to-transparent overflow-hidden relative">
-                  {l.name === "Carousel" ? (
-                    <div className="absolute inset-0 flex items-center gap-3 px-4 animate-[marquee_8s_linear_infinite]">
-                      {[1, 2, 3, 4].map((n) => (
-                        <div
-                          key={n}
-                          className="shrink-0 w-28 h-16 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-xs text-cyan-200/80"
-                        >
-                          Slide {n}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="absolute inset-4 rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                      <div className="flex gap-1 mb-2">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <Star
-                            key={s}
-                            size={10}
-                            className="text-cyan-400 fill-cyan-400"
-                          />
-                        ))}
-                      </div>
-                      <div className="h-2 w-3/4 bg-white/10 rounded mb-1" />
-                      <div className="h-2 w-1/2 bg-white/5 rounded" />
-                    </div>
-                  )}
+                <div
+                  className="h-40 mb-4 rounded-xl border border-white/10 overflow-hidden relative bg-[#050810]"
+                  style={previewThemeStyle({
+                    primaryColor: '#06b6d4',
+                    backgroundColor: '#0A0F1A',
+                    textColor: '#ffffff',
+                  })}
+                >
+                  <div className="absolute inset-0 scale-[0.55] origin-top-left w-[182%] h-[182%] pointer-events-none overflow-hidden">
+                    <CatalogLayoutPreview
+                      layoutId={l.id}
+                      carouselConfig={{
+                        carouselAutoplay: l.id === 'carousel',
+                        carouselIntervalMs: 2800,
+                        carouselShowArrows: true,
+                      }}
+                    />
+                  </div>
                 </div>
                 <h3 className="font-bold group-hover:text-cyan-300 transition-colors">
                   {l.name}
                 </h3>
-                <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                  {l.blurb}
+                <p className="text-xs text-gray-500 mt-1 leading-relaxed flex-1">
+                  {l.description}
                 </p>
               </div>
             ))}
@@ -283,28 +276,86 @@ export default function LandingPage() {
               ))}
             </ul>
           </div>
-          <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10 p-6 md:p-8 shadow-2xl">
-            <div className="rounded-2xl border border-white/10 bg-[#0A0F1A] p-4 mb-4">
-              <div className="flex justify-between text-[10px] uppercase tracking-wider text-gray-500 mb-3">
-                <span>Preview</span>
-                <span className="text-emerald-400">Live</span>
+          <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10 p-4 md:p-6 shadow-2xl">
+            <div className="rounded-2xl border border-white/10 bg-[#0A0F1A] overflow-hidden mb-4">
+              <div className="flex justify-between text-[10px] uppercase tracking-wider text-gray-500 px-4 pt-3">
+                <span>Design Lab preview</span>
+                <span className="text-emerald-400">Glassmorphism</span>
               </div>
-              <div className="space-y-3">
-                <div className="h-16 rounded-xl bg-white/[0.04] border border-white/5" />
-                <div className="h-16 rounded-xl bg-white/[0.04] border border-white/5" />
+              <div
+                className="h-56 overflow-hidden relative"
+                style={previewThemeStyle({
+                  primaryColor: '#34d399',
+                  backgroundColor: '#0A0F1A',
+                  textColor: '#ffffff',
+                })}
+              >
+                <div className="absolute inset-0 scale-[0.62] origin-top-left w-[161%] h-[161%] pointer-events-none">
+                  <CatalogLayoutPreview layoutId="glassmorphism" />
+                </div>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2">
               {["Primary", "Surface", "Type"].map((label) => (
                 <div
                   key={label}
-                  className="rounded-xl border border-white/10 p-3 text-center"
+                  className="rounded-xl border border-white/10 p-3 text-center bg-[#0A0F1A]"
                 >
                   <div className="w-8 h-8 rounded-full mx-auto mb-2 bg-gradient-to-br from-cyan-400 to-emerald-400" />
                   <p className="text-[10px] text-gray-500">{label}</p>
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* PRICING */}
+      <section id="pricing" className="relative z-10 px-6 md:px-12 py-20 border-t border-white/5">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl md:text-3xl font-extrabold mb-2">Plans that match how stores grow</h2>
+            <p className="text-gray-500 text-sm max-w-xl mx-auto">
+              Every new owner gets a <span className="text-cyan-300">30-day Growth trial</span>.
+              Subscribe with Stripe Checkout (card / Google Pay when enabled). Only account owners manage billing.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-4">
+            {PRICING.map((p) => (
+              <div
+                key={p.id}
+                className={`rounded-2xl border p-6 flex flex-col min-h-[300px] ${
+                  p.featured
+                    ? 'border-cyan-500/50 bg-cyan-500/10'
+                    : 'border-white/10 bg-[#0A0F1A]'
+                }`}
+              >
+                <p className="font-bold text-white text-lg">{p.name}</p>
+                <p className="text-3xl font-extrabold text-white mt-2">
+                  {p.price}
+                  <span className="text-sm text-gray-500 font-medium"> / mo</span>
+                </p>
+                <p className="text-xs text-gray-500 mt-2 mb-4">{p.blurb}</p>
+                <ul className="text-sm text-gray-300 space-y-2 flex-1 mb-6">
+                  {p.highlights.map((h) => (
+                    <li key={h} className="flex gap-2 items-start">
+                      <Check size={14} className="text-cyan-400 shrink-0 mt-0.5" /> {h}
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  to="/login?mode=signup&intent=commerce"
+                  onClick={goCommerce}
+                  className={`min-h-[44px] rounded-xl font-bold text-sm inline-flex items-center justify-center ${
+                    p.featured
+                      ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-black'
+                      : 'bg-white/10 text-white border border-white/10'
+                  }`}
+                >
+                  Start free trial
+                </Link>
+              </div>
+            ))}
           </div>
         </div>
       </section>

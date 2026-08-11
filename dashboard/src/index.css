@@ -9,3 +9,25 @@
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
 }
+
+/* Dark, readable native selects (symmetrical control height) */
+select,
+.echo-select {
+  background-color: #0A0F1A !important;
+  color: #f3f4f6 !important;
+  border-color: rgba(255, 255, 255, 0.12);
+  color-scheme: dark;
+  min-height: 44px;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%239ca3af' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.9rem center;
+  padding-right: 2.25rem !important;
+}
+
+select option,
+.echo-select option {
+  background-color: #0A0F1A;
+  color: #f3f4f6;
+}

@@ -227,7 +227,7 @@ const HubLayout = ({ children }) => {
             <Link to="/hub/profile" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/profile') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
               <UserIcon size={20} className={location.pathname.includes('/profile') ? "text-purple-400" : ""} /> Profile Settings
             </Link>
-            {(user?.role === 'owner' || isMasterAdmin(user) || isPlatformStaff(user)) && (
+            {user?.role === 'owner' && (
               <Link to="/hub/billing" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/billing') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                 <CreditCard size={20} className={location.pathname.includes('/billing') ? 'text-cyan-400' : ''} /> Billing
               </Link>

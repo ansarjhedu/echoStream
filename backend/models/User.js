@@ -75,7 +75,7 @@ const userSchema=new Schema({
         type:Date,
         default:null
         },
-    /** SaaS plan skeleton — Stripe can map later */
+    /** SaaS billing */
     plan: {
         type: String,
         enum: ['free', 'growth', 'pro'],
@@ -83,6 +83,51 @@ const userSchema=new Schema({
     },
     planUpdatedAt: {
         type: Date,
+        default: null,
+    },
+    subscriptionStatus: {
+        type: String,
+        enum: ['none', 'trialing', 'active', 'past_due', 'canceled', 'unpaid'],
+        default: 'none',
+    },
+    trialEndsAt: {
+        type: Date,
+        default: null,
+    },
+    currentPeriodEnd: {
+        type: Date,
+        default: null,
+    },
+    cancelAtPeriodEnd: {
+        type: Boolean,
+        default: false,
+    },
+    stripeCustomerId: {
+        type: String,
+        default: null,
+        index: true,
+        sparse: true,
+    },
+    stripeSubscriptionId: {
+        type: String,
+        default: null,
+        index: true,
+        sparse: true,
+    },
+    paymentMethodBrand: {
+        type: String,
+        default: null,
+    },
+    paymentMethodLast4: {
+        type: String,
+        default: null,
+    },
+    paymentMethodExpMonth: {
+        type: Number,
+        default: null,
+    },
+    paymentMethodExpYear: {
+        type: Number,
         default: null,
     },
     isVerified: {

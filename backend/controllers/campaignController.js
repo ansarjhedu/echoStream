@@ -3,11 +3,11 @@ import Review from '../models/Review.js';
 import Product from '../models/Product.js';
 import Store from '../models/Store.js';
 import Campaign from '../models/Campaign.js';
-import User from '../models/User.js';
 import sendEmail, { isEmailTransportError } from '../utils/sendEmail.js';
 import { buildCampaignHtml } from '../services/reviewMailService.js';
 import { GoogleGenAI } from '@google/genai';
-import { getPlanLimits, isWithinLimit } from '../utils/plans.js';
+import { isWithinLimit } from '../utils/plans.js';
+import { resolveOwnerEntitlements } from './billingController.js';
 import {
   buildUnsubscribeUrl,
   isEmailSuppressed,
@@ -109,6 +109,13 @@ const getCampaignAudience = async (req, res) => {
 const draftCampaignCopy = async (req, res) => {
   try {
     if (!assertCampaignAccess(req, res)) return;
+    const entitlements = await resolveOwnerEntitlements(req.user);
+    if (!entitlements.features.aiCampaignDraft) {
+      return res.status(403).json({
+        message: 'AI campaign drafts require Growth or Pro (or an active trial). Upgrade in Billing.',
+        code: 'PLAN_FEATURE_AI_DRAFT',
+      });
+    }
     const store = await Store.findById(req.store._id).select('storeType storeName');
     if (!assertCommerce(store, res)) return;
 
@@ -196,8 +203,14 @@ const sendCampaign = async (req, res) => {
     }
 
     const ownerId = req.user.role === 'staff' ? req.user.parentAccount : req.user._id;
-    const owner = await User.findById(ownerId).select('plan');
-    const limits = getPlanLimits(owner?.plan);
+    const entitlements = await resolveOwnerEntitlements(req.user);
+    if (!entitlements.features.campaigns) {
+      return res.status(403).json({
+        message: 'Email campaigns are not included on your current plan. Upgrade in Billing.',
+        code: 'PLAN_FEATURE_CAMPAIGNS',
+      });
+    }
+    const limits = entitlements.catalog;
     if (limits.maxCampaignsPerMonth >= 0) {
       const start = new Date();
       start.setDate(1);

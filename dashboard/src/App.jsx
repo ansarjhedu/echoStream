@@ -232,7 +232,7 @@ export default function App() {
                     <Route path="support" element={<Support />} />
                     <Route path="notifications" element={<Notifications />} />
                     <Route path="team" element={<OwnerRoute><TeamManagement variant="store" /></OwnerRoute>} />
-                    <Route path="billing" element={<Billing />} />
+                    <Route path="billing" element={<OwnerRoute><Billing /></OwnerRoute>} />
 
                     <Route path="admin/overview" element={<AdminPortalRoute><PlatformPermRoute perm={['analytics_platform', 'stores_read']}><AdminOverview /></PlatformPermRoute></AdminPortalRoute>} />
                     <Route path="admin/disputes" element={<AdminPortalRoute><PlatformPermRoute perm="disputes_resolve"><AdminDisputes /></PlatformPermRoute></AdminPortalRoute>} />

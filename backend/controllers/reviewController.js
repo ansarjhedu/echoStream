@@ -6,6 +6,8 @@ import crypto from "crypto";
 import { notifyUser } from "../services/notificationService.js";
 import { autoResolveDisputeWithAi } from "./aiController.js";
 import { sendReviewThankYouEmail } from "../services/reviewMailService.js";
+import User from "../models/User.js";
+import { getEntitlements } from "../utils/plans.js";
 
 const createReview=async(req,res)=>{
 
@@ -69,11 +71,18 @@ const createReview=async(req,res)=>{
             });
         }
 
-        // Store-branded thank-you (ecommerce only) — do not block the API response
-        if (store?.storeType === 'ecommerce') {
-            sendReviewThankYouEmail({ store, review }).catch((err) => {
+        // Store-branded thank-you (ecommerce + plan feature) — do not block the API response
+        if (store?.storeType === 'ecommerce' && store?.owner) {
+            User.findById(store.owner)
+              .select('plan subscriptionStatus trialEndsAt currentPeriodEnd cancelAtPeriodEnd')
+              .then((owner) => {
+                const ent = getEntitlements(owner || {});
+                if (!ent.features.thankYouEmails) return null;
+                return sendReviewThankYouEmail({ store, review });
+              })
+              .catch((err) => {
                 console.error('review thank-you email failed', err?.message || err);
-            });
+              });
         }
         
         res.status(201).json(review);

@@ -17,6 +17,13 @@ const normalizeUser = (raw = {}) => {
     permissions: userProfile.permissions || [],
     parentAccount: userProfile.parentAccount || null,
     plan: userProfile.plan || 'free',
+    subscriptionStatus: userProfile.subscriptionStatus || 'none',
+    trialEndsAt: userProfile.trialEndsAt || null,
+    currentPeriodEnd: userProfile.currentPeriodEnd || null,
+    cancelAtPeriodEnd: Boolean(userProfile.cancelAtPeriodEnd),
+    paymentMethodLast4: userProfile.paymentMethodLast4 || null,
+    paymentMethodBrand: userProfile.paymentMethodBrand || null,
+    entitlements: userProfile.entitlements || null,
     staffScope: userProfile.staffScope || null,
     parentRole: userProfile.parentRole || null,
   };
