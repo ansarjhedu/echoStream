@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Star, MessageSquare, CheckCircle, TrendingUp, AlertOctagon, BadgeCheck, Users } from 'lucide-react';
+import { Star, MessageSquare, CheckCircle, TrendingUp, AlertOctagon, BadgeCheck, Users, Eye, History } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import StatCard from '../StatCard';
 
@@ -28,7 +28,7 @@ function buildTrend(reviews, days) {
   });
 }
 
-export default function StoreOverview({ products, reviews, campaignSummary }) {
+export default function StoreOverview({ products, reviews, campaignSummary, widgetStats, activity = [] }) {
   const [chartTimeframe, setChartTimeframe] = useState('7d');
 
   const stats = useMemo(() => {
@@ -141,6 +141,52 @@ export default function StoreOverview({ products, reviews, campaignSummary }) {
           <div className="text-xs text-gray-500 flex items-center gap-2">
             <Users size={14} /> Unsubscribed skipped: {campaignSummary.totalSuppressed || 0}
           </div>
+        </div>
+      )}
+
+      {widgetStats && (
+        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 md:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <Eye className="text-cyan-400 shrink-0 mt-0.5" size={18} />
+            <div>
+              <p className="text-xs uppercase tracking-wider text-gray-500 font-bold">Published layout</p>
+              <p className="text-sm text-white mt-1">
+                {widgetStats.publishedLayout || '—'} · {widgetStats.impressions || 0} impressions
+              </p>
+            </div>
+          </div>
+          {widgetStats.trustPageUrl ? (
+            <a
+              href={widgetStats.trustPageUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs font-semibold text-cyan-400 hover:text-cyan-300"
+            >
+              Open trust page →
+            </a>
+          ) : null}
+        </div>
+      )}
+
+      {activity.length > 0 && (
+        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 md:p-5">
+          <h3 className="text-sm font-bold text-gray-400 flex items-center gap-2 mb-4">
+            <History size={16} className="text-cyan-400" /> Team activity
+          </h3>
+          <ul className="space-y-2 max-h-56 overflow-y-auto">
+            {activity.slice(0, 12).map((row) => (
+              <li key={row.id} className="text-xs text-gray-400 flex flex-col sm:flex-row sm:justify-between gap-1 border-b border-white/5 pb-2">
+                <span>
+                  <span className="text-gray-200 font-medium">
+                    {row.actor?.userName || row.actor?.email || 'System'}
+                  </span>
+                  {' · '}
+                  {row.action}
+                </span>
+                <span className="text-gray-600">{new Date(row.createdAt).toLocaleString()}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

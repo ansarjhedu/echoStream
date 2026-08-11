@@ -5,6 +5,8 @@ import Support from '../models/Support.js';
 import User from '../models/User.js';
 import { fetchPageMeta } from '../utils/pageMeta.js';
 import { isWithinLimit, getEntitlements } from '../utils/plans.js';
+import { logActivity, makePublicSlug, frontendBaseUrl } from '../utils/activityLog.js';
+import { ensureStorePublicSlug } from './trustController.js';
 
 const createStore=async(req,res)=>{
     try {
@@ -45,6 +47,11 @@ const createStore=async(req,res)=>{
             owner:req.user._id,
             websiteUrl: websiteUrl || null,
             siteMeta: siteMeta || undefined,
+            publicSlug: makePublicSlug(storeName),
+            widgetMeta: {
+                publishedLayout: 'glassmorphism',
+                publishedAt: new Date(),
+            },
         })
 
         if(!store){
@@ -95,7 +102,9 @@ const getStoreById=async(req,res)=>{
         if(!store){
             return res.status(404).json("Store not found")
         }
-       
+
+        await ensureStorePublicSlug(store);
+
         return res.status(200).json({
             data:store,
             message:"Store details fetched successfully"
@@ -292,20 +301,54 @@ const getStoreAnalytics = async (req, res) => {
     try {
         const storeId = req.store._id;
 
-        const [totalProducts, totalReviews, approvedReviews, pendingReviews] = await Promise.all([
+        const [totalProducts, totalReviews, approvedReviews, pendingReviews, store] = await Promise.all([
             Product.countDocuments({ store: storeId, isDeleted: false }),
             Review.countDocuments({ store: storeId, isDeleted: false }),
             Review.countDocuments({ store: storeId, status: "approved", isDeleted: false }),
-            Review.countDocuments({ store: storeId, status: "rejected", isDeleted: false })
+            Review.countDocuments({ store: storeId, status: "rejected", isDeleted: false }),
+            Store.findById(storeId).select('widgetStats widgetMeta widgetConfig.layout publicSlug'),
         ]);
 
         return res.status(200).json({
-            data: { totalProducts, totalReviews, approvedReviews, pendingReviews },
+            data: {
+                totalProducts,
+                totalReviews,
+                approvedReviews,
+                pendingReviews,
+                widgetStats: store?.widgetStats || { impressions: 0, byLayout: {}, lastImpressedAt: null },
+                widgetMeta: store?.widgetMeta || null,
+                publishedLayout: store?.widgetMeta?.publishedLayout || store?.widgetConfig?.layout || null,
+                publicSlug: store?.publicSlug || null,
+            },
             message: "Store analytics fetched"
         });
     } catch (error) {
         console.log(error);
         return res.status(500).json("Internal Server Error");
+    }
+};
+
+const getWidgetStats = async (req, res) => {
+    try {
+        const store = await Store.findById(req.store._id).select(
+            'widgetStats widgetMeta widgetConfig.layout publicSlug storeName'
+        );
+        if (!store) return res.status(404).json({ message: 'Store not found.' });
+        const slug = await ensureStorePublicSlug(store);
+        return res.status(200).json({
+            data: {
+                publishedLayout: store.widgetMeta?.publishedLayout || store.widgetConfig?.layout || null,
+                publishedAt: store.widgetMeta?.publishedAt || null,
+                impressions: store.widgetStats?.impressions || 0,
+                byLayout: store.widgetStats?.byLayout || {},
+                lastImpressedAt: store.widgetStats?.lastImpressedAt || null,
+                publicSlug: slug,
+                trustPageUrl: `${frontendBaseUrl()}/trust/${slug}`,
+            },
+        });
+    } catch (error) {
+        console.error('getWidgetStats', error);
+        return res.status(500).json({ message: 'Failed to load widget stats.' });
     }
 };
 const updateWidgetConfig = async (req, res) => {
@@ -359,10 +402,25 @@ const updateWidgetConfig = async (req, res) => {
                 typeof carouselShowArrows === 'boolean' ? carouselShowArrows : (prev.carouselShowArrows !== false),
         };
 
+        store.widgetMeta = {
+            publishedLayout: store.widgetConfig.layout,
+            publishedAt: new Date(),
+        };
+
         await store.save();
+
+        await logActivity({
+            storeId: store._id,
+            actorId: req.user?._id,
+            action: 'widget.publish',
+            targetType: 'store',
+            targetId: String(store._id),
+            meta: { layout: store.widgetConfig.layout },
+        });
 
         return res.status(200).json({
             data: store.widgetConfig,
+            widgetMeta: store.widgetMeta,
             message: "Widget design updated successfully!"
         });
     } catch (error) {
@@ -389,4 +447,4 @@ const previewStoreUrl = async (req, res) => {
     }
 };
 
-export { createStore, myStores, getStoreById, updateStoreStatus, deleteProduct, deleteStore, getStoreAnalytics, updateWidgetConfig, getPresenceOverview, previewStoreUrl };
+export { createStore, myStores, getStoreById, updateStoreStatus, deleteProduct, deleteStore, getStoreAnalytics, getWidgetStats, updateWidgetConfig, getPresenceOverview, previewStoreUrl };

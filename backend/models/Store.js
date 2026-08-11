@@ -1,6 +1,7 @@
 import mongoose from 'mongoose'
 import { Schema } from 'mongoose'
 import crypto from 'crypto'
+import { makePublicSlug } from '../utils/activityLog.js'
 
 const storeSchema=new Schema({
     storeName:{
@@ -10,6 +11,22 @@ const storeSchema=new Schema({
     storeType:{
         type:String,
         required:true,
+    },
+    /** Shareable public trust page slug */
+    publicSlug: {
+        type: String,
+        unique: true,
+        sparse: true,
+        index: true,
+    },
+    widgetStats: {
+        impressions: { type: Number, default: 0 },
+        byLayout: { type: Schema.Types.Mixed, default: {} },
+        lastImpressedAt: { type: Date, default: null },
+    },
+    widgetMeta: {
+        publishedLayout: { type: String, default: null },
+        publishedAt: { type: Date, default: null },
     },
      widgetConfig: {
         layout: { 
@@ -82,6 +99,9 @@ const storeSchema=new Schema({
 storeSchema.pre('save', async function () {
   if (this.isNew && !this.apiKey) {
     this.apiKey = crypto.randomBytes(16).toString('hex');
+  }
+  if (this.isNew && !this.publicSlug) {
+    this.publicSlug = makePublicSlug(this.storeName);
   }
 });
 

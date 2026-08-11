@@ -10,10 +10,12 @@ import ProductPerformance from '../components/analytics/ProductPerformance';
 
 export default function Analytics() {
   const { activeStore } = useAuth();
-  const[products, setProducts] = useState([]);
+  const [products, setProducts] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [campaignSummary, setCampaignSummary] = useState(null);
-  const[loading, setLoading] = useState(true);
+  const [widgetStats, setWidgetStats] = useState(null);
+  const [activity, setActivity] = useState([]);
+  const [loading, setLoading] = useState(true);
   const location = useLocation();
 
   const isProductsView = location.pathname.includes('/products');
@@ -28,26 +30,27 @@ export default function Analytics() {
       const requests = [
         api.get(`/store/${activeStore._id}/products`),
         api.get(`/store/${activeStore._id}/reviews`),
+        api.get(`/store/${activeStore._id}/widget-stats`).catch(() => null),
+        api.get(`/store/${activeStore._id}/activity`).catch(() => null),
       ];
       if (activeStore.storeType === 'ecommerce') {
-        requests.push(api.get(`/store/${activeStore._id}/campaigns`));
+        requests.push(api.get(`/store/${activeStore._id}/campaigns`).catch(() => null));
       }
       const results = await Promise.all(requests);
-      setProducts(results[0].data.data ||[]);
-      setReviews(results[1].data ||[]);
-      setCampaignSummary(results[2]?.data?.summary || null);
+      setProducts(results[0].data.data || []);
+      setReviews(results[1].data || []);
+      setWidgetStats(results[2]?.data?.data || null);
+      setActivity(results[3]?.data?.data || []);
+      setCampaignSummary(results[4]?.data?.summary || null);
     } catch (error) {
-      toast.error("Analytics fetch failed");
+      toast.error('Analytics fetch failed');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    // Reduced padding to let the layout stretch wider, and added no-scrollbar
     <div className="p-4 md:p-6 lg:p-8 relative overflow-y-auto h-full z-10 w-full flex flex-col no-scrollbar">
-      
-      {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <div className="flex items-center gap-3 mb-2">
@@ -62,7 +65,6 @@ export default function Analytics() {
         </div>
       </div>
 
-      {/* FULL WIDTH CONTENT AREA */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 text-cyan-400 flex-1">
           <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin mb-4"></div>
@@ -70,16 +72,18 @@ export default function Analytics() {
         </div>
       ) : (
         <div className="flex flex-col flex-1 animate-fade-in-down min-h-0 w-full">
-          
-          {/* THE GRAPHS CONTAINER - NOW TAKES UP 100% WIDTH WITH NO SCROLLBAR */}
           <div className="flex-1 bg-white/[0.02] border border-white/10 p-4 md:p-6 lg:p-8 rounded-2xl backdrop-blur-xl overflow-y-auto no-scrollbar w-full shadow-2xl">
-            
             {isProductsView ? (
               <ProductPerformance products={products} />
             ) : (
-              <StoreOverview products={products} reviews={reviews} campaignSummary={campaignSummary} />
+              <StoreOverview
+                products={products}
+                reviews={reviews}
+                campaignSummary={campaignSummary}
+                widgetStats={widgetStats}
+                activity={activity}
+              />
             )}
-            
           </div>
         </div>
       )}

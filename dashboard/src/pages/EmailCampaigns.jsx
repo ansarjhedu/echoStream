@@ -9,6 +9,8 @@ import {
   CheckSquare,
   Square,
   Filter,
+  CalendarClock,
+  UserPlus,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import api from '../Api';
@@ -31,7 +33,9 @@ export default function EmailCampaigns() {
   const [campaignSummary, setCampaignSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
   const [drafting, setDrafting] = useState(false);
+  const [requesting, setRequesting] = useState(false);
 
   const [productId, setProductId] = useState('');
   const [emailSearch, setEmailSearch] = useState('');
@@ -40,6 +44,11 @@ export default function EmailCampaigns() {
 
   const [subject, setSubject] = useState('');
   const [bodyText, setBodyText] = useState('');
+  const [scheduledAt, setScheduledAt] = useState('');
+
+  const [reqEmail, setReqEmail] = useState('');
+  const [reqName, setReqName] = useState('');
+  const [reqHandle, setReqHandle] = useState('');
 
   useEffect(() => {
     if (!activeStore?._id || isPresence || !canManageCampaigns) return;
@@ -99,6 +108,15 @@ export default function EmailCampaigns() {
     return products.find((p) => p._id === productId)?.productTitle || '';
   }, [productId, products]);
 
+  const campaignPayload = () => ({
+    subject: subject.trim(),
+    bodyText: bodyText.trim(),
+    emails: [...selected],
+    productId: productId || undefined,
+    emailSearch: emailSearch.trim() || undefined,
+    minRating: minRating || undefined,
+  });
+
   const handleDraft = async () => {
     setDrafting(true);
     try {
@@ -127,20 +145,60 @@ export default function EmailCampaigns() {
 
     setSending(true);
     try {
-      const res = await api.post(`/store/${activeStore._id}/campaigns/send`, {
-        subject: subject.trim(),
-        bodyText: bodyText.trim(),
-        emails: [...selected],
-        productId: productId || undefined,
-        emailSearch: emailSearch.trim() || undefined,
-        minRating: minRating || undefined,
-      });
+      const res = await api.post(`/store/${activeStore._id}/campaigns/send`, campaignPayload());
       toast.success(res.data?.message || 'Campaign sent.');
       loadHistory();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Send failed.');
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleSchedule = async () => {
+    if (!subject.trim() || !bodyText.trim()) {
+      return toast.error('Add a subject and message first.');
+    }
+    if (selected.size < 1) {
+      return toast.error('Select at least one reviewer.');
+    }
+    if (!scheduledAt) {
+      return toast.error('Pick a schedule date and time.');
+    }
+    setScheduling(true);
+    try {
+      const res = await api.post(`/store/${activeStore._id}/campaigns/schedule`, {
+        ...campaignPayload(),
+        scheduledAt: new Date(scheduledAt).toISOString(),
+      });
+      toast.success(res.data?.message || 'Campaign scheduled.');
+      setScheduledAt('');
+      loadHistory();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Schedule failed.');
+    } finally {
+      setScheduling(false);
+    }
+  };
+
+  const handleReviewRequest = async () => {
+    if (!reqEmail.trim() || !reqHandle.trim()) {
+      return toast.error('Customer email and product handle are required.');
+    }
+    setRequesting(true);
+    try {
+      const res = await api.post(`/store/${activeStore._id}/review-requests`, {
+        customerEmail: reqEmail.trim(),
+        customerName: reqName.trim() || undefined,
+        productHandle: reqHandle.trim(),
+      });
+      toast.success(res.data?.message || 'Review request sent.');
+      setReqEmail('');
+      setReqName('');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not send review request.');
+    } finally {
+      setRequesting(false);
     }
   };
 
@@ -166,7 +224,8 @@ export default function EmailCampaigns() {
             Email Campaigns
           </h1>
           <p className="text-gray-400 text-sm mt-2 max-w-xl">
-            Reach people who already reviewed your products. Filter by product or email, draft with AI, then send as your store.
+            Reach past reviewers, schedule sends, or trigger a post-purchase review request. API webhook:{' '}
+            <code className="text-cyan-400/90 text-[11px]">POST /api/public/review-requests</code>
           </p>
         </div>
         <button
@@ -194,7 +253,61 @@ export default function EmailCampaigns() {
         </section>
       )}
 
-      {/* Filters — symmetric card */}
+      <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 md:p-5">
+        <div className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-4">
+          <UserPlus size={16} className="text-cyan-400" /> Request a review
+        </div>
+        <p className="text-xs text-gray-500 mb-4">
+          Send one shopper a leave-a-review email (post-purchase). Same flow as the public API webhook.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <label className="flex flex-col gap-1.5 text-xs text-gray-500">
+            Customer email
+            <input
+              value={reqEmail}
+              onChange={(e) => setReqEmail(e.target.value)}
+              className="min-h-11 rounded-xl bg-black/40 border border-white/10 px-3 text-sm text-white"
+              placeholder="buyer@email.com"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5 text-xs text-gray-500">
+            Name (optional)
+            <input
+              value={reqName}
+              onChange={(e) => setReqName(e.target.value)}
+              className="min-h-11 rounded-xl bg-black/40 border border-white/10 px-3 text-sm text-white"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5 text-xs text-gray-500">
+            Product handle
+            <input
+              value={reqHandle}
+              onChange={(e) => setReqHandle(e.target.value)}
+              list="campaign-product-handles"
+              className="min-h-11 rounded-xl bg-black/40 border border-white/10 px-3 text-sm text-white"
+              placeholder="blue-tee"
+            />
+            <datalist id="campaign-product-handles">
+              {products.map((p) => (
+                <option key={p._id} value={p.productHandle}>
+                  {p.productTitle}
+                </option>
+              ))}
+            </datalist>
+          </label>
+          <div className="flex items-end">
+            <button
+              type="button"
+              onClick={handleReviewRequest}
+              disabled={requesting}
+              className="w-full min-h-11 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-sm font-bold hover:bg-cyan-500/30 disabled:opacity-50"
+            >
+              {requesting ? 'Sending…' : 'Send request'}
+            </button>
+          </div>
+        </div>
+      </section>
+
       <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 md:p-5">
         <div className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-4">
           <Filter size={16} className="text-cyan-400" /> Filters
@@ -255,12 +368,13 @@ export default function EmailCampaigns() {
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        {/* Audience */}
         <section className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden min-h-[420px] flex flex-col">
           <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between gap-3">
             <div>
               <h2 className="font-bold text-white">Reviewers</h2>
-              <p className="text-xs text-gray-500">{audience.length} contacts · {selected.size} selected</p>
+              <p className="text-xs text-gray-500">
+                {audience.length} contacts · {selected.size} selected
+              </p>
             </div>
             <button
               type="button"
@@ -309,7 +423,6 @@ export default function EmailCampaigns() {
           </div>
         </section>
 
-        {/* Composer */}
         <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 md:p-5 min-h-[420px] flex flex-col gap-4">
           <div className="flex items-center justify-between gap-3">
             <h2 className="font-bold text-white">Compose</h2>
@@ -337,24 +450,43 @@ export default function EmailCampaigns() {
             <textarea
               value={bodyText}
               onChange={(e) => setBodyText(e.target.value)}
-              rows={12}
-              className="flex-1 min-h-[220px] rounded-xl bg-black/40 border border-white/10 px-3 py-3 text-sm text-white resize-y"
+              rows={10}
+              className="flex-1 min-h-[180px] rounded-xl bg-black/40 border border-white/10 px-3 py-3 text-sm text-white resize-y"
               placeholder="Write as your store. EchoStream only delivers the mail."
             />
           </label>
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={sending || selected.size < 1}
-            className="min-h-12 w-full rounded-xl font-bold text-sm inline-flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-black disabled:opacity-40"
-          >
-            <Send size={16} />
-            {sending ? 'Sending…' : `Send to ${selected.size || 0} selected`}
-          </button>
+          <label className="flex flex-col gap-1.5 text-xs text-gray-500">
+            Schedule (optional)
+            <input
+              type="datetime-local"
+              value={scheduledAt}
+              onChange={(e) => setScheduledAt(e.target.value)}
+              className="min-h-11 rounded-xl bg-black/40 border border-white/10 px-3 text-sm text-white"
+            />
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={handleSchedule}
+              disabled={scheduling || selected.size < 1 || !scheduledAt}
+              className="min-h-12 w-full rounded-xl font-bold text-sm inline-flex items-center justify-center gap-2 border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 disabled:opacity-40"
+            >
+              <CalendarClock size={16} />
+              {scheduling ? 'Scheduling…' : 'Schedule send'}
+            </button>
+            <button
+              type="button"
+              onClick={handleSend}
+              disabled={sending || selected.size < 1}
+              className="min-h-12 w-full rounded-xl font-bold text-sm inline-flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-black disabled:opacity-40"
+            >
+              <Send size={16} />
+              {sending ? 'Sending…' : `Send now (${selected.size || 0})`}
+            </button>
+          </div>
         </section>
       </div>
 
-      {/* Recent sends */}
       {history.length > 0 && (
         <section className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
           <div className="px-4 py-3 border-b border-white/10">
@@ -362,10 +494,22 @@ export default function EmailCampaigns() {
           </div>
           <ul className="divide-y divide-white/5">
             {history.map((c) => (
-              <li key={c._id} className="px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-sm">
-                <span className="font-medium text-gray-200 truncate">{c.subject}</span>
+              <li
+                key={c._id}
+                className="px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-sm"
+              >
+                <span className="font-medium text-gray-200 truncate">
+                  {c.subject}
+                  {c.status === 'scheduled' ? (
+                    <span className="ml-2 text-[10px] uppercase tracking-wider text-amber-400 border border-amber-400/30 px-1.5 py-0.5 rounded-full">
+                      Scheduled
+                    </span>
+                  ) : null}
+                </span>
                 <span className="text-xs text-gray-500">
-                  {c.sentCount}/{c.recipientCount} sent
+                  {c.status === 'scheduled' && c.scheduledAt
+                    ? `Sends ${new Date(c.scheduledAt).toLocaleString()}`
+                    : `${c.sentCount}/${c.recipientCount} sent`}
                   {c.failedCount ? ` · ${c.failedCount} failed` : ''}
                   {c.suppressedCount ? ` · ${c.suppressedCount} unsubscribed` : ''}
                   {' · '}

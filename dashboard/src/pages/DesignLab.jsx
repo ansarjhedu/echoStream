@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import {
   Copy, Check, Code, LayoutTemplate, Palette, Type, Save,
-  ArrowLeft, Sparkles, SlidersHorizontal, ChevronDown, ShieldCheck,
+  ArrowLeft, Sparkles, SlidersHorizontal, ChevronDown, ShieldCheck, Eye, Link2,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import api from '../Api';
@@ -325,6 +325,7 @@ export default function DesignLab() {
   const [needsCatalog, setNeedsCatalog] = useState(false);
   const [snippetMode, setSnippetMode] = useState('html'); // html | react | next
   const [hmacOpen, setHmacOpen] = useState(false);
+  const [widgetStats, setWidgetStats] = useState(null);
 
   const presence = isPresenceType(activeStore?.storeType);
 
@@ -367,6 +368,11 @@ export default function DesignLab() {
     }
     setNeedsCatalog(false);
     setLoading(false);
+
+    api
+      .get(`/store/${activeStore._id}/widget-stats`)
+      .then((res) => setWidgetStats(res.data?.data || null))
+      .catch(() => setWidgetStats(null));
   }, [activeStore, searchParams]);
 
   if (!activeStore) {
@@ -392,6 +398,12 @@ export default function DesignLab() {
       setActiveStore({ ...activeStore, widgetConfig: nextConfig });
       setDirty(false);
       toast.success('Design published — embed snippet is live for this workspace.');
+      try {
+        const statsRes = await api.get(`/store/${activeStore._id}/widget-stats`);
+        setWidgetStats(statsRes.data?.data || null);
+      } catch {
+        /* ignore */
+      }
     } catch {
       toast.error('Failed to publish widget design.');
     } finally {
@@ -457,6 +469,45 @@ export default function DesignLab() {
           <Save size={18} /> {saving ? 'Publishing…' : 'Save & Publish'}
         </button>
       </div>
+
+      {widgetStats && (
+        <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <Eye className="text-cyan-400 shrink-0 mt-0.5" size={18} />
+            <div>
+              <p className="text-xs uppercase tracking-wider text-gray-500">Layout performance</p>
+              <p className="text-sm text-gray-200 mt-1">
+                Published <span className="text-white font-semibold">{widgetStats.publishedLayout || '—'}</span>
+                {' · '}
+                <span className="text-cyan-300 font-semibold">{widgetStats.impressions || 0}</span> embed impressions
+              </p>
+              {widgetStats.lastImpressedAt ? (
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Last load {new Date(widgetStats.lastImpressedAt).toLocaleString()}
+                </p>
+              ) : (
+                <p className="text-[11px] text-gray-500 mt-1">Impressions start when the live embed loads reviews.</p>
+              )}
+            </div>
+          </div>
+          {widgetStats.trustPageUrl ? (
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(widgetStats.trustPageUrl);
+                  toast.success('Trust page link copied.');
+                } catch {
+                  toast.error('Could not copy link.');
+                }
+              }}
+              className="inline-flex items-center gap-2 min-h-10 px-3 rounded-xl border border-white/10 bg-white/5 text-xs font-semibold text-gray-200 hover:bg-white/10"
+            >
+              <Link2 size={14} /> Copy trust page
+            </button>
+          ) : null}
+        </div>
+      )}
 
       <div className="flex flex-col gap-8 w-full min-h-0">
         <div className="w-full shrink-0 space-y-6 flex flex-col">

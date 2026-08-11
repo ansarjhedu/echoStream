@@ -38,6 +38,8 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import AcceptInvite from './pages/AcceptInvite';
 import EmailCampaigns from './pages/EmailCampaigns';
 import Billing from './pages/Billing';
+import TrustPage from './pages/TrustPage';
+import PublicReviewForm from './pages/PublicReviewForm';
 
 import AdminOverview from './pages/admin/AdminOverview';
 import AdminDisputes from './pages/admin/AdminDisputes';
@@ -218,6 +220,8 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/staff-setup" element={<StaffSetup />} />
           <Route path="/accept-invite" element={<AcceptInvite />} />
+          <Route path="/trust/:slug" element={<TrustPage />} />
+          <Route path="/review/:apiKey/:productHandle" element={<PublicReviewForm />} />
 
           <Route
             path="/hub/*"

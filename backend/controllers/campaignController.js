@@ -3,15 +3,12 @@ import Review from '../models/Review.js';
 import Product from '../models/Product.js';
 import Store from '../models/Store.js';
 import Campaign from '../models/Campaign.js';
-import sendEmail, { isEmailTransportError } from '../utils/sendEmail.js';
-import { buildCampaignHtml } from '../services/reviewMailService.js';
 import { GoogleGenAI } from '@google/genai';
 import { isWithinLimit } from '../utils/plans.js';
 import { resolveOwnerEntitlements } from './billingController.js';
-import {
-  buildUnsubscribeUrl,
-  isEmailSuppressed,
-} from '../utils/emailCompliance.js';
+import { deliverCampaign, processDueCampaigns } from '../utils/campaignDelivery.js';
+import { logActivity } from '../utils/activityLog.js';
+import { isEmailTransportError } from '../utils/sendEmail.js';
 
 function assertCampaignAccess(req, res) {
   const role = req.user?.role;
@@ -51,9 +48,62 @@ function buildAudienceMatch(storeId, { productId, emailSearch, minRating } = {})
   return match;
 }
 
-/**
- * Unique reviewer contacts for campaigns (email-keyed).
- */
+async function resolveRecipients(storeId, body = {}) {
+  const { emails, productId, emailSearch, minRating, selectAllFiltered } = body;
+  let recipients = [];
+  if (selectAllFiltered) {
+    const match = buildAudienceMatch(storeId, { productId, emailSearch, minRating });
+    const rows = await Review.aggregate([
+      { $match: match },
+      { $group: { _id: { $toLower: '$customerEmail' }, email: { $first: '$customerEmail' } } },
+      { $limit: 100 },
+    ]);
+    recipients = rows.map((r) => r.email).filter(Boolean);
+  } else if (Array.isArray(emails)) {
+    recipients = [
+      ...new Set(
+        emails
+          .map((e) => String(e || '').trim().toLowerCase())
+          .filter((e) => e.includes('@'))
+      ),
+    ].slice(0, 100);
+  }
+  return recipients;
+}
+
+async function assertCampaignQuota(req, res) {
+  const entitlements = await resolveOwnerEntitlements(req.user);
+  if (!entitlements.features.campaigns) {
+    res.status(403).json({
+      message: 'Email campaigns are not included on your current plan. Upgrade in Billing.',
+      code: 'PLAN_FEATURE_CAMPAIGNS',
+    });
+    return null;
+  }
+  const limits = entitlements.catalog;
+  if (limits.maxCampaignsPerMonth >= 0) {
+    const ownerId = req.user.role === 'staff' ? req.user.parentAccount : req.user._id;
+    const start = new Date();
+    start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+    const stores = await Store.find({ owner: ownerId, isDeleted: { $ne: true } }).select('_id');
+    const storeIds = stores.map((s) => s._id);
+    const used = await Campaign.countDocuments({
+      store: { $in: storeIds },
+      createdAt: { $gte: start },
+      status: { $in: ['sent', 'partial', 'scheduled'] },
+    });
+    if (!isWithinLimit(used, limits.maxCampaignsPerMonth)) {
+      res.status(403).json({
+        message: `Campaign limit reached for the ${limits.name} plan (${limits.maxCampaignsPerMonth}/month). Upgrade in Billing.`,
+        code: 'PLAN_CAMPAIGN_LIMIT',
+      });
+      return null;
+    }
+  }
+  return entitlements;
+}
+
 const getCampaignAudience = async (req, res) => {
   try {
     if (!assertCampaignAccess(req, res)) return;
@@ -171,101 +221,16 @@ const sendCampaign = async (req, res) => {
     const store = await Store.findById(req.store._id).select('storeType storeName');
     if (!assertCommerce(store, res)) return;
 
-    const {
-      subject,
-      bodyText,
-      emails,
-      productId,
-      emailSearch,
-      minRating,
-      selectAllFiltered,
-    } = req.body || {};
-
+    const { subject, bodyText, productId, emailSearch, minRating } = req.body || {};
     if (!subject || !String(subject).trim() || !bodyText || !String(bodyText).trim()) {
       return res.status(400).json({ message: 'Subject and message body are required.' });
     }
 
-    let recipients = [];
-    if (selectAllFiltered) {
-      const match = buildAudienceMatch(req.store._id, { productId, emailSearch, minRating });
-      const rows = await Review.aggregate([
-        { $match: match },
-        { $group: { _id: { $toLower: '$customerEmail' }, email: { $first: '$customerEmail' } } },
-        { $limit: 100 },
-      ]);
-      recipients = rows.map((r) => r.email).filter(Boolean);
-    } else if (Array.isArray(emails)) {
-      recipients = [...new Set(emails.map((e) => String(e || '').trim().toLowerCase()).filter((e) => e.includes('@')))].slice(0, 100);
-    }
-
+    const recipients = await resolveRecipients(req.store._id, req.body);
     if (!recipients.length) {
       return res.status(400).json({ message: 'Select at least one recipient with a valid email.' });
     }
-
-    const ownerId = req.user.role === 'staff' ? req.user.parentAccount : req.user._id;
-    const entitlements = await resolveOwnerEntitlements(req.user);
-    if (!entitlements.features.campaigns) {
-      return res.status(403).json({
-        message: 'Email campaigns are not included on your current plan. Upgrade in Billing.',
-        code: 'PLAN_FEATURE_CAMPAIGNS',
-      });
-    }
-    const limits = entitlements.catalog;
-    if (limits.maxCampaignsPerMonth >= 0) {
-      const start = new Date();
-      start.setDate(1);
-      start.setHours(0, 0, 0, 0);
-      const stores = await Store.find({ owner: ownerId, isDeleted: { $ne: true } }).select('_id');
-      const storeIds = stores.map((s) => s._id);
-      const used = await Campaign.countDocuments({
-        store: { $in: storeIds },
-        createdAt: { $gte: start },
-        status: { $in: ['sent', 'partial'] },
-      });
-      if (!isWithinLimit(used, limits.maxCampaignsPerMonth)) {
-        return res.status(403).json({
-          message: `Campaign limit reached for the ${limits.name} plan (${limits.maxCampaignsPerMonth}/month). Upgrade in Billing.`,
-          code: 'PLAN_CAMPAIGN_LIMIT',
-        });
-      }
-    }
-
-    let sentCount = 0;
-    let failedCount = 0;
-    let suppressedCount = 0;
-    for (const email of recipients) {
-      try {
-        if (await isEmailSuppressed(email, req.store._id)) {
-          suppressedCount += 1;
-          continue;
-        }
-        const unsubUrl = buildUnsubscribeUrl(email, req.store._id);
-        const html = buildCampaignHtml({
-          storeName: store.storeName,
-          bodyText: String(bodyText),
-          unsubscribeUrl: unsubUrl,
-        });
-        await sendEmail({
-          email,
-          subject: String(subject).slice(0, 140),
-          html,
-          fromName: store.storeName,
-          headers: {
-            'List-Unsubscribe': `<${unsubUrl}>`,
-            'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-          },
-        });
-        sentCount += 1;
-      } catch (err) {
-        failedCount += 1;
-        console.error('campaign send failed', email, err?.message || err);
-        if (isEmailTransportError(err) && sentCount === 0) {
-          return res.status(503).json({
-            message: 'Email service unavailable. Check SMTP settings on the server.',
-          });
-        }
-      }
-    }
+    if (!(await assertCampaignQuota(req, res))) return;
 
     const doc = await Campaign.create({
       store: req.store._id,
@@ -277,15 +242,33 @@ const sendCampaign = async (req, res) => {
         emailSearch: emailSearch || null,
         minRating: minRating != null && minRating !== '' ? Number(minRating) : null,
       },
+      recipientEmails: recipients,
       recipientCount: recipients.length,
-      sentCount,
-      failedCount,
-      suppressedCount,
-      status: failedCount === 0 && sentCount > 0 ? 'sent' : sentCount === 0 ? 'draft' : 'partial',
+      status: 'draft',
+    });
+
+    try {
+      await deliverCampaign(doc, store);
+    } catch (err) {
+      if (isEmailTransportError(err)) {
+        return res.status(503).json({
+          message: 'Email service unavailable. Check SMTP settings on the server.',
+        });
+      }
+      throw err;
+    }
+
+    await logActivity({
+      storeId: req.store._id,
+      actorId: req.user._id,
+      action: 'campaign.send',
+      targetType: 'campaign',
+      targetId: String(doc._id),
+      meta: { sentCount: doc.sentCount, recipientCount: doc.recipientCount },
     });
 
     return res.status(200).json({
-      message: `Campaign finished: ${sentCount} sent, ${failedCount} failed, ${suppressedCount} suppressed.`,
+      message: `Campaign finished: ${doc.sentCount} sent, ${doc.failedCount} failed, ${doc.suppressedCount} suppressed.`,
       data: doc,
     });
   } catch (error) {
@@ -294,9 +277,75 @@ const sendCampaign = async (req, res) => {
   }
 };
 
+const scheduleCampaign = async (req, res) => {
+  try {
+    if (!assertCampaignAccess(req, res)) return;
+    const store = await Store.findById(req.store._id).select('storeType storeName');
+    if (!assertCommerce(store, res)) return;
+
+    const { subject, bodyText, productId, emailSearch, minRating, scheduledAt } = req.body || {};
+    if (!subject || !String(subject).trim() || !bodyText || !String(bodyText).trim()) {
+      return res.status(400).json({ message: 'Subject and message body are required.' });
+    }
+    const when = scheduledAt ? new Date(scheduledAt) : null;
+    if (!when || Number.isNaN(when.getTime()) || when.getTime() <= Date.now() + 60_000) {
+      return res.status(400).json({
+        message: 'Choose a schedule time at least 1 minute in the future.',
+      });
+    }
+
+    const recipients = await resolveRecipients(req.store._id, req.body);
+    if (!recipients.length) {
+      return res.status(400).json({ message: 'Select at least one recipient with a valid email.' });
+    }
+    if (!(await assertCampaignQuota(req, res))) return;
+
+    const doc = await Campaign.create({
+      store: req.store._id,
+      createdBy: req.user._id,
+      subject: String(subject).slice(0, 140),
+      bodyText: String(bodyText).slice(0, 5000),
+      filters: {
+        productId: productId || null,
+        emailSearch: emailSearch || null,
+        minRating: minRating != null && minRating !== '' ? Number(minRating) : null,
+      },
+      recipientEmails: recipients,
+      recipientCount: recipients.length,
+      scheduledAt: when,
+      status: 'scheduled',
+    });
+
+    await logActivity({
+      storeId: req.store._id,
+      actorId: req.user._id,
+      action: 'campaign.schedule',
+      targetType: 'campaign',
+      targetId: String(doc._id),
+      meta: { scheduledAt: when.toISOString(), recipientCount: recipients.length },
+    });
+
+    return res.status(200).json({
+      message: `Campaign scheduled for ${when.toISOString()}.`,
+      data: doc,
+    });
+  } catch (error) {
+    console.error('scheduleCampaign', error);
+    return res.status(500).json({ message: 'Failed to schedule campaign.' });
+  }
+};
+
 const listCampaigns = async (req, res) => {
   try {
     if (!assertCampaignAccess(req, res)) return;
+
+    // Opportunistic flush for serverless / demos
+    try {
+      await processDueCampaigns({ limit: 10 });
+    } catch (err) {
+      console.error('listCampaigns processDue', err?.message || err);
+    }
+
     const rows = await Campaign.find({ store: req.store._id })
       .sort({ createdAt: -1 })
       .limit(20)
@@ -345,4 +394,10 @@ const listCampaigns = async (req, res) => {
   }
 };
 
-export { getCampaignAudience, draftCampaignCopy, sendCampaign, listCampaigns };
+export {
+  getCampaignAudience,
+  draftCampaignCopy,
+  sendCampaign,
+  scheduleCampaign,
+  listCampaigns,
+};

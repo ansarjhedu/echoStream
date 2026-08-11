@@ -16,6 +16,7 @@ import publicRouter from "./routes/publicRoutes.js";
 import storeRouter from "./routes/storeRoutes.js";
 import startCronJobs from "./services/cronjobs.js"; // Renamed for clarity!
 import { handleBillingWebhook } from "./controllers/billingController.js";
+import { runCampaignCron } from "./controllers/activityController.js";
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -73,6 +74,9 @@ app.use("/api/users", userRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/public", publicRouter);
 app.use("/api/store", storeRouter);
+
+app.post("/api/cron/campaigns", runCampaignCron);
+app.get("/api/cron/campaigns", runCampaignCron);
 
 app.get("/", (req, res) => {
     res.send("EchoStream API is live.");

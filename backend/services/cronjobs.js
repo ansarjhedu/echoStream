@@ -5,6 +5,7 @@ import Store from '../models/Store.js';
 import User from '../models/User.js';
 import Support from '../models/Support.js';
 import { deleteCloudinaryImages } from '../utils/cloudinary.js';
+import { processDueCampaigns } from '../utils/campaignDelivery.js';
 
 const collectReviewImageUrls = (reviews = []) => {
     const urls = [];
@@ -30,6 +31,18 @@ const collectSupportImageUrls = (tickets = []) => {
 // We wrap it in a function so index.js can control exactly when it starts!
 const startCronJobs = () => {
     console.log("⏳ Cron Jobs Initialized: Background workers are ready.");
+
+    // Scheduled email campaigns (local / long-lived process). Vercel uses /api/cron/campaigns.
+    cron.schedule('*/5 * * * *', async () => {
+        try {
+            const results = await processDueCampaigns({ limit: 25 });
+            if (results.length) {
+                console.log(`📬 Processed ${results.length} due campaign(s).`);
+            }
+        } catch (error) {
+            console.error('❌ Scheduled campaign worker error:', error);
+        }
+    });
 
     // This runs automatically every day at midnight ('0 0 * * *')
     cron.schedule('0 0 * * *', async () => {

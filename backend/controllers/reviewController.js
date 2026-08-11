@@ -8,6 +8,8 @@ import { autoResolveDisputeWithAi } from "./aiController.js";
 import { sendReviewThankYouEmail } from "../services/reviewMailService.js";
 import User from "../models/User.js";
 import { getEntitlements } from "../utils/plans.js";
+import { recordWidgetImpression } from "../utils/widgetImpressions.js";
+import { logActivity } from "../utils/activityLog.js";
 
 const createReview=async(req,res)=>{
 
@@ -187,6 +189,9 @@ const getPublicProductReviews = async (req, res) => {
         if(storeType==="ecommerce" && !productHandle){
             return res.status(400).json({ message: "Product handle is required for eCommerce stores" });
         }
+
+        // Layout performance: count embed loads (throttled)
+        recordWidgetImpression(req, req.store);
         
         // 1. Find the product ID first
         const product = await Product.findOne({ store: storeId, productHandle });
@@ -275,7 +280,15 @@ const getPublicProductReviews = async (req, res) => {
             const review = await Review.findOneAndUpdate({ _id: reviewId, store: storeId }, { $set: { 'merchantReply.content': reply, 'merchantReply.createdAt': new Date() } }, { new: true });
             if (!review){
                 return res.status(404).json({ message: "Review not found or unauthorized" });
-            } 
+            }
+
+            await logActivity({
+                storeId,
+                actorId: req.user?._id,
+                action: 'review.reply',
+                targetType: 'review',
+                targetId: String(reviewId),
+            }); 
 
 
              res.status(200).json({ 
@@ -327,6 +340,14 @@ const hideReview = async (req, res) => {
         await review.save();
         await recalculateProductStats(review.product);
 
+        await logActivity({
+            storeId,
+            actorId: req.user?._id,
+            action: 'review.hide',
+            targetType: 'review',
+            targetId: String(reviewId),
+        });
+
         return res.status(200).json({
             data: review,
             message: 'Review hidden from your public widget.',
@@ -350,6 +371,14 @@ const unhideReview = async (req, res) => {
         review.deletedAt = null;
         await review.save();
         await recalculateProductStats(review.product);
+
+        await logActivity({
+            storeId,
+            actorId: req.user?._id,
+            action: 'review.unhide',
+            targetType: 'review',
+            targetId: String(reviewId),
+        });
 
         return res.status(200).json({
             data: review,

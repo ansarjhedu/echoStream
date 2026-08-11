@@ -1,6 +1,6 @@
 import { Router } from "express";
 import {authUser,authStore,checkPermission,checkStoreScopedAccess} from "../middlewares/authUser.js";
-import { createStore, myStores,getStoreById,updateStoreStatus,getStoreAnalytics , updateWidgetConfig, getPresenceOverview, previewStoreUrl} from "../controllers/storeController.js";
+import { createStore, myStores,getStoreById,updateStoreStatus,getStoreAnalytics , getWidgetStats, updateWidgetConfig, getPresenceOverview, previewStoreUrl} from "../controllers/storeController.js";
 import { updateReviewStatus, getStoreProducts, merchantReplyToReview, getReviews, getStoreDisputes, hideReview, unhideReview, bulkHideByRating } from "../controllers/reviewController.js";
 import {
   connectGoogleReviews,
@@ -15,14 +15,13 @@ import {
   getCampaignAudience,
   draftCampaignCopy,
   sendCampaign,
+  scheduleCampaign,
   listCampaigns,
 } from "../controllers/campaignController.js";
-
-
+import { createStoreReviewRequest } from "../controllers/reviewRequestController.js";
+import { listStoreActivity } from "../controllers/activityController.js";
 
 const storeRouter=Router();
-
-
 
 storeRouter.post('/create',authUser,createStore)
 storeRouter.get('/mystores',authUser,myStores)
@@ -31,6 +30,8 @@ storeRouter.post('/preview-url', authUser, previewStoreUrl)
 storeRouter.get('/:id',authUser,authStore,getStoreById);
 storeRouter.patch('/:id/status',authUser,authStore,updateStoreStatus);
 storeRouter.get('/:id/analytics', authUser, authStore, checkStoreScopedAccess, getStoreAnalytics);
+storeRouter.get('/:id/widget-stats', authUser, authStore, checkStoreScopedAccess, getWidgetStats);
+storeRouter.get('/:id/activity', authUser, authStore, checkPermission(['moderation', 'products', 'campaigns', 'settings']), listStoreActivity);
 storeRouter.patch('/:id/widget-config', authUser, authStore, checkPermission(['settings', 'integrations']), updateWidgetConfig);
 
 storeRouter.get('/:id/google-reviews', authUser, authStore, checkPermission(['integrations', 'settings']), getGoogleReviewsStatus);
@@ -49,13 +50,13 @@ storeRouter.get('/:id/disputes',authUser,authStore,checkPermission(['moderation'
 storeRouter.post('/:id/reviews/:reviewId/reply',authUser,authStore,checkPermission('moderation'),merchantReplyToReview);
 storeRouter.post('/:id/ai/generate-reply', authUser, authStore, checkPermission('moderation'), generateSmartReply);
 
+storeRouter.post('/:id/review-requests', authUser, authStore, checkPermission(['campaigns', 'products']), createStoreReviewRequest);
+
 // Email campaigns — owner or staff with `campaigns` permission
 storeRouter.get('/:id/campaigns/audience', authUser, authStore, checkPermission('campaigns'), getCampaignAudience);
 storeRouter.get('/:id/campaigns', authUser, authStore, checkPermission('campaigns'), listCampaigns);
 storeRouter.post('/:id/campaigns/draft', authUser, authStore, checkPermission('campaigns'), draftCampaignCopy);
 storeRouter.post('/:id/campaigns/send', authUser, authStore, checkPermission('campaigns'), sendCampaign);
-
-
-
+storeRouter.post('/:id/campaigns/schedule', authUser, authStore, checkPermission('campaigns'), scheduleCampaign);
 
 export default storeRouter;
