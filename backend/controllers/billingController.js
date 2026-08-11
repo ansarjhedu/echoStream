@@ -5,21 +5,24 @@ import {
   PLAN_CATALOG,
   TRIAL_DAYS,
   computeTrialEndsAt,
-  getEffectivePlanId,
   getEntitlements,
   getPlanLimits,
   isWithinLimit,
   resolvePlanId,
 } from '../utils/plans.js';
 import {
-  cardFromPaymentMethod,
+  cancelLemonSubscription,
+  createLemonCheckout,
+  extractPortalUrl,
   frontendBase,
-  getStripe,
-  isStripeConfigured,
-  planIdFromPriceId,
+  getLemonSubscription,
+  isLemonConfigured,
+  mapLemonStatus,
+  planIdFromVariantId,
   publicPricing,
-  stripePriceIdForPlan,
-} from '../utils/stripeBilling.js';
+  resumeLemonSubscription,
+  verifyLemonWebhookSignature,
+} from '../utils/lemonSqueezyBilling.js';
 
 async function loadOwner(req) {
   if (req.user.role !== 'owner') return null;
@@ -45,72 +48,50 @@ async function usageForOwner(ownerId) {
   return { stores: storesUsed, teamSeats: seatsUsed, campaignsThisMonth: campaignsUsed };
 }
 
-async function ensureStripeCustomer(owner) {
-  const stripe = getStripe();
-  if (!stripe) throw Object.assign(new Error('Stripe is not configured'), { code: 'STRIPE_NOT_CONFIGURED' });
-  if (owner.stripeCustomerId) return owner.stripeCustomerId;
-  const customer = await stripe.customers.create({
-    email: owner.email,
-    name: owner.userName,
-    metadata: { echoUserId: String(owner._id) },
-  });
-  owner.stripeCustomerId = customer.id;
-  await owner.save();
-  return customer.id;
+function subscriptionIdOf(owner) {
+  return owner.lemonSqueezySubscriptionId || owner.stripeSubscriptionId || null;
 }
 
-async function syncCardFromSubscription(owner, subscription) {
-  const stripe = getStripe();
-  if (!stripe || !subscription) return;
-  const pmId =
-    typeof subscription.default_payment_method === 'string'
-      ? subscription.default_payment_method
-      : subscription.default_payment_method?.id;
-  if (!pmId) return;
-  try {
-    const pm = await stripe.paymentMethods.retrieve(pmId);
-    const card = cardFromPaymentMethod(pm);
-    owner.paymentMethodBrand = card.brand;
-    owner.paymentMethodLast4 = card.last4;
-    owner.paymentMethodExpMonth = card.expMonth;
-    owner.paymentMethodExpYear = card.expYear;
-  } catch {
-    /* ignore */
-  }
-}
+export async function applyLemonSubscriptionToUser(owner, subscriptionData, meta = {}) {
+  const attrs = subscriptionData?.attributes || subscriptionData || {};
+  const variantId =
+    subscriptionData?.relationships?.variant?.data?.id ||
+    attrs.variant_id ||
+    meta.variant_id;
+  const planFromVariant = planIdFromVariantId(variantId);
+  const planFromCustom = resolvePlanId(meta?.custom_data?.plan_id || meta?.plan_id);
+  const planId = planFromVariant || (planFromCustom !== 'free' ? planFromCustom : null) || resolvePlanId(owner.plan);
 
-export async function applyStripeSubscriptionToUser(owner, subscription) {
-  const priceId = subscription.items?.data?.[0]?.price?.id;
-  const planId = planIdFromPriceId(priceId) || resolvePlanId(owner.plan);
   owner.plan = planId === 'free' ? 'growth' : planId;
   owner.planUpdatedAt = new Date();
-  owner.stripeSubscriptionId = subscription.id;
-  owner.subscriptionStatus =
-    subscription.status === 'trialing'
-      ? 'trialing'
-      : subscription.status === 'active'
-        ? 'active'
-        : subscription.status === 'past_due'
-          ? 'past_due'
-          : subscription.status === 'canceled'
-            ? 'canceled'
-            : 'unpaid';
-  owner.cancelAtPeriodEnd = Boolean(subscription.cancel_at_period_end);
-  if (subscription.trial_end) owner.trialEndsAt = new Date(subscription.trial_end * 1000);
-  if (subscription.current_period_end) {
-    owner.currentPeriodEnd = new Date(subscription.current_period_end * 1000);
-  }
-  await syncCardFromSubscription(owner, subscription);
+  owner.paymentProvider = 'lemonsqueezy';
+  owner.lemonSqueezySubscriptionId = String(subscriptionData?.id || attrs.id || owner.lemonSqueezySubscriptionId || '');
+  if (attrs.customer_id) owner.lemonSqueezyCustomerId = String(attrs.customer_id);
+  // Keep legacy field populated for older UI reads
+  owner.stripeSubscriptionId = owner.lemonSqueezySubscriptionId;
+
+  owner.subscriptionStatus = mapLemonStatus(attrs.status);
+  owner.cancelAtPeriodEnd = Boolean(attrs.cancelled);
+  if (attrs.trial_ends_at) owner.trialEndsAt = new Date(attrs.trial_ends_at);
+  if (attrs.renews_at) owner.currentPeriodEnd = new Date(attrs.renews_at);
+  else if (attrs.ends_at) owner.currentPeriodEnd = new Date(attrs.ends_at);
+
+  if (attrs.card_brand) owner.paymentMethodBrand = attrs.card_brand;
+  if (attrs.card_last_four) owner.paymentMethodLast4 = String(attrs.card_last_four);
+
+  const portal = extractPortalUrl(attrs);
+  if (portal) owner.billingPortalUrl = portal;
+
   await owner.save();
+  return owner;
 }
 
-/** Call after owner accounts are created (register verify / Google). */
 export function stampOwnerTrialFields(userDoc) {
   if (!userDoc || userDoc.role !== 'owner') return userDoc;
   if (userDoc.trialEndsAt) return userDoc;
   userDoc.trialEndsAt = computeTrialEndsAt();
   userDoc.subscriptionStatus = 'trialing';
-  userDoc.plan = 'free'; // billing plan; entitlements elevate to Growth during trial
+  userDoc.plan = 'free';
   userDoc.planUpdatedAt = new Date();
   return userDoc;
 }
@@ -127,13 +108,13 @@ export const getBillingSummary = async (req, res) => {
     const owner = await User.findById(req.user._id);
     if (!owner) return res.status(404).json({ message: 'User not found.' });
 
-    // Expire local trial if needed (no active Stripe sub)
     const now = new Date();
+    const hasPaidSub = Boolean(subscriptionIdOf(owner));
     if (
       owner.subscriptionStatus === 'trialing' &&
       owner.trialEndsAt &&
       new Date(owner.trialEndsAt) <= now &&
-      !owner.stripeSubscriptionId
+      !hasPaidSub
     ) {
       owner.subscriptionStatus = 'none';
       owner.plan = 'free';
@@ -146,7 +127,9 @@ export const getBillingSummary = async (req, res) => {
     return res.status(200).json({
       data: {
         audience: 'merchant',
-        stripeEnabled: isStripeConfigured(),
+        provider: 'lemonsqueezy',
+        paymentsEnabled: isLemonConfigured(),
+        paymentMethods: ['visa', 'mastercard', 'google_pay', 'apple_pay'],
         trialDays: TRIAL_DAYS,
         entitlements,
         plan: entitlements.catalog,
@@ -156,7 +139,8 @@ export const getBillingSummary = async (req, res) => {
           trialEndsAt: owner.trialEndsAt,
           currentPeriodEnd: owner.currentPeriodEnd,
           cancelAtPeriodEnd: Boolean(owner.cancelAtPeriodEnd),
-          stripeSubscriptionId: owner.stripeSubscriptionId || null,
+          subscriptionId: subscriptionIdOf(owner),
+          portalUrl: owner.billingPortalUrl || null,
         },
         paymentMethod: {
           brand: owner.paymentMethodBrand,
@@ -191,52 +175,22 @@ export const createCheckoutSession = async (req, res) => {
     if (planId === 'free') {
       return res.status(400).json({ message: 'Choose Growth or Pro to start a paid subscription.' });
     }
-    if (!isStripeConfigured()) {
+    if (!isLemonConfigured()) {
       return res.status(503).json({
-        message: 'Stripe is not configured yet. Set STRIPE_SECRET_KEY and price IDs on the server.',
-        code: 'STRIPE_NOT_CONFIGURED',
+        message:
+          'Payments are not configured. Set LEMONSQUEEZY_API_KEY, LEMONSQUEEZY_STORE_ID, and variant IDs (Visa/Mastercard/Google Pay via Lemon Squeezy).',
+        code: 'LEMON_NOT_CONFIGURED',
       });
     }
 
-    const priceId = stripePriceIdForPlan(planId);
-    if (!priceId) {
-      return res.status(503).json({
-        message: `Missing STRIPE_PRICE_${planId.toUpperCase()} env var.`,
-        code: 'STRIPE_PRICE_MISSING',
-      });
-    }
-
-    const stripe = getStripe();
-    const customerId = await ensureStripeCustomer(owner);
-    const trialStillActive =
-      owner.subscriptionStatus === 'trialing' &&
-      owner.trialEndsAt &&
-      new Date(owner.trialEndsAt) > new Date();
-
-    const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      customer: customerId,
-      client_reference_id: String(owner._id),
-      success_url: `${frontendBase()}/hub/billing?checkout=success`,
-      cancel_url: `${frontendBase()}/hub/billing?checkout=cancel`,
-      allow_promotion_codes: true,
-      payment_method_types: ['card'],
-      line_items: [{ price: priceId, quantity: 1 }],
-      subscription_data: {
-        metadata: { echoUserId: String(owner._id), planId },
-        ...(trialStillActive
-          ? { trial_end: Math.floor(new Date(owner.trialEndsAt).getTime() / 1000) }
-          : owner.stripeSubscriptionId
-            ? {}
-            : { trial_period_days: TRIAL_DAYS }),
-      },
-      metadata: { echoUserId: String(owner._id), planId },
-    });
-
-    return res.status(200).json({ data: { url: session.url, sessionId: session.id } });
+    const { url, checkoutId } = await createLemonCheckout({ owner, planId });
+    return res.status(200).json({ data: { url, checkoutId, provider: 'lemonsqueezy' } });
   } catch (error) {
     console.error('createCheckoutSession', error);
-    return res.status(500).json({ message: error.message || 'Could not start checkout.' });
+    return res.status(error.status || 500).json({
+      message: error.message || 'Could not start checkout.',
+      code: error.code,
+    });
   }
 };
 
@@ -244,16 +198,29 @@ export const createBillingPortalSession = async (req, res) => {
   try {
     const owner = await loadOwner(req);
     if (!owner) return res.status(403).json({ message: 'Only account owners can manage billing.' });
-    if (!isStripeConfigured()) {
-      return res.status(503).json({ message: 'Stripe is not configured.', code: 'STRIPE_NOT_CONFIGURED' });
+
+    let portal = owner.billingPortalUrl;
+    const subId = subscriptionIdOf(owner);
+    if (!portal && subId && isLemonConfigured()) {
+      try {
+        const json = await getLemonSubscription(subId);
+        portal = extractPortalUrl(json?.data?.attributes);
+        if (portal) {
+          owner.billingPortalUrl = portal;
+          await owner.save();
+        }
+      } catch (err) {
+        console.error('refresh portal url', err.message);
+      }
     }
-    const stripe = getStripe();
-    const customerId = await ensureStripeCustomer(owner);
-    const session = await stripe.billingPortal.sessions.create({
-      customer: customerId,
-      return_url: `${frontendBase()}/hub/billing`,
-    });
-    return res.status(200).json({ data: { url: session.url } });
+
+    if (!portal) {
+      return res.status(400).json({
+        message:
+          'No billing portal yet. Subscribe once, then use Update card — Lemon Squeezy hosts Visa/Mastercard/Google Pay updates.',
+      });
+    }
+    return res.status(200).json({ data: { url: portal, provider: 'lemonsqueezy' } });
   } catch (error) {
     console.error('createBillingPortalSession', error);
     return res.status(500).json({ message: 'Could not open billing portal.' });
@@ -264,21 +231,19 @@ export const cancelSubscription = async (req, res) => {
   try {
     const owner = await loadOwner(req);
     if (!owner) return res.status(403).json({ message: 'Only account owners can cancel.' });
-    if (!owner.stripeSubscriptionId || !isStripeConfigured()) {
-      return res.status(400).json({ message: 'No active Stripe subscription to cancel.' });
+    const subId = subscriptionIdOf(owner);
+    if (!subId || !isLemonConfigured()) {
+      return res.status(400).json({ message: 'No active subscription to cancel.' });
     }
-    const stripe = getStripe();
-    const sub = await stripe.subscriptions.update(owner.stripeSubscriptionId, {
-      cancel_at_period_end: true,
-    });
-    await applyStripeSubscriptionToUser(owner, sub);
+    const json = await cancelLemonSubscription(subId);
+    await applyLemonSubscriptionToUser(owner, json.data);
     return res.status(200).json({
       message: 'Auto-renew turned off. Access continues until the period ends.',
       data: { cancelAtPeriodEnd: true, currentPeriodEnd: owner.currentPeriodEnd },
     });
   } catch (error) {
     console.error('cancelSubscription', error);
-    return res.status(500).json({ message: 'Could not cancel subscription.' });
+    return res.status(500).json({ message: error.message || 'Could not cancel subscription.' });
   }
 };
 
@@ -286,33 +251,30 @@ export const resumeSubscription = async (req, res) => {
   try {
     const owner = await loadOwner(req);
     if (!owner) return res.status(403).json({ message: 'Only account owners can resume billing.' });
-    if (!owner.stripeSubscriptionId || !isStripeConfigured()) {
-      return res.status(400).json({ message: 'No Stripe subscription to resume.' });
+    const subId = subscriptionIdOf(owner);
+    if (!subId || !isLemonConfigured()) {
+      return res.status(400).json({ message: 'No subscription to resume.' });
     }
-    const stripe = getStripe();
-    const sub = await stripe.subscriptions.update(owner.stripeSubscriptionId, {
-      cancel_at_period_end: false,
-    });
-    await applyStripeSubscriptionToUser(owner, sub);
+    const json = await resumeLemonSubscription(subId);
+    await applyLemonSubscriptionToUser(owner, json.data);
     return res.status(200).json({
       message: 'Auto-renew enabled.',
       data: { cancelAtPeriodEnd: false, currentPeriodEnd: owner.currentPeriodEnd },
     });
   } catch (error) {
     console.error('resumeSubscription', error);
-    return res.status(500).json({ message: 'Could not resume subscription.' });
+    return res.status(500).json({ message: error.message || 'Could not resume subscription.' });
   }
 };
 
-/** Demo-only when Stripe is off — still owner-only. */
 export const updateBillingPlanDemo = async (req, res) => {
   try {
     if (req.user.role !== 'owner') {
       return res.status(403).json({ message: 'Only account owners can change plans.' });
     }
-    if (isStripeConfigured()) {
+    if (isLemonConfigured()) {
       return res.status(400).json({
-        message: 'Stripe is live — use Checkout or the billing portal instead of the demo switcher.',
+        message: 'Lemon Squeezy is live — use Checkout or the billing portal instead of the demo switcher.',
       });
     }
     const next = resolvePlanId(req.body?.plan);
@@ -331,7 +293,7 @@ export const updateBillingPlanDemo = async (req, res) => {
     }
     await user.save();
     return res.status(200).json({
-      message: `Demo plan set to ${PLAN_CATALOG[next].name}. Configure Stripe for real payments.`,
+      message: `Demo plan set to ${PLAN_CATALOG[next].name}. Configure Lemon Squeezy for real Visa/Mastercard/Google Pay.`,
       data: { plan: PLAN_CATALOG[next] },
     });
   } catch (error) {
@@ -340,72 +302,85 @@ export const updateBillingPlanDemo = async (req, res) => {
   }
 };
 
-export const handleStripeWebhook = async (req, res) => {
-  const stripe = getStripe();
-  const secret = (process.env.STRIPE_WEBHOOK_SECRET || '').trim();
-  if (!stripe || !secret) {
-    return res.status(503).send('Stripe webhook not configured');
-  }
-
-  let event;
+export const handleBillingWebhook = async (req, res) => {
   try {
-    const sig = req.headers['stripe-signature'];
-    event = stripe.webhooks.constructEvent(req.body, sig, secret);
-  } catch (err) {
-    console.error('stripe webhook signature', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
+    const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body || '');
+    const signature = req.headers['x-signature'];
+    if (!verifyLemonWebhookSignature(raw, signature)) {
+      return res.status(400).send('Invalid Lemon Squeezy signature');
+    }
 
-  try {
-    switch (event.type) {
-      case 'checkout.session.completed': {
-        const session = event.data.object;
-        if (session.mode === 'subscription' && session.subscription) {
-          const owner =
-            (session.client_reference_id && (await User.findById(session.client_reference_id))) ||
-            (session.metadata?.echoUserId && (await User.findById(session.metadata.echoUserId))) ||
-            (session.customer && (await User.findOne({ stripeCustomerId: session.customer })));
-          if (owner) {
-            const sub = await stripe.subscriptions.retrieve(session.subscription);
-            owner.stripeCustomerId = session.customer || owner.stripeCustomerId;
-            await applyStripeSubscriptionToUser(owner, sub);
-          }
-        }
+    const event = JSON.parse(raw.toString('utf8'));
+    const eventName = event?.meta?.event_name || event?.event_name;
+    const custom = event?.meta?.custom_data || {};
+    const data = event?.data;
+
+    if (!data) return res.json({ received: true });
+
+    const findOwner = async () => {
+      if (custom.echo_user_id) {
+        const byCustom = await User.findById(custom.echo_user_id);
+        if (byCustom) return byCustom;
+      }
+      const attrs = data.attributes || {};
+      if (attrs.customer_id) {
+        const byCustomer = await User.findOne({ lemonSqueezyCustomerId: String(attrs.customer_id) });
+        if (byCustomer) return byCustomer;
+      }
+      if (data.id) {
+        const bySub = await User.findOne({
+          $or: [
+            { lemonSqueezySubscriptionId: String(data.id) },
+            { stripeSubscriptionId: String(data.id) },
+          ],
+        });
+        if (bySub) return bySub;
+      }
+      if (attrs.user_email) {
+        return User.findOne({ email: String(attrs.user_email).toLowerCase(), role: 'owner' });
+      }
+      return null;
+    };
+
+    switch (eventName) {
+      case 'subscription_created':
+      case 'subscription_updated':
+      case 'subscription_resumed':
+      case 'subscription_unpaused':
+      case 'subscription_payment_success': {
+        const owner = await findOwner();
+        if (owner) await applyLemonSubscriptionToUser(owner, data, { custom_data: custom });
         break;
       }
-      case 'customer.subscription.updated':
-      case 'customer.subscription.created': {
-        const subscription = event.data.object;
-        const owner =
-          (await User.findOne({ stripeSubscriptionId: subscription.id })) ||
-          (subscription.metadata?.echoUserId && (await User.findById(subscription.metadata.echoUserId))) ||
-          (subscription.customer && (await User.findOne({ stripeCustomerId: subscription.customer })));
-        if (owner) await applyStripeSubscriptionToUser(owner, subscription);
-        break;
-      }
-      case 'customer.subscription.deleted': {
-        const subscription = event.data.object;
-        const owner = await User.findOne({ stripeSubscriptionId: subscription.id });
+      case 'subscription_cancelled':
+      case 'subscription_expired': {
+        const owner = await findOwner();
         if (owner) {
-          owner.subscriptionStatus = 'canceled';
-          owner.plan = 'free';
-          owner.cancelAtPeriodEnd = false;
-          owner.stripeSubscriptionId = null;
-          owner.planUpdatedAt = new Date();
-          await owner.save();
+          await applyLemonSubscriptionToUser(owner, data, { custom_data: custom });
+          if (eventName === 'subscription_expired') {
+            owner.subscriptionStatus = 'canceled';
+            owner.plan = 'free';
+            owner.lemonSqueezySubscriptionId = null;
+            owner.stripeSubscriptionId = null;
+            owner.cancelAtPeriodEnd = false;
+            await owner.save();
+          }
         }
         break;
       }
       default:
         break;
     }
+
+    return res.json({ received: true });
   } catch (error) {
-    console.error('stripe webhook handler', error);
+    console.error('handleBillingWebhook', error);
     return res.status(500).json({ message: 'Webhook handler failed' });
   }
-
-  return res.json({ received: true });
 };
+
+/** @deprecated alias kept for older imports */
+export const handleStripeWebhook = handleBillingWebhook;
 
 export async function resolveOwnerEntitlements(reqUser) {
   const ownerId = reqUser.role === 'staff' ? reqUser.parentAccount : reqUser._id;
@@ -419,4 +394,4 @@ export async function resolveOwnerEntitlements(reqUser) {
   return getEntitlements(owner || { plan: 'free' });
 }
 
-export { getEffectivePlanId, getPlanLimits, isWithinLimit, getEntitlements };
+export { getPlanLimits, isWithinLimit, getEntitlements };

@@ -114,6 +114,27 @@ const userSchema=new Schema({
         index: true,
         sparse: true,
     },
+    paymentProvider: {
+        type: String,
+        enum: ['none', 'lemonsqueezy'],
+        default: 'none',
+    },
+    lemonSqueezyCustomerId: {
+        type: String,
+        default: null,
+        index: true,
+        sparse: true,
+    },
+    lemonSqueezySubscriptionId: {
+        type: String,
+        default: null,
+        index: true,
+        sparse: true,
+    },
+    billingPortalUrl: {
+        type: String,
+        default: null,
+    },
     paymentMethodBrand: {
         type: String,
         default: null,

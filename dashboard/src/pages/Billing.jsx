@@ -157,7 +157,7 @@ export default function Billing() {
   const ent = data?.entitlements;
   const sub = data?.subscription || {};
   const pm = data?.paymentMethod || {};
-  const stripeOn = Boolean(data?.stripeEnabled);
+  const paymentsOn = Boolean(data?.paymentsEnabled ?? data?.stripeEnabled);
   const activePlanId = ent?.planId || 'free';
 
   return (
@@ -170,8 +170,8 @@ export default function Billing() {
               <CreditCard className="text-cyan-400 shrink-0" /> Billing & plans
             </h1>
             <p className="text-gray-400 text-sm mt-2 max-w-xl">
-              Industry-standard subscriptions via Stripe Checkout (cards + Google Pay / wallets when enabled in Stripe).
-              Manage card, cancel, or resume auto-renew from here.
+              Payments via Lemon Squeezy (works for Pakistan-based SaaS) — Visa, Mastercard, Google Pay &amp; Apple Pay.
+              Manage card, cancel, or resume auto-renew from here. Owners only.
             </p>
           </div>
           <button
@@ -211,7 +211,7 @@ export default function Billing() {
           <div className="rounded-2xl border border-white/10 bg-[#0A0F1A] p-4">
             <p className="text-[10px] uppercase tracking-wider text-gray-500">Auto-renew</p>
             <p className="text-xl font-bold text-white mt-1">
-              {sub.cancelAtPeriodEnd ? 'Off' : sub.stripeSubscriptionId ? 'On' : '—'}
+              {sub.cancelAtPeriodEnd ? 'Off' : sub.subscriptionId ? 'On' : '—'}
             </p>
             <p className="text-xs text-gray-500 mt-1">
               {sub.cancelAtPeriodEnd ? 'Access until period end' : 'Renews automatically'}
@@ -242,7 +242,7 @@ export default function Billing() {
 
         {/* Actions */}
         <div className="flex flex-wrap gap-2 mb-10">
-          {stripeOn && (
+          {paymentsOn && (
             <button
               type="button"
               disabled={busy === 'portal'}
@@ -252,7 +252,7 @@ export default function Billing() {
               <ExternalLink size={14} /> Update card / invoices
             </button>
           )}
-          {stripeOn && sub.stripeSubscriptionId && !sub.cancelAtPeriodEnd && (
+          {paymentsOn && sub.subscriptionId && !sub.cancelAtPeriodEnd && (
             <button
               type="button"
               disabled={busy === 'cancel'}
@@ -262,7 +262,7 @@ export default function Billing() {
               <Ban size={14} /> Turn off auto-renew
             </button>
           )}
-          {stripeOn && sub.stripeSubscriptionId && sub.cancelAtPeriodEnd && (
+          {paymentsOn && sub.subscriptionId && sub.cancelAtPeriodEnd && (
             <button
               type="button"
               disabled={busy === 'resume'}
@@ -272,10 +272,10 @@ export default function Billing() {
               <RotateCcw size={14} /> Enable auto-renew
             </button>
           )}
-          {!stripeOn && (
+          {!paymentsOn && (
             <p className="text-xs text-amber-400/90 flex items-center gap-2">
-              <Shield size={14} /> Stripe keys not set — demo plan switcher is active for FYP demos. Add
-              STRIPE_SECRET_KEY + price IDs for live Checkout (includes Google Pay when enabled in Stripe).
+              <Shield size={14} /> Lemon Squeezy keys not set — demo plan switcher is active. Add
+              LEMONSQUEEZY_API_KEY, STORE_ID, VARIANT_GROWTH/PRO + webhook secret for live Visa/Mastercard/Google Pay.
             </p>
           )}
         </div>
@@ -319,7 +319,7 @@ export default function Billing() {
                   >
                     Included
                   </button>
-                ) : stripeOn ? (
+                ) : paymentsOn ? (
                   <button
                     type="button"
                     disabled={active || busy === `checkout-${p.id}`}

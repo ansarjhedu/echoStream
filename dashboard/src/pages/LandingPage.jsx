@@ -317,7 +317,7 @@ export default function LandingPage() {
             <h2 className="text-2xl md:text-3xl font-extrabold mb-2">Plans that match how stores grow</h2>
             <p className="text-gray-500 text-sm max-w-xl mx-auto">
               Every new owner gets a <span className="text-cyan-300">30-day Growth trial</span>.
-              Subscribe with Stripe Checkout (card / Google Pay when enabled). Only account owners manage billing.
+              Subscribe with Lemon Squeezy (Visa / Mastercard / Google Pay). Only account owners manage billing.
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-4">
