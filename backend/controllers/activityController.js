@@ -1,30 +1,31 @@
 import ActivityLog from '../models/ActivityLog.js';
 import { processDueCampaigns } from '../utils/campaignDelivery.js';
 
+/** Staff-only activity feed (excludes owner / parent account). */
 export const listStoreActivity = async (req, res) => {
   try {
     const rows = await ActivityLog.find({ store: req.store._id })
       .sort({ createdAt: -1 })
-      .limit(50)
+      .limit(80)
       .populate('actor', 'userName email role')
       .lean();
 
+    const staffOnly = rows.filter((r) => r.actor && r.actor.role === 'staff');
+
     return res.status(200).json({
-      data: rows.map((r) => ({
+      data: staffOnly.slice(0, 50).map((r) => ({
         id: r._id,
         action: r.action,
         targetType: r.targetType,
         targetId: r.targetId,
         meta: r.meta,
         createdAt: r.createdAt,
-        actor: r.actor
-          ? {
-              id: r.actor._id,
-              userName: r.actor.userName,
-              email: r.actor.email,
-              role: r.actor.role,
-            }
-          : null,
+        actor: {
+          id: r.actor._id,
+          userName: r.actor.userName,
+          email: r.actor.email,
+          role: r.actor.role,
+        },
       })),
     });
   } catch (error) {

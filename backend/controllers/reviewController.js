@@ -350,7 +350,8 @@ const hideReview = async (req, res) => {
 
         return res.status(200).json({
             data: review,
-            message: 'Review hidden from your public widget.',
+            message:
+                'Review hidden from your storefront. It stays in Moderation so you can unhide — it is not deleted.',
         });
     } catch (error) {
         console.error('hideReview', error);
@@ -382,11 +383,67 @@ const unhideReview = async (req, res) => {
 
         return res.status(200).json({
             data: review,
-            message: 'Review is visible on your widget again.',
+            message: 'Review is visible on your storefront again.',
         });
     } catch (error) {
         console.error('unhideReview', error);
         return res.status(500).json({ message: 'Failed to unhide review.' });
+    }
+};
+
+/** Download reviews as XML (includes hidden — for merchant records). */
+const exportReviewsXml = async (req, res) => {
+    try {
+        const storeId = req.store._id;
+        const productId = req.query.productId || null;
+        const filter = { store: storeId };
+        if (productId) filter.product = productId;
+
+        const reviews = await Review.find(filter)
+            .setOptions({ includeDeleted: true })
+            .sort({ createdAt: -1 })
+            .limit(5000)
+            .lean();
+
+        const esc = (v) =>
+            String(v ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+
+        const body = reviews
+            .map(
+                (r) => `  <review>
+    <id>${esc(r._id)}</id>
+    <productTitle>${esc(r.productTitle)}</productTitle>
+    <customerName>${esc(r.customerName)}</customerName>
+    <customerEmail>${esc(r.customerEmail)}</customerEmail>
+    <rating>${esc(r.rating)}</rating>
+    <status>${esc(r.status)}</status>
+    <hidden>${r.isDeleted ? 'true' : 'false'}</hidden>
+    <verifiedBuyer>${r.isVerifiedBuyer ? 'true' : 'false'}</verifiedBuyer>
+    <comment>${esc(r.comment)}</comment>
+    <createdAt>${esc(r.createdAt?.toISOString?.() || r.createdAt)}</createdAt>
+  </review>`
+            )
+            .join('\n');
+
+        const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<echoStreamReviews storeId="${esc(storeId)}" exportedAt="${esc(new Date().toISOString())}" count="${reviews.length}">
+${body}
+</echoStreamReviews>
+`;
+
+        res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+        res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="echostream-reviews-${String(storeId).slice(-6)}.xml"`
+        );
+        return res.status(200).send(xml);
+    } catch (error) {
+        console.error('exportReviewsXml', error);
+        return res.status(500).json({ message: 'Failed to export reviews.' });
     }
 };
 
@@ -482,4 +539,5 @@ export {
     hideReview,
     unhideReview,
     bulkHideByRating,
+    exportReviewsXml,
 };

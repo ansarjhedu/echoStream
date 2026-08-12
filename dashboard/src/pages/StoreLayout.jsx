@@ -131,9 +131,36 @@ const StoreLayout = ({ children }) => {
               </Link>
             )}
             {showCampaigns && (
-              <Link to="/workspace/campaigns" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isCampaignsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                <Mail size={20} className={isCampaignsActive ? "text-cyan-400" : ""} /> Email Campaigns
-              </Link>
+              <div className="space-y-1">
+                <Link
+                  to="/workspace/campaigns/request"
+                  onClick={closeMenu}
+                  className={`w-full flex items-center px-4 py-3 rounded-xl transition-all ${isCampaignsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Mail size={20} className={isCampaignsActive ? 'text-cyan-400' : ''} />
+                    Email Campaigns
+                  </div>
+                </Link>
+                <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isCampaignsActive ? 'max-h-40 opacity-100 mt-1 mb-2' : 'max-h-0 opacity-0'}`}>
+                  <div className="flex flex-col gap-1 pr-2">
+                    <Link
+                      to="/workspace/campaigns/request"
+                      onClick={closeMenu}
+                      className={`px-4 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${location.pathname.includes('/campaigns/request') ? 'text-cyan-400 bg-white/5 font-bold shadow-sm' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.02]'}`}
+                    >
+                      Request a review
+                    </Link>
+                    <Link
+                      to="/workspace/campaigns/launch"
+                      onClick={closeMenu}
+                      className={`px-4 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${location.pathname.includes('/campaigns/launch') ? 'text-cyan-400 bg-white/5 font-bold shadow-sm' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.02]'}`}
+                    >
+                      Launch campaign
+                    </Link>
+                  </div>
+                </div>
+              </div>
             )}
             {showWidgets && (
               <Link to="/workspace/widgets" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isWidgetsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>

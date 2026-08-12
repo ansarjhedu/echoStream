@@ -263,7 +263,7 @@ export default function App() {
                     <Routes>
                       <Route path="reviews" element={<Reviews />} />
                       <Route path="disputes" element={<StoreDisputes />} />
-                      <Route path="campaigns" element={<EmailCampaigns />} />
+                      <Route path="campaigns/*" element={<EmailCampaigns />} />
                       <Route path="analytics/*" element={<Analytics />} />
                       <Route path="integration" element={<Integration />} />
                       <Route path="widgets" element={<WidgetCatalog />} />

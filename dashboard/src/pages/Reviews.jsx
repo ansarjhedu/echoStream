@@ -13,6 +13,7 @@ import {
   Eye,
   Filter,
   AlertOctagon,
+  Download,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { isPresenceType } from '../utils/permissionHelpers';
@@ -56,6 +57,8 @@ export default function Reviews() {
   const [disputeModalOpen, setDisputeModalOpen] = useState(false);
   const [disputeData, setDisputeData] = useState({ reviewId: null, content: '', images: null });
   const [disputeLoading, setDisputeLoading] = useState(false);
+  const [visibility, setVisibility] = useState('all'); // all | visible | hidden
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (!activeStore) return;
@@ -165,7 +168,7 @@ export default function Reviews() {
   const handleBulkHide = async () => {
     if (
       !window.confirm(
-        `Hide all reviews rated ${bulkMaxRating}★ or below from your public widget?`
+        `Hide all reviews rated ${bulkMaxRating}★ or below from your storefront? They stay in Moderation (not deleted).`
       )
     ) {
       return;
@@ -173,6 +176,7 @@ export default function Reviews() {
     setBulkLoading(true);
     try {
       const body = { maxRating: bulkMaxRating };
+      if (!isPresence && selectedProduct?._id) body.productId = selectedProduct._id;
       const res = await api.post(`/store/${activeStore._id}/reviews/bulk-hide`, body);
       toast.success(res.data.message || 'Bulk hide complete.');
       await refreshCurrentList();
@@ -180,6 +184,30 @@ export default function Reviews() {
       toast.error(error.response?.data?.message || 'Bulk hide failed.');
     } finally {
       setBulkLoading(false);
+    }
+  };
+
+  const handleExportXml = async () => {
+    setExporting(true);
+    try {
+      const params = {};
+      if (!isPresence && selectedProduct?._id) params.productId = selectedProduct._id;
+      const res = await api.get(`/store/${activeStore._id}/reviews/export`, {
+        params,
+        responseType: 'blob',
+      });
+      const blob = new Blob([res.data], { type: 'application/xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `echostream-reviews-${activeStore.storeName || 'export'}.xml`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('XML download started.');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Export failed.');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -293,20 +321,48 @@ export default function Reviews() {
             {listTitle}
           </h1>
           {listSubtitle && <p className="text-cyan-400 font-mono text-sm truncate">{listSubtitle}</p>}
-          <p className="text-xs text-gray-500 mt-2">
-            {isPresence
-              ? 'Hide reviews from your public widget. Hidden reviews stay here so you can unhide them.'
-              : 'Reply publicly or file a dispute for AI / admin review. Hide controls are for Presence sites only.'}
+          <p className="text-xs text-gray-500 mt-2 max-w-xl">
+            Hide removes a review from your storefront only — it stays in Moderation so you can unhide.
+            Reviews are never hard-deleted. Use Dispute for abuse or fake purchases.
           </p>
         </div>
+        <button
+          type="button"
+          disabled={exporting}
+          onClick={handleExportXml}
+          className="shrink-0 self-start inline-flex items-center gap-2 min-h-11 px-4 rounded-xl border border-white/10 bg-white/5 text-sm font-semibold text-gray-200 hover:bg-white/10 disabled:opacity-50"
+        >
+          <Download size={16} /> {exporting ? 'Exporting…' : 'Download XML'}
+        </button>
       </div>
 
-      {isPresence && (
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6 bg-white/[0.02] border border-white/10 rounded-2xl p-4">
-          <div className="flex items-center gap-2 text-sm text-gray-400">
-            <Filter size={16} className="text-cyan-400" />
-            <span>Bulk hide by rating</span>
-          </div>
+      <div className="flex flex-col lg:flex-row lg:items-center gap-3 mb-6 bg-white/[0.02] border border-white/10 rounded-2xl p-4">
+        <div className="flex items-center gap-2 text-sm text-gray-400 shrink-0">
+          <Filter size={16} className="text-cyan-400" /> Visibility
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { id: 'all', label: 'All' },
+            { id: 'visible', label: 'On storefront' },
+            { id: 'hidden', label: 'Hidden' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setVisibility(tab.id)}
+              className={`min-h-9 px-3 rounded-full text-xs font-bold border ${
+                visibility === tab.id
+                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                  : 'bg-white/5 text-gray-400 border-white/10'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="hidden lg:block w-px h-8 bg-white/10 mx-1" />
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-1">
+          <span className="text-sm text-gray-400">Bulk hide by rating</span>
           <select
             value={bulkMaxRating}
             onChange={(e) => setBulkMaxRating(Number(e.target.value))}
@@ -325,10 +381,10 @@ export default function Reviews() {
             onClick={handleBulkHide}
             className="px-4 py-2 rounded-xl text-xs font-bold bg-orange-500/15 text-orange-300 border border-orange-500/40 hover:bg-orange-500/25 disabled:opacity-50"
           >
-            {bulkLoading ? 'Hiding…' : 'Hide matching reviews'}
+            {bulkLoading ? 'Hiding…' : 'Hide matching'}
           </button>
         </div>
-      )}
+      </div>
 
       {loading ? (
         <div className="text-cyan-400 animate-pulse">Loading reviews...</div>
@@ -336,7 +392,14 @@ export default function Reviews() {
         <p className="text-gray-500 text-center py-10">No reviews found.</p>
       ) : (
         <div className="space-y-4 md:space-y-6">
-          {reviews.map((review) => {
+          {reviews
+            .filter((review) => {
+              const hidden = Boolean(review.isDeleted);
+              if (visibility === 'hidden') return hidden;
+              if (visibility === 'visible') return !hidden;
+              return true;
+            })
+            .map((review) => {
             const hidden = Boolean(review.isDeleted);
             return (
               <div
@@ -351,7 +414,7 @@ export default function Reviews() {
                       <h3 className="text-base md:text-lg font-bold text-white truncate">
                         {review.customerName}
                       </h3>
-                      <StatusBadge status={review.status} hidden={isPresence && hidden} />
+                      <StatusBadge status={review.status} hidden={hidden} />
                       {isPresence && review.productTitle && (
                         <span className="text-[10px] text-gray-500 uppercase tracking-wider">
                           {review.productHandle || review.productTitle}
@@ -362,6 +425,9 @@ export default function Reviews() {
                       {'★'.repeat(review.rating)}
                       {'☆'.repeat(5 - review.rating)}
                     </div>
+                    {hidden ? (
+                      <p className="text-[11px] text-gray-500">Hidden from storefront — still in your records.</p>
+                    ) : null}
                   </div>
 
                   <div className="flex gap-2 bg-black/40 p-1.5 rounded-lg border border-white/5 w-full sm:w-auto justify-end flex-wrap">
@@ -369,40 +435,44 @@ export default function Reviews() {
                       <span className="px-3 py-1 text-xs font-bold text-red-400 bg-red-500/10 rounded-md border border-red-500/20 flex items-center gap-1">
                         <Lock size={14} /> Locked by Admin
                       </span>
-                    ) : review.status === 'disputed' ? (
-                      <span className="px-3 py-1 text-xs font-bold text-orange-400 flex items-center gap-1">
-                        <AlertOctagon size={14} /> AI / Admin review
-                      </span>
-                    ) : isPresence ? (
-                      hidden ? (
-                        <button
-                          type="button"
-                          onClick={() => handleUnhide(review._id)}
-                          className="p-2 px-3 text-emerald-400 hover:bg-emerald-400/10 rounded-md transition-all flex items-center gap-2 text-xs font-bold"
-                        >
-                          <Eye size={16} /> Unhide
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleHide(review._id)}
-                          className="p-2 px-3 text-orange-400 hover:bg-orange-400/10 rounded-md transition-all flex items-center gap-2 text-xs font-bold"
-                        >
-                          <EyeOff size={16} /> Hide
-                        </button>
-                      )
-                    ) : review.status === 'approved' ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDisputeData({ reviewId: review._id, content: '', images: null });
-                          setDisputeModalOpen(true);
-                        }}
-                        className="p-2 px-3 text-red-400 hover:bg-red-400/10 rounded-md transition-all flex items-center gap-2 text-xs font-bold"
-                      >
-                        <AlertOctagon size={16} /> Dispute
-                      </button>
-                    ) : null}
+                    ) : (
+                      <>
+                        {review.status === 'disputed' ? (
+                          <span className="px-3 py-1 text-xs font-bold text-orange-400 flex items-center gap-1">
+                            <AlertOctagon size={14} /> AI / Admin review
+                          </span>
+                        ) : null}
+                        {hidden ? (
+                          <button
+                            type="button"
+                            onClick={() => handleUnhide(review._id)}
+                            className="p-2 px-3 text-emerald-400 hover:bg-emerald-400/10 rounded-md transition-all flex items-center gap-2 text-xs font-bold"
+                          >
+                            <Eye size={16} /> Unhide
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleHide(review._id)}
+                            className="p-2 px-3 text-orange-400 hover:bg-orange-400/10 rounded-md transition-all flex items-center gap-2 text-xs font-bold"
+                          >
+                            <EyeOff size={16} /> Hide
+                          </button>
+                        )}
+                        {!isPresence && review.status === 'approved' && !hidden ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDisputeData({ reviewId: review._id, content: '', images: null });
+                              setDisputeModalOpen(true);
+                            }}
+                            className="p-2 px-3 text-red-400 hover:bg-red-400/10 rounded-md transition-all flex items-center gap-2 text-xs font-bold"
+                          >
+                            <AlertOctagon size={16} /> Dispute
+                          </button>
+                        ) : null}
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -436,7 +506,7 @@ export default function Reviews() {
                     <p className="text-gray-300 text-sm">{review.merchantReply.content}</p>
                   </div>
                 ) : (
-                  !(isPresence && hidden) && (
+                  !hidden && (
                     <div className="flex flex-col sm:flex-row gap-2 mt-4">
                       <textarea
                         rows="2"

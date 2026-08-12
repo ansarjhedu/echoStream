@@ -321,8 +321,9 @@ export default function StoreOverview({ products, reviews, campaignSummary, widg
       {activity.length > 0 && (
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 md:p-5">
           <h3 className="text-sm font-bold text-gray-400 flex items-center gap-2 mb-4">
-            <History size={16} className="text-cyan-400" /> Team activity
+            <History size={16} className="text-cyan-400" /> Staff activity
           </h3>
+          <p className="text-xs text-gray-500 mb-3">Actions by team members only (owner activity is not listed here).</p>
           <ul className="space-y-2 max-h-56 overflow-y-auto">
             {activity.slice(0, 12).map((row) => (
               <li

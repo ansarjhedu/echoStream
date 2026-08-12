@@ -104,17 +104,17 @@ export default function StoreDisputes() {
       {loading ? (
         <div className="text-orange-400 animate-pulse">Loading disputes...</div>
       ) : disputes.length === 0 ? (
-        <div className="text-center py-20 bg-white/[0.02] border border-white/10 rounded-2xl">
-          <CheckCircle size={48} className="mx-auto text-green-500/50 mb-4" />
+        <div className="text-left py-16 px-6 bg-white/[0.02] border border-white/10 rounded-2xl">
+          <CheckCircle size={40} className="text-green-500/50 mb-4" />
           <h3 className="text-xl font-bold text-white">No disputes here</h3>
-          <p className="text-gray-500 text-sm mt-2">
+          <p className="text-gray-500 text-sm mt-2 max-w-md">
             {filter === 'all'
               ? 'You have not filed any disputes for this store yet.'
               : `No ${filter === 'pending' ? 'pending' : filter} disputes.`}
           </p>
         </div>
       ) : (
-        <div className="space-y-2 max-w-3xl mx-auto pb-10">
+        <div className="space-y-2 max-w-4xl pb-10">
           {disputes.map((review) => {
             const isOpen = openId === review._id;
             const preview = review.comment ? `"${String(review.comment).slice(0, 64)}${review.comment.length > 64 ? '…' : ''}"` : '';

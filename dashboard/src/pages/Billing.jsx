@@ -10,6 +10,7 @@ import {
   Calendar,
   Ban,
   RotateCcw,
+  Plus,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import api from '../Api';
@@ -98,10 +99,10 @@ export default function Billing() {
     }
   };
 
-  const openPortal = async () => {
-    setBusy('portal');
+  const openPortal = async (intent = 'portal') => {
+    setBusy(intent === 'update_card' ? 'card' : 'portal');
     try {
-      const res = await api.post('/users/billing/portal');
+      const res = await api.post('/users/billing/portal', { intent });
       const url = res.data?.data?.url;
       if (url) window.location.href = url;
       else toast.error('No portal URL returned.');
@@ -194,7 +195,7 @@ export default function Billing() {
           />
           {pm.last4 ? (
             <p className="text-xs text-gray-500 mt-2">
-              This is the card on your subscription. Use &quot;Update card / invoices&quot; below to change it in Lemon Squeezy.
+              This card is charged for renewals. Use Add / switch card to change it for future payments.
             </p>
           ) : null}
         </div>
@@ -249,11 +250,21 @@ export default function Billing() {
           {paymentsOn && (
             <button
               type="button"
+              disabled={busy === 'card'}
+              onClick={() => openPortal('update_card')}
+              className="min-h-[44px] px-4 rounded-xl font-bold text-sm bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 inline-flex items-center gap-2 disabled:opacity-40"
+            >
+              <Plus size={14} /> {pm.last4 ? 'Add / switch card' : 'Add payment card'}
+            </button>
+          )}
+          {paymentsOn && (
+            <button
+              type="button"
               disabled={busy === 'portal'}
-              onClick={openPortal}
+              onClick={() => openPortal('portal')}
               className="min-h-[44px] px-4 rounded-xl font-bold text-sm bg-white text-[#0A0F1A] inline-flex items-center gap-2 disabled:opacity-40"
             >
-              <ExternalLink size={14} /> Update card / invoices
+              <ExternalLink size={14} /> Invoices &amp; portal
             </button>
           )}
           {paymentsOn && sub.subscriptionId && !sub.cancelAtPeriodEnd && (

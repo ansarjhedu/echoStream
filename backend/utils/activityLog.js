@@ -1,6 +1,11 @@
 import crypto from 'crypto';
 import ActivityLog from '../models/ActivityLog.js';
+import User from '../models/User.js';
 
+/**
+ * Persist activity only for store staff (not the owner / parent account).
+ * Owners manage the store; the Team activity feed is for staff accountability.
+ */
 export async function logActivity({
   storeId,
   actorId = null,
@@ -10,10 +15,13 @@ export async function logActivity({
   meta = {},
 }) {
   try {
-    if (!storeId || !action) return null;
+    if (!storeId || !action || !actorId) return null;
+    const actor = await User.findById(actorId).select('role').lean();
+    if (!actor || actor.role !== 'staff') return null;
+
     return await ActivityLog.create({
       store: storeId,
-      actor: actorId || undefined,
+      actor: actorId,
       action,
       targetType: targetType || undefined,
       targetId: targetId || undefined,

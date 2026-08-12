@@ -1,7 +1,7 @@
 import { Router } from "express";
 import {authUser,authStore,checkPermission,checkStoreScopedAccess} from "../middlewares/authUser.js";
 import { createStore, myStores,getStoreById,updateStoreStatus,updateStoreDetails,getStoreAnalytics , getWidgetStats, updateWidgetConfig, getPresenceOverview, previewStoreUrl} from "../controllers/storeController.js";
-import { updateReviewStatus, getStoreProducts, merchantReplyToReview, getReviews, getStoreDisputes, hideReview, unhideReview, bulkHideByRating } from "../controllers/reviewController.js";
+import { updateReviewStatus, getStoreProducts, merchantReplyToReview, getReviews, getStoreDisputes, hideReview, unhideReview, bulkHideByRating, exportReviewsXml } from "../controllers/reviewController.js";
 import {
   connectGoogleReviews,
   updateGoogleReviewFilters,
@@ -44,6 +44,7 @@ storeRouter.delete('/:id/google-reviews', authUser, authStore, checkPermission([
 storeRouter.get('/:id/products',authUser,authStore,checkPermission(['products','moderation']),getStoreProducts);
 storeRouter.patch('/:id/updateReview/:reviewId/status',authUser,authStore,checkPermission('moderation'),upload.array('images', 3),updateReviewStatus);
 storeRouter.get('/:id/reviews',authUser,authStore,checkPermission(['products','moderation']),getReviews);
+storeRouter.get('/:id/reviews/export', authUser, authStore, checkPermission(['products', 'moderation']), exportReviewsXml);
 storeRouter.patch('/:id/reviews/:reviewId/hide', authUser, authStore, checkPermission(['moderation', 'products']), hideReview);
 storeRouter.patch('/:id/reviews/:reviewId/unhide', authUser, authStore, checkPermission(['moderation', 'products']), unhideReview);
 storeRouter.post('/:id/reviews/bulk-hide', authUser, authStore, checkPermission(['moderation', 'products']), bulkHideByRating);

@@ -1,35 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../Api';
 import { toast } from 'react-toastify';
-import { User, Mail, Lock, Camera, CreditCard, Trash2 } from 'lucide-react';
-import PaymentCardVisual from '../components/ui/PaymentCardVisual';
-
-function SubscriptionBadge({ user }) {
-  if (!user || user.role !== 'owner') return null;
-  const ent = user.entitlements;
-  const planName = ent?.catalog?.name || (user.plan === 'growth' ? 'Growth' : user.plan === 'pro' ? 'Pro' : 'Free');
-  const ends = user.currentPeriodEnd;
-  const endLabel = ends
-    ? new Date(ends).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-    : null;
-
-  return (
-    <div className="mt-4 flex flex-col items-center gap-2">
-      <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border border-cyan-500/40 bg-cyan-500/10 text-cyan-300">
-        <CreditCard size={12} />
-        {planName} plan
-      </span>
-      {endLabel && user.subscriptionStatus === 'active' ? (
-        <p className="text-[11px] text-gray-500">Period ends {endLabel}</p>
-      ) : null}
-      <Link to="/hub/billing" className="text-xs text-cyan-400 hover:text-cyan-300 font-semibold">
-        Manage billing →
-      </Link>
-    </div>
-  );
-}
+import { User, Mail, Lock, Camera, Trash2 } from 'lucide-react';
 
 export default function Profile() {
   const { user, logout } = useAuth();
@@ -43,18 +17,9 @@ export default function Profile() {
   });
   const [previewImage, setPreviewImage] = useState(user?.profilePic || null);
   const [loading, setLoading] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
-
-  useEffect(() => {
-    if (user?.role !== 'owner') return;
-    api
-      .get('/users/billing')
-      .then((res) => setPaymentMethod(res.data?.data?.paymentMethod || null))
-      .catch(() => {});
-  }, [user?.role]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -146,18 +111,6 @@ export default function Profile() {
                 />
               </div>
               <p className="text-sm text-gray-400 mt-3">Click to update avatar</p>
-              <SubscriptionBadge user={user} />
-              {user?.role === 'owner' ? (
-                <div className="w-full max-w-sm mt-6">
-                  <PaymentCardVisual
-                    brand={paymentMethod?.brand || user?.paymentMethodBrand}
-                    last4={paymentMethod?.last4 || user?.paymentMethodLast4}
-                    expMonth={paymentMethod?.expMonth}
-                    expYear={paymentMethod?.expYear}
-                    compact
-                  />
-                </div>
-              ) : null}
             </div>
 
             <div className="space-y-4">
@@ -224,7 +177,7 @@ export default function Profile() {
                 <h2 className="text-lg font-bold text-white">Delete account</h2>
                 <p className="text-sm text-gray-400 mt-1">
                   Soft-deletes your owner account, team seats, and stores. Data is purged after 30 days unless
-                  support restores it.
+                  support restores it. Billing is managed separately under Billing.
                 </p>
               </div>
             </div>

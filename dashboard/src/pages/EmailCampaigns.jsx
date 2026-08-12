@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import {
   Mail,
   Search,
@@ -11,7 +11,6 @@ import {
   Filter,
   CalendarClock,
   UserPlus,
-  Megaphone,
   Star,
   UserX,
   CheckCircle2,
@@ -20,7 +19,6 @@ import { toast } from 'react-toastify';
 import api from '../Api';
 import { useAuth } from '../context/AuthContext';
 import { isPresenceType, hasPerm } from '../utils/permissionHelpers';
-import AccordionItem from '../components/ui/AccordionItem';
 import { redirectIfPlanError } from '../utils/planGates';
 
 function outcomeLabel(outcome) {
@@ -34,14 +32,15 @@ function outcomeLabel(outcome) {
 export default function EmailCampaigns() {
   const { activeStore, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const path = location.pathname;
+  const isRequestView = path.includes('/campaigns/request');
+  const isLaunchView = path.includes('/campaigns/launch');
   const isPresence = isPresenceType(activeStore?.storeType);
   const canManageCampaigns =
     user?.role === 'owner' || user?.role === 'admin' || hasPerm(user, 'campaigns');
   const canAiDraft = Boolean(user?.entitlements?.features?.aiCampaignDraft);
 
-  const [hubOpen, setHubOpen] = useState(true);
-  const [requestOpen, setRequestOpen] = useState(true);
-  const [campaignOpen, setCampaignOpen] = useState(false);
 
   const [products, setProducts] = useState([]);
   const [audience, setAudience] = useState([]);
@@ -254,15 +253,6 @@ export default function EmailCampaigns() {
     return reviewRequests;
   }, [reviewRequests, requestListTab]);
 
-  const openRequestTab = () => {
-    setRequestOpen(true);
-    setCampaignOpen(false);
-  };
-
-  const openCampaignTab = () => {
-    setCampaignOpen(true);
-    setRequestOpen(false);
-  };
 
   if (!activeStore) return null;
   if (isPresence) {
@@ -276,48 +266,32 @@ export default function EmailCampaigns() {
     );
   }
 
-  return (
-    <div className="p-4 md:p-8 w-full max-w-7xl mx-auto space-y-6">
-      <header>
-        <p className="text-xs uppercase tracking-[0.2em] text-cyan-400/80 mb-2">Growth</p>
-        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-3">
-          <Mail className="text-cyan-400" size={28} />
-          Email Campaigns
-        </h1>
-        <p className="text-gray-400 text-sm mt-2 max-w-2xl">
-          Ask one customer for a review, or email many past reviewers at once. Open the section below to choose what you want to do.
-        </p>
-      </header>
+  if (path.includes('/campaigns') && !isRequestView && !isLaunchView) {
+    return <Navigate to="/workspace/campaigns/request" replace />;
+  }
 
-      <AccordionItem
-        open={hubOpen}
-        onToggle={() => setHubOpen((v) => !v)}
-        header={
-          <div>
-            <p className="font-bold text-white flex items-center gap-2">
-              <Mail size={18} className="text-cyan-400" /> Email campaigns hub
-            </p>
-            <p className="text-xs text-gray-500 mt-0.5">Request a review · Launch a campaign</p>
+  return (
+    <div className="p-4 md:p-6 lg:p-8 relative overflow-y-auto h-full z-10 w-full flex flex-col no-scrollbar">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <Mail className="text-cyan-400" size={32} />
+            <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 tracking-tight">
+              Email Campaigns
+            </h1>
           </div>
-        }
-        preview="Choose a workflow"
-      >
-        <div className="space-y-3">
-          <AccordionItem
-            open={requestOpen}
-            onToggle={() => (requestOpen ? setRequestOpen(false) : openRequestTab())}
-            header={
-              <div>
-                <p className="font-semibold text-white flex items-center gap-2">
-                  <UserPlus size={16} className="text-cyan-400" /> Request a review
-                </p>
-                <p className="text-xs text-gray-500 mt-0.5">One customer · post-purchase email</p>
-              </div>
-            }
-            preview="Send a single review invite"
-            className="border-white/5"
-          >
-            <div className="w-full space-y-6">
+          <p className="text-gray-400 text-sm">
+            {isLaunchView
+              ? 'Filter past reviewers, compose a message, send now or schedule.'
+              : 'Email one shopper for a review and track sent, completed, and unsubscribed.'}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-col flex-1 animate-fade-in-down min-h-0 w-full">
+        <div className="flex-1 bg-white/[0.02] border border-white/10 p-4 md:p-6 lg:p-8 rounded-2xl backdrop-blur-xl overflow-y-auto no-scrollbar w-full shadow-2xl">
+          {isRequestView ? (
+<div className="w-full space-y-6">
               <p className="text-sm text-gray-400">
                 Email one shopper after they buy. Track who received the invite, who left a review, and who unsubscribed.
               </p>
@@ -487,23 +461,8 @@ export default function EmailCampaigns() {
                 <code className="text-cyan-400/90">POST /api/public/review-requests</code> (API key + product handle).
               </p>
             </div>
-          </AccordionItem>
-
-          <AccordionItem
-            open={campaignOpen}
-            onToggle={() => (campaignOpen ? setCampaignOpen(false) : openCampaignTab())}
-            header={
-              <div>
-                <p className="font-semibold text-white flex items-center gap-2">
-                  <Megaphone size={16} className="text-purple-400" /> Launch campaign
-                </p>
-                <p className="text-xs text-gray-500 mt-0.5">Many reviewers · filter · schedule</p>
-              </div>
-            }
-            preview="Bulk email past reviewers"
-            className="border-white/5"
-          >
-            <div className="w-full space-y-6">
+          ) : isLaunchView ? (
+<div className="w-full space-y-6">
               {campaignSummary ? (
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   {[
@@ -732,9 +691,10 @@ export default function EmailCampaigns() {
                 </section>
               ) : null}
             </div>
-          </AccordionItem>
+          
+          ) : null}
         </div>
-      </AccordionItem>
+      </div>
     </div>
   );
 }

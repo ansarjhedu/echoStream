@@ -193,3 +193,12 @@ export function extractPortalUrl(subscriptionAttrs = {}) {
     null
   );
 }
+
+/** Prefer Lemon's dedicated update-payment-method link for add/switch card. */
+export function extractUpdatePaymentUrl(subscriptionAttrs = {}) {
+  return (
+    subscriptionAttrs?.urls?.update_payment_method ||
+    subscriptionAttrs?.urls?.customer_portal ||
+    null
+  );
+}

@@ -12,6 +12,7 @@ import {
   cancelLemonSubscription,
   createLemonCheckout,
   extractPortalUrl,
+  extractUpdatePaymentUrl,
   frontendBase,
   getLemonSubscription,
   isLemonConfigured,
@@ -110,6 +111,7 @@ export const getBillingSummary = async (req, res) => {
     const owner = await User.findById(req.user._id);
     if (!owner) return res.status(404).json({ message: 'User not found.' });
 
+    let updatePaymentUrl = null;
     const subId = subscriptionIdOf(owner);
     if (subId && isLemonConfigured()) {
       try {
@@ -123,7 +125,10 @@ export const getBillingSummary = async (req, res) => {
         if (attrs.card_expiration_year != null) {
           owner.paymentMethodExpYear = Number(attrs.card_expiration_year) || null;
         }
-        if (attrs.card_brand || attrs.card_last_four) await owner.save();
+        updatePaymentUrl = extractUpdatePaymentUrl(attrs);
+        const portal = extractPortalUrl(attrs);
+        if (portal) owner.billingPortalUrl = portal;
+        if (attrs.card_brand || attrs.card_last_four || portal) await owner.save();
       } catch (err) {
         console.error('refresh payment method', err.message);
       }
@@ -148,6 +153,7 @@ export const getBillingSummary = async (req, res) => {
           cancelAtPeriodEnd: Boolean(owner.cancelAtPeriodEnd),
           subscriptionId: subscriptionIdOf(owner),
           portalUrl: owner.billingPortalUrl || null,
+          updatePaymentMethodUrl: updatePaymentUrl || owner.billingPortalUrl || null,
         },
         paymentMethod: {
           brand: owner.paymentMethodBrand,
@@ -206,12 +212,16 @@ export const createBillingPortalSession = async (req, res) => {
     const owner = await loadOwner(req);
     if (!owner) return res.status(403).json({ message: 'Only account owners can manage billing.' });
 
+    const intent = String(req.body?.intent || 'portal').toLowerCase();
     let portal = owner.billingPortalUrl;
+    let updateCardUrl = null;
     const subId = subscriptionIdOf(owner);
-    if (!portal && subId && isLemonConfigured()) {
+    if (subId && isLemonConfigured()) {
       try {
         const json = await getLemonSubscription(subId);
-        portal = extractPortalUrl(json?.data?.attributes);
+        const attrs = json?.data?.attributes || {};
+        portal = extractPortalUrl(attrs) || portal;
+        updateCardUrl = extractUpdatePaymentUrl(attrs);
         if (portal) {
           owner.billingPortalUrl = portal;
           await owner.save();
@@ -221,13 +231,20 @@ export const createBillingPortalSession = async (req, res) => {
       }
     }
 
-    if (!portal) {
+    const url =
+      intent === 'update_card' || intent === 'add_card' || intent === 'switch_card'
+        ? updateCardUrl || portal
+        : portal || updateCardUrl;
+
+    if (!url) {
       return res.status(400).json({
         message:
-          'No billing portal yet. Subscribe once, then use Update card — Lemon Squeezy hosts Visa/Mastercard/Google Pay updates.',
+          'No billing portal yet. Subscribe once, then use Add / switch card — Lemon Squeezy hosts Visa/Mastercard/Google Pay updates.',
       });
     }
-    return res.status(200).json({ data: { url: portal, provider: 'lemonsqueezy' } });
+    return res.status(200).json({
+      data: { url, provider: 'lemonsqueezy', intent },
+    });
   } catch (error) {
     console.error('createBillingPortalSession', error);
     return res.status(500).json({ message: 'Could not open billing portal.' });
