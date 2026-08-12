@@ -68,7 +68,7 @@ export default function Analytics() {
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 text-cyan-400 flex-1">
           <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin mb-4"></div>
-          <p className="font-mono text-sm tracking-widest animate-pulse">ANALYZING STORE DATA...</p>
+          <p className="text-sm text-gray-400 animate-pulse">Loading store insights…</p>
         </div>
       ) : (
         <div className="flex flex-col flex-1 animate-fade-in-down min-h-0 w-full">

@@ -156,20 +156,20 @@ export default function LandingPage() {
               {
                 icon: Store,
                 title: "eCommerce",
-                body: "Product handles, verified buyers, moderation, disputes, and rating analytics your merchants already expect.",
+                body: "Product reviews, hide controls, disputes, and rating insights your store needs.",
                 accent: "from-cyan-500/20 to-transparent border-cyan-500/20",
               },
               {
                 icon: Globe2,
                 title: "Portfolio",
-                body: "Client praise without SKUs. API-key embed, Design Lab theming, and Google Reviews when you want local trust.",
+                body: "Client praise without a product catalog. Simple embed, Design Lab styling, and optional Google Reviews.",
                 accent:
                   "from-emerald-500/20 to-transparent border-emerald-500/20",
               },
               {
                 icon: Sparkles,
                 title: "Blog / Content",
-                body: "Editorial social proof beside articles. Same widget catalog — quieter chrome, presence analytics instead of product grids.",
+                body: "Social proof next to your articles. Same widget styles — lighter dashboard for content sites.",
                 accent:
                   "from-violet-500/20 to-transparent border-violet-500/20",
               },
@@ -262,9 +262,9 @@ export default function LandingPage() {
             </p>
             <ul className="space-y-3 text-sm text-gray-300">
               {[
-                "Presence embeds: API key only — no product title fields",
-                "Commerce embeds: product handle + title — shoppers review in-widget",
-                "Draft vs Publish so unfinished experiments never hit production",
+                "Portfolio and blog sites: one embed for your whole site",
+                "Online stores: reviews stay grouped per product page",
+                "Save a draft, then publish when you are ready for your live site",
               ].map((t) => (
                 <li key={t} className="flex gap-2 items-start">
                   <ChevronRight
@@ -414,7 +414,7 @@ export default function LandingPage() {
                 },
                 {
                   t: "Publish",
-                  d: "Copy the embed. Presence needs an API key; Commerce adds product handle + title.",
+                  d: "Copy the embed code and paste it on your website. Stores use a unique product name on each page.",
                 },
                 {
                   t: "Prove",
@@ -439,9 +439,9 @@ export default function LandingPage() {
               Trust without the theater
             </h3>
             <p className="text-sm text-gray-400 leading-relaxed mb-6">
-              Paste the snippet and go — shoppers review in the widget. Optional
-              verified-buyer HMAC is advanced only. Disputes escalate to platform
-              review. Presence stays API-key simple.
+              Paste the embed on your site and start collecting reviews. Hide poor
+              reviews from your storefront when needed, and use Disputes for abuse
+              or fake purchases — EchoStream keeps a clear record.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Link

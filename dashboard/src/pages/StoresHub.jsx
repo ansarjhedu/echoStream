@@ -181,7 +181,7 @@ export default function StoresHub() {
             <h2 className="text-2xl font-bold mb-2">No Stores Found</h2>
             <p className="text-gray-400 mb-8 max-w-md mx-auto text-sm md:text-base">
               {isOwner
-                ? "You haven't initialized any stores yet. Create one to generate your unique API key and start collecting reviews."
+                ? "You haven't created a store yet. Add one to start collecting reviews on your site."
                 : 'No stores are available on your parent account yet.'}
             </p>
             {isOwner && (

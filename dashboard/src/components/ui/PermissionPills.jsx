@@ -1,6 +1,8 @@
 /**
  * Permission selector — pill toggles with hover + selected states (replaces checkboxes).
  */
+import { PERM_LABELS } from '../../utils/permissionHelpers';
+
 export default function PermissionPills({ groups, values, locked, onToggle, variant = 'store' }) {
   const selectedCls =
     variant === 'platform'
@@ -17,17 +19,18 @@ export default function PermissionPills({ groups, values, locked, onToggle, vari
           <div className="flex flex-wrap gap-2">
             {group.keys.map((perm) => {
               const on = values.includes(perm);
+              const label = PERM_LABELS[perm] || perm.replace(/_/g, ' ');
               return (
                 <button
                   key={perm}
                   type="button"
                   disabled={locked}
                   onClick={() => onToggle(perm)}
-                  className={`min-h-[40px] px-3.5 rounded-xl border text-xs font-semibold capitalize transition-all ${
+                  className={`min-h-[40px] px-3.5 rounded-xl border text-xs font-semibold transition-all ${
                     locked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
                   } ${on ? selectedCls : idleCls}`}
                 >
-                  {perm.replace(/_/g, ' ')}
+                  {label}
                 </button>
               );
             })}

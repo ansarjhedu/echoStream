@@ -19,17 +19,33 @@ export const PLATFORM_ROLE_PRESETS = {
 };
 
 export const STORE_PERM_GROUPS = [
-  { title: 'Store Management', keys: ['moderation', 'products', 'integrations', 'settings'] },
+  { title: 'Store', keys: ['moderation', 'products', 'integrations', 'settings'] },
   { title: 'Growth', keys: ['campaigns'] },
   { title: 'Disputes', keys: ['disputes'] },
   { title: 'Support', keys: ['tickets'] },
 ];
 
 export const PLATFORM_PERM_GROUPS = [
-  { title: 'Platform Access', keys: ['stores_read', 'users_read', 'analytics_platform'] },
-  { title: 'Moderation & Disputes', keys: ['moderation', 'disputes_resolve', 'settings'] },
+  { title: 'Platform access', keys: ['stores_read', 'users_read', 'analytics_platform'] },
+  { title: 'Reviews & disputes', keys: ['moderation', 'disputes_resolve', 'settings'] },
   { title: 'Support', keys: ['support_queue'] },
 ];
+
+/** Friendly labels for permission keys shown to merchants / staff. */
+export const PERM_LABELS = {
+  moderation: 'Products',
+  products: 'Catalog',
+  integrations: 'Integrations',
+  settings: 'Settings',
+  campaigns: 'Email campaigns',
+  disputes: 'Disputes',
+  tickets: 'Help & support',
+  stores_read: 'View stores',
+  users_read: 'View users',
+  analytics_platform: 'Platform analytics',
+  disputes_resolve: 'Resolve disputes',
+  support_queue: 'Support queue',
+};
 
 /** Signup / onboarding intent (landing CTAs → auth). */
 export const SIGNUP_INTENT_KEY = 'echo_signup_intent';

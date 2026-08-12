@@ -66,7 +66,7 @@ export default function StoreDisputes() {
         <AlertOctagon className="text-orange-400 shrink-0" /> Disputes
       </h1>
       <p className="text-gray-400 text-sm mb-8">
-        File disputes from Moderation. EchoStream AI analyzes each case and posts a clear decision with reasoning.
+        File disputes from Products. EchoStream reviews each case and shares a clear decision.
       </p>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-8">

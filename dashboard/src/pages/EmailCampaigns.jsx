@@ -315,13 +315,13 @@ export default function EmailCampaigns() {
                   />
                 </label>
                 <label className="flex flex-col gap-1.5 text-xs text-gray-500">
-                  Product handle
+                  Product ID
                   <input
                     value={reqHandle}
                     onChange={(e) => setReqHandle(e.target.value)}
                     list="campaign-product-handles-req"
                     className="min-h-11 rounded-xl bg-black/40 border border-white/10 px-3 text-sm text-white"
-                    placeholder="blue-tee"
+                    placeholder="e.g. blue-tee"
                   />
                   <datalist id="campaign-product-handles-req">
                     {products.map((p) => (
@@ -455,11 +455,6 @@ export default function EmailCampaigns() {
                   </ul>
                 </section>
               ) : null}
-
-              <p className="text-xs text-gray-600">
-                Automate with your store:{' '}
-                <code className="text-cyan-400/90">POST /api/public/review-requests</code> (API key + product handle).
-              </p>
             </div>
           ) : isLaunchView ? (
 <div className="w-full space-y-6">

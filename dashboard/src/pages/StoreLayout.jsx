@@ -116,7 +116,7 @@ const StoreLayout = ({ children }) => {
 
             {showModeration && (
               <Link to="/workspace/reviews" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isReviewsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                <Package size={20} className={isReviewsActive ? "text-cyan-400" : ""} /> Moderation
+                <Package size={20} className={isReviewsActive ? "text-cyan-400" : ""} /> Products
               </Link>
             )}
             {showPresenceReviews && (

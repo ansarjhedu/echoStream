@@ -289,8 +289,8 @@ export default function Billing() {
           )}
           {!paymentsOn && (
             <p className="text-xs text-amber-400/90 flex items-center gap-2">
-              <Shield size={14} /> Lemon Squeezy keys not set — demo plan switcher is active. Add
-              LEMONSQUEEZY_API_KEY, STORE_ID, VARIANT_GROWTH/PRO + webhook secret for live Visa/Mastercard/Google Pay.
+              <Shield size={14} /> Online payments are not connected yet. You can still preview plans here — contact
+              support to enable Visa, Mastercard, and Google Pay checkout.
             </p>
           )}
         </div>

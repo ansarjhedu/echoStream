@@ -124,11 +124,6 @@ export default function GoogleReviews() {
   }
 
   const connected = Boolean(status?.googleReviews?.connected);
-  const embedHandle =
-    status?.productHandle ||
-    (presence
-      ? String(activeStore.storeType || 'portfolio').toLowerCase()
-      : 'google-reviews');
 
   return (
     <div className="p-4 md:p-8 lg:p-10 relative overflow-y-auto h-full z-10 w-full no-scrollbar">
@@ -140,25 +135,14 @@ export default function GoogleReviews() {
           <Globe2 className="text-cyan-400 shrink-0" /> Google Reviews
         </h1>
         <p className="text-gray-400 text-sm mb-8">
-          Each user pastes <strong className="text-gray-300 font-medium">their own</strong> Google Place ID for
-          the business they want to sync. Find it in{' '}
-          <a
-            href="https://developers.google.com/maps/documentation/javascript/examples/places-placeid-finder"
-            target="_blank"
-            rel="noreferrer"
-            className="text-cyan-400 hover:underline"
-          >
-            Google’s Place ID Finder
-          </a>
-          {' '}or Google Maps → share your listing → the ID looks like <code className="text-cyan-400/90">ChIJ…</code>.
-          Then set a minimum star filter, sync, and publish via Design Lab using product handle{' '}
-          <code className="text-cyan-400/90">{embedHandle}</code>.
+          Connect your Google business listing so those reviews can appear in your widget. Paste your Place ID, choose
+          a minimum star rating, then sync. Publish the layout from Design Lab when you are ready.
         </p>
 
         {!status?.placesApiConfigured && (
           <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90">
-            Server needs <code className="font-mono text-xs">GOOGLE_PLACES_API_KEY</code> to sync live reviews.
-            You can still save a Place ID and filters now.
+            Google sync is temporarily unavailable on this workspace. You can still save your Place ID and filters —
+            contact support if sync does not turn on soon.
           </div>
         )}
 

@@ -151,7 +151,7 @@ export default function PresenceOverview() {
             </h1>
             <p className="text-gray-400 mt-2 text-sm md:text-base max-w-xl">
               Social proof for sites without product catalogs. Design a widget, connect Google Reviews,
-              and embed with your API key — no product handles required.
+              and embed reviews on your site — no product catalog upload required.
             </p>
           </div>
           {user?.role === 'owner' && (
@@ -253,7 +253,7 @@ export default function PresenceOverview() {
             <div className="text-center py-12 border border-dashed border-white/10 rounded-xl">
               <p className="text-gray-400 mb-4">
                 {mode === 'empty'
-                  ? 'No site yet. Create a Portfolio or Blog workspace to get an API key.'
+                  ? 'No site yet. Create a Portfolio or Blog workspace to start collecting reviews.'
                   : 'No portfolio/blog sites on this account.'}
               </p>
               {user?.role === 'owner' && (

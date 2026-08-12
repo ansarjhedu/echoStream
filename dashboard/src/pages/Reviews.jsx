@@ -168,7 +168,7 @@ export default function Reviews() {
   const handleBulkHide = async () => {
     if (
       !window.confirm(
-        `Hide all reviews rated ${bulkMaxRating}★ or below from your storefront? They stay in Moderation (not deleted).`
+        `Hide all reviews rated ${bulkMaxRating}★ or below from your storefront? They stay under Products so you can unhide later (not deleted).`
       )
     ) {
       return;
@@ -254,17 +254,20 @@ export default function Reviews() {
   if (!isPresence && !selectedProduct) {
     return (
       <div className="p-4 md:p-8 relative z-10">
-        <h1 className="text-2xl md:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 mb-6 md:mb-8">
-          Product Inventory
+        <h1 className="text-2xl md:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 mb-2">
+          Products
         </h1>
+        <p className="text-gray-400 text-sm mb-6 md:mb-8">
+          Open a product to reply, hide, or dispute its reviews.
+        </p>
         {loading ? (
           <div className="text-cyan-400 animate-pulse flex items-center gap-2">
-            <Package /> Syncing products...
+            <Package /> Loading products…
           </div>
         ) : products.length === 0 ? (
-          <div className="text-gray-500 text-center bg-white/5 p-10 rounded-2xl border border-white/10">
-            <Package size={48} className="mx-auto mb-4 opacity-50" />
-            <p>No products tracked yet for {activeStore.storeName}.</p>
+          <div className="text-gray-500 text-left bg-white/5 p-10 rounded-2xl border border-white/10">
+            <Package size={48} className="mb-4 opacity-50" />
+            <p>No products with reviews yet for {activeStore.storeName}.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
@@ -280,7 +283,7 @@ export default function Reviews() {
                   </div>
                   <div className="min-w-0">
                     <h3 className="text-lg font-bold text-white truncate">{product.productTitle}</h3>
-                    <p className="text-xs text-gray-500 font-mono truncate">{product.productHandle}</p>
+                    <p className="text-xs text-gray-500 truncate">ID: {product.productHandle}</p>
                   </div>
                 </div>
                 <div className="flex justify-between items-center pt-4 border-t border-white/5">
@@ -320,10 +323,10 @@ export default function Reviews() {
           <h1 className="text-xl md:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 mb-1">
             {listTitle}
           </h1>
-          {listSubtitle && <p className="text-cyan-400 font-mono text-sm truncate">{listSubtitle}</p>}
+          {listSubtitle && <p className="text-cyan-400 text-sm truncate">Product ID: {listSubtitle}</p>}
           <p className="text-xs text-gray-500 mt-2 max-w-xl">
-            Hide removes a review from your storefront only — it stays in Moderation so you can unhide.
-            Reviews are never hard-deleted. Use Dispute for abuse or fake purchases.
+            Hide removes a review from your storefront only — it stays under Products so you can unhide.
+            Reviews are never permanently deleted. Use Dispute for abuse or fake purchases.
           </p>
         </div>
         <button

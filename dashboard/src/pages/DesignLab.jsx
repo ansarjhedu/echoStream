@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import {
   Copy, Check, Code, LayoutTemplate, Palette, Type, Save,
-  ArrowLeft, Sparkles, SlidersHorizontal, ChevronDown, ShieldCheck, Eye, Link2,
+  ArrowLeft, Sparkles, SlidersHorizontal, Eye, Link2,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import api from '../Api';
@@ -294,23 +294,10 @@ function resolveSnippet(mode, presence, store) {
 }
 
 const SNIPPET_HINTS = {
-  html: 'Copy-paste ready: load the script once, drop the div on the page. Shoppers enter name/email in the widget — no HMAC or server code needed.',
-  react: 'Vite / CRA: use className (not class). Pass productHandle + productTitle; the form collects reviewer details.',
-  next: 'App Router Client Component. Pass productHandle + productTitle; next/script loads the bundle and mount runs onLoad.',
+  html: 'Copy this into your website where you want reviews to appear.',
+  react: 'Copy this into your React project, then place the reviews component on your product or site page.',
+  next: 'Copy this into your Next.js project as a client component, then place it on the page where reviews should show.',
 };
-
-const HMAC_NODE_EXAMPLE = `import crypto from 'crypto';
-
-// Keep your EchoStream API key on the server only — never in browser JS.
-const verificationHash = crypto
-  .createHmac('sha256', process.env.ECHOSTREAM_API_KEY)
-  .update(customerEmail)
-  .digest('hex');
-
-// Then render the widget with:
-// data-customer-name="Jane Doe"
-// data-customer-email="jane@example.com"
-// data-verification-hash={verificationHash}`;
 
 /**
  * Design Lab — design ONLY the layout selected from Widget Catalog.
@@ -325,7 +312,6 @@ export default function DesignLab() {
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [needsCatalog, setNeedsCatalog] = useState(false);
   const [snippetMode, setSnippetMode] = useState('html'); // html | react | next
-  const [hmacOpen, setHmacOpen] = useState(false);
   const [widgetStats, setWidgetStats] = useState(null);
 
   const presence = isPresenceType(activeStore?.storeType);
@@ -739,53 +725,12 @@ export default function DesignLab() {
             {!presence && (
               <div className="border-t border-white/10 px-4 py-4 space-y-3">
                 <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-3 py-3">
-                  <p className="text-xs font-bold text-cyan-300 mb-1">Use on all products</p>
+                  <p className="text-xs font-bold text-cyan-300 mb-1">Use on every product page</p>
                   <p className="text-[11px] text-gray-400 leading-relaxed">
-                    Put this snippet in your <span className="text-gray-300">product page template</span>, not once on the homepage.
-                    Replace <code className="text-purple-300">data-product-handle</code> and{' '}
-                    <code className="text-purple-300">data-product-title</code> with your platform&apos;s current-product
-                    variables (Shopify {'{{ product.handle }}'} / {'{{ product.title }}'}, WooCommerce slug/name,
-                    React route params, etc.). Each handle keeps its own reviews — one product can have 100 reviews
-                    while another shows empty until someone submits. You do not upload a product list to EchoStream.
+                    Add this to each product page (or your product page template). Give each product its own name and
+                    short ID so reviews stay grouped correctly — for example a blue tee and a red tee keep separate
+                    review lists.
                   </p>
-                </div>
-
-                <div className="rounded-xl border border-white/10 overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setHmacOpen((v) => !v)}
-                    className="w-full flex items-center justify-between gap-3 px-3 py-3 text-left hover:bg-white/[0.03] transition-colors"
-                  >
-                    <span className="flex items-center gap-2 text-xs font-bold text-gray-300">
-                      <ShieldCheck size={14} className="text-emerald-400 shrink-0" />
-                      Optional: Verified buyer (HMAC)
-                    </span>
-                    <ChevronDown
-                      size={16}
-                      className={`text-gray-500 shrink-0 transition-transform ${hmacOpen ? 'rotate-180' : ''}`}
-                    />
-                  </button>
-                  {hmacOpen && (
-                    <div className="px-3 pb-3 space-y-2 border-t border-white/10 pt-3">
-                      <p className="text-[11px] text-gray-400 leading-relaxed">
-                        Reviews work without this. Use HMAC only if you want a <span className="text-gray-300">Verified buyer</span> badge.
-                        Generate the hash on your <span className="text-gray-300">server</span> with your API key + the
-                        shopper&apos;s email, then inject three attributes on the widget:
-                      </p>
-                      <pre className="text-[10px] font-mono text-emerald-300/90 bg-black/40 rounded-lg p-3 overflow-x-auto no-scrollbar">
-                        <code>{`data-customer-name="Jane Doe"
-data-customer-email="jane@example.com"
-data-verification-hash="SERVER_HMAC_SHA256"`}</code>
-                      </pre>
-                      <p className="text-[11px] text-gray-500">
-                        Formula: <code className="text-purple-300">HMAC-SHA256(customerEmail, apiKey)</code> → hex.
-                        Never compute this in the browser.
-                      </p>
-                      <pre className="text-[10px] font-mono text-purple-300 bg-black/40 rounded-lg p-3 overflow-x-auto no-scrollbar">
-                        <code>{HMAC_NODE_EXAMPLE}</code>
-                      </pre>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
