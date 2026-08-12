@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { registerUser,loginUser,logoutUser, refreshToken, updateUserCredentials, generateTicket, getTickets,replyToAdmin, verifyOTP, resendOTP, inviteStaff, resendInvite, acceptInvite, getStaffMembers, updateStaffPermissions, revokeStaffAccess, getOwnerNavBadges, requestLoginOtp, verifyLoginOtp, requestPasswordReset, resetPasswordWithOtp, googleAuthLogin} from "../controllers/userController.js";
+import { registerUser,loginUser,logoutUser, refreshToken, updateUserCredentials, deleteOwnAccount, generateTicket, getTickets,replyToAdmin, verifyOTP, resendOTP, inviteStaff, resendInvite, acceptInvite, getStaffMembers, updateStaffPermissions, revokeStaffAccess, getOwnerNavBadges, requestLoginOtp, verifyLoginOtp, requestPasswordReset, resetPasswordWithOtp, googleAuthLogin} from "../controllers/userController.js";
 import { chatWithSupportBot, escalateChatToHuman } from "../controllers/aiController.js";
 import {
   getBillingSummary,
@@ -39,6 +39,7 @@ userRouter.patch('/notifications/read-all', authUser, markAllNotificationsRead);
 userRouter.patch('/notifications/:id/read', authUser, markNotificationRead);
 
 userRouter.put("/update",authUser,upload.single("profilePic"),updateUserCredentials);
+userRouter.delete("/account", authUser, deleteOwnAccount);
 
 userRouter.post("/support/create",authUser,checkPermission('tickets'),upload.array("images", 3),generateTicket);
 userRouter.get("/support/list",authUser,checkPermission('tickets'),getTickets);

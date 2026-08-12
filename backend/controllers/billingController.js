@@ -3,8 +3,6 @@ import Store from '../models/Store.js';
 import Campaign from '../models/Campaign.js';
 import {
   PLAN_CATALOG,
-  TRIAL_DAYS,
-  computeTrialEndsAt,
   getEntitlements,
   getPlanLimits,
   isWithinLimit,
@@ -78,6 +76,12 @@ export async function applyLemonSubscriptionToUser(owner, subscriptionData, meta
 
   if (attrs.card_brand) owner.paymentMethodBrand = attrs.card_brand;
   if (attrs.card_last_four) owner.paymentMethodLast4 = String(attrs.card_last_four);
+  if (attrs.card_expiration_month != null) {
+    owner.paymentMethodExpMonth = Number(attrs.card_expiration_month) || null;
+  }
+  if (attrs.card_expiration_year != null) {
+    owner.paymentMethodExpYear = Number(attrs.card_expiration_year) || null;
+  }
 
   const portal = extractPortalUrl(attrs);
   if (portal) owner.billingPortalUrl = portal;
@@ -88,11 +92,9 @@ export async function applyLemonSubscriptionToUser(owner, subscriptionData, meta
 
 export function stampOwnerTrialFields(userDoc) {
   if (!userDoc || userDoc.role !== 'owner') return userDoc;
-  if (userDoc.trialEndsAt) return userDoc;
-  userDoc.trialEndsAt = computeTrialEndsAt();
-  userDoc.subscriptionStatus = 'trialing';
-  userDoc.plan = 'free';
-  userDoc.planUpdatedAt = new Date();
+  if (!userDoc.plan) userDoc.plan = 'free';
+  if (!userDoc.subscriptionStatus) userDoc.subscriptionStatus = 'none';
+  userDoc.trialEndsAt = null;
   return userDoc;
 }
 
@@ -108,17 +110,23 @@ export const getBillingSummary = async (req, res) => {
     const owner = await User.findById(req.user._id);
     if (!owner) return res.status(404).json({ message: 'User not found.' });
 
-    const now = new Date();
-    const hasPaidSub = Boolean(subscriptionIdOf(owner));
-    if (
-      owner.subscriptionStatus === 'trialing' &&
-      owner.trialEndsAt &&
-      new Date(owner.trialEndsAt) <= now &&
-      !hasPaidSub
-    ) {
-      owner.subscriptionStatus = 'none';
-      owner.plan = 'free';
-      await owner.save();
+    const subId = subscriptionIdOf(owner);
+    if (subId && isLemonConfigured()) {
+      try {
+        const json = await getLemonSubscription(subId);
+        const attrs = json?.data?.attributes || {};
+        if (attrs.card_brand) owner.paymentMethodBrand = attrs.card_brand;
+        if (attrs.card_last_four) owner.paymentMethodLast4 = String(attrs.card_last_four);
+        if (attrs.card_expiration_month != null) {
+          owner.paymentMethodExpMonth = Number(attrs.card_expiration_month) || null;
+        }
+        if (attrs.card_expiration_year != null) {
+          owner.paymentMethodExpYear = Number(attrs.card_expiration_year) || null;
+        }
+        if (attrs.card_brand || attrs.card_last_four) await owner.save();
+      } catch (err) {
+        console.error('refresh payment method', err.message);
+      }
     }
 
     const entitlements = getEntitlements(owner);
@@ -130,7 +138,6 @@ export const getBillingSummary = async (req, res) => {
         provider: 'lemonsqueezy',
         paymentsEnabled: isLemonConfigured(),
         paymentMethods: ['visa', 'mastercard', 'google_pay', 'apple_pay'],
-        trialDays: TRIAL_DAYS,
         entitlements,
         plan: entitlements.catalog,
         billedPlanId: resolvePlanId(owner.plan),
@@ -283,7 +290,8 @@ export const updateBillingPlanDemo = async (req, res) => {
     user.plan = next;
     user.planUpdatedAt = new Date();
     if (next === 'free') {
-      user.subscriptionStatus = user.trialEndsAt && new Date(user.trialEndsAt) > new Date() ? 'trialing' : 'none';
+      user.subscriptionStatus = 'none';
+      user.trialEndsAt = null;
     } else {
       user.subscriptionStatus = 'active';
       const end = new Date();

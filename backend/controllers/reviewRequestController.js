@@ -1,4 +1,6 @@
 import ReviewRequest from '../models/ReviewRequest.js';
+import Review from '../models/Review.js';
+import EmailSuppression from '../models/EmailSuppression.js';
 import Store from '../models/Store.js';
 import Product from '../models/Product.js';
 import sendEmail, { isEmailTransportError } from '../utils/sendEmail.js';
@@ -122,6 +124,90 @@ async function sendReviewRequestEmail({ store, email, customerName, productHandl
 
   return doc;
 }
+
+function outcomeForRequest(request, suppressed, review) {
+  if (suppressed) return 'unsubscribed';
+  if (review && new Date(review.createdAt) >= new Date(request.createdAt)) return 'reviewed';
+  if (request.status === 'failed') return 'failed';
+  if (request.status === 'sent') return 'sent';
+  return 'queued';
+}
+
+/** List review requests, suppressions, and conversion stats for a store */
+export const listStoreReviewRequests = async (req, res) => {
+  try {
+    const storeId = req.store._id;
+    const [requests, suppressions, reviews] = await Promise.all([
+      ReviewRequest.find({ store: storeId }).sort({ createdAt: -1 }).limit(200).lean(),
+      EmailSuppression.find({ store: storeId }).sort({ createdAt: -1 }).limit(500).lean(),
+      Review.find({ store: storeId, customerEmail: { $exists: true, $nin: [null, ''] } })
+        .select('customerEmail product productTitle rating createdAt')
+        .populate('product', 'productHandle')
+        .lean(),
+    ]);
+
+    const suppressedByEmail = new Map(
+      suppressions.map((s) => [String(s.email).toLowerCase(), s])
+    );
+
+    const reviewByEmailHandle = new Map();
+    for (const rev of reviews) {
+      const email = String(rev.customerEmail || '').toLowerCase();
+      const handle = rev.product?.productHandle || '';
+      if (!email) continue;
+      const key = `${email}|${handle}`;
+      const existing = reviewByEmailHandle.get(key);
+      if (!existing || new Date(rev.createdAt) > new Date(existing.createdAt)) {
+        reviewByEmailHandle.set(key, rev);
+      }
+    }
+
+    const items = requests.map((r) => {
+      const email = String(r.customerEmail || '').toLowerCase();
+      const suppressed = suppressedByEmail.get(email) || null;
+      const review = reviewByEmailHandle.get(`${email}|${r.productHandle}`) || null;
+      const outcome = outcomeForRequest(r, suppressed, review);
+      return {
+        ...r,
+        outcome,
+        suppressed: suppressed
+          ? { reason: suppressed.reason, at: suppressed.createdAt }
+          : null,
+        review: review
+          ? {
+              rating: review.rating,
+              productTitle: review.productTitle,
+              createdAt: review.createdAt,
+            }
+          : null,
+      };
+    });
+
+    const summary = {
+      total: items.length,
+      sent: items.filter((i) => i.status === 'sent').length,
+      failed: items.filter((i) => i.status === 'failed').length,
+      reviewed: items.filter((i) => i.outcome === 'reviewed').length,
+      unsubscribed: suppressions.length,
+      pending: items.filter((i) => i.outcome === 'sent').length,
+    };
+
+    return res.status(200).json({
+      data: {
+        requests: items,
+        suppressions: suppressions.map((s) => ({
+          email: s.email,
+          reason: s.reason,
+          createdAt: s.createdAt,
+        })),
+        summary,
+      },
+    });
+  } catch (error) {
+    console.error('listStoreReviewRequests', error);
+    return res.status(500).json({ message: 'Failed to load review requests.' });
+  }
+};
 
 /** Authenticated dashboard / staff */
 export const createStoreReviewRequest = async (req, res) => {

@@ -3,6 +3,7 @@ import api from '../Api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { AlertOctagon, CheckCircle, Star, User, Lock, X } from 'lucide-react';
+import AccordionItem from '../components/ui/AccordionItem';
 
 const FILTERS = [
   { key: 'all', label: 'All' },
@@ -37,6 +38,7 @@ export default function StoreDisputes() {
   const [summary, setSummary] = useState({ total: 0, pending: 0, approved: 0, rejected: 0 });
   const [loading, setLoading] = useState(true);
   const [lightboxImg, setLightboxImg] = useState(null);
+  const [openId, setOpenId] = useState(null);
 
   useEffect(() => {
     if (!activeStore?._id) return;
@@ -112,98 +114,105 @@ export default function StoreDisputes() {
           </p>
         </div>
       ) : (
-        <div className="space-y-6 max-w-4xl pb-10">
-          {disputes.map((review) => (
-            <div
-              key={review._id}
-              className={`bg-white/[0.02] border p-5 md:p-6 rounded-2xl shadow-xl relative transition-colors ${
-                review.status === 'disputed'
-                  ? 'border-orange-500/30 hover:border-orange-500/50'
-                  : 'border-white/10 hover:border-white/20'
-              }`}
-            >
-              <div className="flex flex-col sm:flex-row justify-between items-start gap-3 mb-4 border-b border-white/5 pb-4">
-                <div className="min-w-0">
-                  <h3 className="font-bold text-white text-lg mb-1 truncate">{review.productTitle}</h3>
-                  <p className="text-xs text-gray-500">
-                    Strike: {review.disputedReason?.count || 1} / 3
-                    {review.disputedReason?.createdAt
-                      ? ` · Filed ${new Date(review.disputedReason.createdAt).toLocaleString()}`
-                      : ''}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <StatusBadge status={review.status} />
-                  {review.isLocked && (
-                    <span className="px-2 py-1 text-[10px] font-bold text-red-400 bg-red-500/10 rounded-md border border-red-500/20 inline-flex items-center gap-1">
-                      <Lock size={12} /> Locked
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="bg-black/40 p-4 rounded-xl border border-white/5 relative mb-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <User size={14} className="text-gray-400" />
-                  <span className="font-bold text-gray-300 text-sm">{review.customerName}</span>
-                  <span className="text-yellow-400 text-xs flex items-center gap-1">
-                    <Star size={12} className="fill-yellow-400" /> {review.rating}/5
-                  </span>
-                </div>
-                <p className="text-gray-400 italic text-sm leading-relaxed">"{review.comment}"</p>
-              </div>
-
-              {review.disputedReason?.reason && (
-                <div className="p-4 rounded-xl bg-orange-500/10 border-l-2 border-orange-500 mb-4">
-                  <span className="text-orange-400 text-xs font-bold uppercase tracking-widest block mb-2">
-                    Your dispute claim
-                  </span>
-                  <p className="text-gray-300 text-sm leading-relaxed">{review.disputedReason.reason}</p>
-                  {Array.isArray(review.disputedReason.proofImages) && review.disputedReason.proofImages.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {review.disputedReason.proofImages.map((img, idx) => (
-                        <button
-                          key={`${review._id}-proof-${idx}`}
-                          type="button"
-                          onClick={() => setLightboxImg(img)}
-                          className="w-16 h-16 rounded-lg overflow-hidden border border-white/10 hover:border-orange-400/50 transition-colors"
-                        >
-                          <img src={img} alt="Dispute proof" className="w-full h-full object-cover" />
-                        </button>
-                      ))}
+        <div className="space-y-2 max-w-3xl mx-auto pb-10">
+          {disputes.map((review) => {
+            const isOpen = openId === review._id;
+            const preview = review.comment ? `"${String(review.comment).slice(0, 64)}${review.comment.length > 64 ? '…' : ''}"` : '';
+            return (
+              <AccordionItem
+                key={review._id}
+                open={isOpen}
+                onToggle={() => setOpenId(isOpen ? null : review._id)}
+                preview={preview}
+                unread={review.status === 'disputed'}
+                className={review.status === 'disputed' ? 'border-orange-500/30' : ''}
+                header={
+                  <div className="flex items-start justify-between gap-3 w-full min-w-0">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-bold text-white text-sm truncate">{review.productTitle}</h3>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {review.customerName} · {review.rating}★
+                        {review.disputedReason?.createdAt
+                          ? ` · ${new Date(review.disputedReason.createdAt).toLocaleDateString()}`
+                          : ''}
+                      </p>
                     </div>
-                  )}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <StatusBadge status={review.status} />
+                      {review.isLocked ? (
+                        <span className="px-2 py-1 text-[10px] font-bold text-red-400 bg-red-500/10 rounded-md border border-red-500/20 inline-flex items-center gap-1">
+                          <Lock size={12} /> Locked
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                }
+              >
+                <div className="bg-black/40 p-4 rounded-xl border border-white/5 mb-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <User size={14} className="text-gray-400" />
+                    <span className="font-bold text-gray-300 text-sm">{review.customerName}</span>
+                    <span className="text-yellow-400 text-xs flex items-center gap-1">
+                      <Star size={12} className="fill-yellow-400" /> {review.rating}/5
+                    </span>
+                  </div>
+                  <p className="text-gray-400 italic text-sm leading-relaxed">"{review.comment}"</p>
                 </div>
-              )}
 
-              {review.disputeResolution?.reason && (
-                <div className={`p-4 rounded-xl border-l-2 ${
-                  review.disputeResolution.resolvedAt
-                    ? review.disputeResolution.decision === 'approve_dispute'
-                      ? 'bg-green-500/10 border-green-500'
-                      : 'bg-cyan-500/10 border-cyan-500'
-                    : 'bg-indigo-500/10 border-indigo-500'
-                }`}>
-                  <span className="text-xs font-bold uppercase tracking-widest block mb-2 text-gray-300">
-                    {review.disputeResolution.resolvedAt
-                      ? `Resolution · ${review.disputeResolution.resolvedBy === 'ai' ? 'AI Agent' : 'Platform Admin'}`
-                      : 'AI recommendation (awaiting final decision)'}
-                  </span>
-                  <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">
-                    {review.disputeResolution.reason}
-                  </p>
-                  {review.disputeResolution.resolvedAt && (
-                    <p className="text-[10px] text-gray-500 mt-2 font-mono">
-                      {new Date(review.disputeResolution.resolvedAt).toLocaleString()}
-                      {typeof review.disputeResolution.confidence === 'number'
-                        ? ` · confidence ${(review.disputeResolution.confidence * 100).toFixed(0)}%`
-                        : ''}
+                {review.disputedReason?.reason ? (
+                  <div className="p-4 rounded-xl bg-orange-500/10 border-l-2 border-orange-500 mb-4">
+                    <span className="text-orange-400 text-xs font-bold uppercase tracking-widest block mb-2">
+                      Your dispute claim
+                    </span>
+                    <p className="text-gray-300 text-sm leading-relaxed">{review.disputedReason.reason}</p>
+                    {Array.isArray(review.disputedReason.proofImages) && review.disputedReason.proofImages.length > 0 ? (
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {review.disputedReason.proofImages.map((img, idx) => (
+                          <button
+                            key={`${review._id}-proof-${idx}`}
+                            type="button"
+                            onClick={() => setLightboxImg(img)}
+                            className="w-16 h-16 rounded-lg overflow-hidden border border-white/10 hover:border-orange-400/50 transition-colors"
+                          >
+                            <img src={img} alt="Dispute proof" className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {review.disputeResolution?.reason ? (
+                  <div
+                    className={`p-4 rounded-xl border-l-2 ${
+                      review.disputeResolution.resolvedAt
+                        ? review.disputeResolution.decision === 'approve_dispute'
+                          ? 'bg-green-500/10 border-green-500'
+                          : 'bg-cyan-500/10 border-cyan-500'
+                        : 'bg-indigo-500/10 border-indigo-500'
+                    }`}
+                  >
+                    <span className="text-xs font-bold uppercase tracking-widest block mb-2 text-gray-300">
+                      {review.disputeResolution.resolvedAt
+                        ? `Resolution · ${review.disputeResolution.resolvedBy === 'ai' ? 'AI Agent' : 'Platform Admin'}`
+                        : 'AI recommendation (awaiting final decision)'}
+                    </span>
+                    <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">
+                      {review.disputeResolution.reason}
                     </p>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
+                    {review.disputeResolution.resolvedAt ? (
+                      <p className="text-[10px] text-gray-500 mt-2 font-mono">
+                        {new Date(review.disputeResolution.resolvedAt).toLocaleString()}
+                        {typeof review.disputeResolution.confidence === 'number'
+                          ? ` · confidence ${(review.disputeResolution.confidence * 100).toFixed(0)}%`
+                          : ''}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </AccordionItem>
+            );
+          })}
         </div>
       )}
 

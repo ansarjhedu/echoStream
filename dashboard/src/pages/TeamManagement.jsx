@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import api from '../Api';
 import { toast } from 'react-toastify';
 import { UserPlus, Mail, User, Shield, Trash2, Users, RefreshCcw, Pencil, X } from 'lucide-react';
+import AccordionItem from '../components/ui/AccordionItem';
+import PermissionPills from '../components/ui/PermissionPills';
 import {
   ROLE_PRESETS,
   PLATFORM_ROLE_PRESETS,
@@ -12,6 +14,7 @@ import {
   getDaysLeft,
   isMasterAdmin,
 } from '../utils/permissionHelpers';
+import { redirectIfPlanError } from '../utils/planGates';
 
 const STORE_ROLE_OPTIONS = [
   { value: 'administrator', label: 'Administrator' },
@@ -32,6 +35,7 @@ const STATUS_TABS = [
  */
 export default function TeamManagement({ variant = 'store' }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isPlatform = variant === 'platform';
   const presets = isPlatform ? PLATFORM_ROLE_PRESETS : ROLE_PRESETS;
   const permGroups = isPlatform ? PLATFORM_PERM_GROUPS : STORE_PERM_GROUPS;
@@ -46,6 +50,7 @@ export default function TeamManagement({ variant = 'store' }) {
   const [editTarget, setEditTarget] = useState(null);
   const [editForm, setEditForm] = useState({ storeRole: 'support', permissions: [] });
   const [editSaving, setEditSaving] = useState(false);
+  const [openStaffId, setOpenStaffId] = useState(null);
 
   const isCustom = formData.storeRole === 'custom';
   const editIsCustom = editForm.storeRole === 'custom';
@@ -105,6 +110,7 @@ export default function TeamManagement({ variant = 'store' }) {
       setFormData({ ...emptyForm, permissions: [...presets.support] });
       fetchStaff(statusFilter);
     } catch (error) {
+      if (!isPlatform && redirectIfPlanError(error, navigate, toast)) return;
       toast.error(error.response?.data?.message || 'Failed to invite staff');
     } finally {
       setLoading(false);
@@ -178,37 +184,20 @@ export default function TeamManagement({ variant = 'store' }) {
     return <span className="text-xs px-2 py-1 rounded-full border bg-yellow-500/10 text-yellow-400 border-yellow-500/30">Pending</span>;
   };
 
-  const PermissionMatrix = ({ values, locked, onToggle }) => (
-    <div className="space-y-4">
-      {permGroups.map((group) => (
-        <div key={group.title}>
-          <p className="text-xs uppercase tracking-wider text-gray-500 mb-2">{group.title}</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {group.keys.map((perm) => {
-              const checked = values.includes(perm);
-              return (
-                <label
-                  key={perm}
-                  className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm capitalize transition-all ${
-                    locked ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'
-                  } ${
-                    checked
-                      ? isPlatform
-                        ? 'bg-red-500/10 border-red-500/40 text-red-300'
-                        : 'bg-cyan-500/10 border-cyan-500/40 text-cyan-300'
-                      : 'bg-black/40 border-white/10 text-gray-400'
-                  }`}
-                >
-                  <input type="checkbox" checked={checked} disabled={locked} onChange={() => onToggle(perm)} className={isPlatform ? 'accent-red-400' : 'accent-cyan-400'} />
-                  {perm.replace(/_/g, ' ')}
-                </label>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+  const StaffAvatar = ({ member }) => (
+    <div className="w-10 h-10 rounded-full bg-black/50 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+      {member.profilePic ? (
+        <img src={member.profilePic} alt="" className="w-full h-full object-cover" />
+      ) : (
+        <User size={18} className="text-gray-500" />
+      )}
     </div>
   );
+
+  const accentPill =
+    variant === 'platform'
+      ? 'bg-red-500/15 border-red-500/40 text-red-300'
+      : 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300';
 
   const accentFrom = isPlatform ? 'from-red-400' : 'from-purple-400';
   const accentTo = isPlatform ? 'to-orange-500' : 'to-cyan-500';
@@ -268,9 +257,15 @@ export default function TeamManagement({ variant = 'store' }) {
                   <Shield size={14} className={isPlatform ? 'text-red-400' : 'text-purple-400'} /> Permissions
                   {!isCustom && <span className="text-xs text-gray-600">(preset locked)</span>}
                 </label>
-                <PermissionMatrix values={formData.permissions} locked={!isCustom} onToggle={(p) => togglePermission(setFormData, formData, p, !isCustom)} />
+                <PermissionPills
+                  groups={permGroups}
+                  values={formData.permissions}
+                  locked={!isCustom}
+                  onToggle={(p) => togglePermission(setFormData, formData, p, !isCustom)}
+                  variant={isPlatform ? 'platform' : 'store'}
+                />
               </div>
-              <button type="submit" disabled={loading} className={`w-full bg-gradient-to-r ${btnGrad} py-3.5 rounded-xl font-bold text-white transition-all disabled:opacity-50 text-sm`}>
+              <button type="submit" disabled={loading} className={`w-full btn-echo bg-gradient-to-r ${btnGrad} text-white disabled:opacity-50`}>
                 {loading ? 'Sending...' : 'Send Invitation'}
               </button>
             </form>
@@ -311,64 +306,118 @@ export default function TeamManagement({ variant = 'store' }) {
             ) : staff.length === 0 ? (
               <p className="text-gray-500 text-center py-16">No staff members in this filter.</p>
             ) : (
-              <div className="w-full max-w-full overflow-x-auto no-scrollbar">
-                <table className="w-full text-left min-w-[800px]">
-                  <thead>
-                    <tr className="border-b border-white/10 text-gray-400 text-sm">
-                      <th className="pb-3 pr-4 font-medium">Name</th>
-                      <th className="pb-3 pr-4 font-medium">Email</th>
-                      <th className="pb-3 pr-4 font-medium">Role</th>
-                      <th className="pb-3 pr-4 font-medium">Permissions</th>
-                      <th className="pb-3 pr-4 font-medium">Status</th>
-                      <th className="pb-3 font-medium text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {staff.map((member) => (
-                      <tr key={member._id} className="border-b border-white/5 hover:bg-white/[0.02]">
-                        <td className="py-4 pr-4 text-white font-medium">{member.userName}</td>
-                        <td className="py-4 pr-4 text-gray-400 text-sm">{member.email}</td>
-                        <td className="py-4 pr-4 text-sm capitalize">{member.storeRole}</td>
-                        <td className="py-4 pr-4">
-                          <div className="flex flex-wrap gap-1">
-                            {(member.permissions || []).map((p) => (
-                              <span key={p} className={`text-[10px] px-2 py-0.5 rounded-full border capitalize ${isPlatform ? 'bg-red-500/10 text-red-300 border-red-500/20' : 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20'}`}>
-                                {p.replace(/_/g, ' ')}
-                              </span>
-                            ))}
+              <div className="space-y-2">
+                {staff.map((member) => {
+                  const isOpen = openStaffId === member._id;
+                  const permCount = (member.permissions || []).length;
+                  return (
+                    <AccordionItem
+                      key={member._id}
+                      open={isOpen}
+                      onToggle={() => setOpenStaffId(isOpen ? null : member._id)}
+                      preview={`${member.storeRole || 'custom'} · ${permCount} permission${permCount === 1 ? '' : 's'}`}
+                      header={
+                        <div className="flex items-center gap-3 min-w-0 w-full">
+                          <StaffAvatar member={member} />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-semibold text-white text-sm truncate">{member.userName}</p>
+                              {statusBadge(member)}
+                            </div>
+                            <p className="text-xs text-gray-500 capitalize mt-0.5">{member.storeRole || 'custom'}</p>
                           </div>
-                        </td>
-                        <td className="py-4 pr-4">
-                          <div className="flex flex-col gap-1">
-                            {statusBadge(member)}
-                            {member.isDeleted && member.deletedAt && (
-                              <span className="text-[10px] text-gray-500">Purge in {getDaysLeft(member.deletedAt)}d</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-4 text-right">
-                          <div className="inline-flex flex-wrap justify-end gap-2">
+                          <div className="hidden sm:flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
                             {!member.isDeleted && !member.isVerified && (
-                              <button type="button" onClick={() => handleResend(member._id)} disabled={actionId === member._id} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-cyan-400 hover:bg-cyan-400/10 text-sm disabled:opacity-50">
+                              <button
+                                type="button"
+                                onClick={() => handleResend(member._id)}
+                                disabled={actionId === member._id}
+                                className="btn-echo-sm border border-cyan-500/30 text-cyan-400 hover:bg-cyan-400/10 disabled:opacity-50"
+                              >
                                 <RefreshCcw size={14} /> Resend
                               </button>
                             )}
                             {!member.isDeleted && member.isVerified && (
                               <>
-                                <button type="button" onClick={() => openEditModal(member)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-purple-300 hover:bg-purple-400/10 text-sm">
+                                <button
+                                  type="button"
+                                  onClick={() => openEditModal(member)}
+                                  className="btn-echo-sm border border-purple-500/30 text-purple-300 hover:bg-purple-400/10"
+                                >
                                   <Pencil size={14} /> Edit
                                 </button>
-                                <button type="button" onClick={() => handleRevoke(member._id)} disabled={actionId === member._id} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-red-400 hover:bg-red-400/10 text-sm disabled:opacity-50">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRevoke(member._id)}
+                                  disabled={actionId === member._id}
+                                  className="btn-echo-sm border border-red-500/30 text-red-400 hover:bg-red-400/10 disabled:opacity-50"
+                                >
                                   <Trash2 size={14} /> Revoke
                                 </button>
                               </>
                             )}
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                      }
+                    >
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-2">Email</p>
+                          <span className={`inline-flex items-center gap-2 min-h-[40px] px-3 rounded-xl border text-sm ${accentPill}`}>
+                            <Mail size={14} /> {member.email}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-2">Permissions</p>
+                          <div className="flex flex-wrap gap-2">
+                            {(member.permissions || []).length === 0 ? (
+                              <span className="text-xs text-gray-500">No permissions assigned.</span>
+                            ) : (
+                              (member.permissions || []).map((p) => (
+                                <span
+                                  key={p}
+                                  className={`min-h-[36px] px-3 inline-flex items-center rounded-xl border text-xs font-semibold capitalize ${accentPill}`}
+                                >
+                                  {p.replace(/_/g, ' ')}
+                                </span>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                        {member.isDeleted && member.deletedAt ? (
+                          <p className="text-xs text-gray-500">Purge in {getDaysLeft(member.deletedAt)} days</p>
+                        ) : null}
+                        <div className="flex flex-wrap gap-2 sm:hidden pt-2 border-t border-white/5">
+                          {!member.isDeleted && !member.isVerified && (
+                            <button
+                              type="button"
+                              onClick={() => handleResend(member._id)}
+                              disabled={actionId === member._id}
+                              className="btn-echo-sm flex-1 border border-cyan-500/30 text-cyan-400"
+                            >
+                              Resend
+                            </button>
+                          )}
+                          {!member.isDeleted && member.isVerified && (
+                            <>
+                              <button type="button" onClick={() => openEditModal(member)} className="btn-echo-sm flex-1 border border-purple-500/30 text-purple-300">
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRevoke(member._id)}
+                                disabled={actionId === member._id}
+                                className="btn-echo-sm flex-1 border border-red-500/30 text-red-400"
+                              >
+                                Revoke
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </AccordionItem>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -387,10 +436,18 @@ export default function TeamManagement({ variant = 'store' }) {
                   <option key={opt.value} value={opt.value} className="bg-[#0A0F1A]">{opt.label}</option>
                 ))}
               </select>
-              <PermissionMatrix values={editForm.permissions} locked={!editIsCustom} onToggle={(p) => togglePermission(setEditForm, editForm, p, !editIsCustom)} />
+              <PermissionPills
+                groups={permGroups}
+                values={editForm.permissions}
+                locked={!editIsCustom}
+                onToggle={(p) => togglePermission(setEditForm, editForm, p, !editIsCustom)}
+                variant={isPlatform ? 'platform' : 'store'}
+              />
               <div className="flex gap-3">
-                <button type="button" onClick={() => setEditTarget(null)} className="flex-1 py-3 rounded-xl border border-white/10 text-gray-300">Cancel</button>
-                <button type="submit" disabled={editSaving} className={`flex-1 py-3 rounded-xl font-bold bg-gradient-to-r ${btnGrad} text-white disabled:opacity-50`}>
+                <button type="button" onClick={() => setEditTarget(null)} className="flex-1 btn-echo border border-white/10 text-gray-300">
+                  Cancel
+                </button>
+                <button type="submit" disabled={editSaving} className={`flex-1 btn-echo bg-gradient-to-r ${btnGrad} text-white disabled:opacity-50`}>
                   {editSaving ? 'Saving...' : 'Save & Force Re-login'}
                 </button>
               </div>

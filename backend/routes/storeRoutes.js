@@ -1,6 +1,6 @@
 import { Router } from "express";
 import {authUser,authStore,checkPermission,checkStoreScopedAccess} from "../middlewares/authUser.js";
-import { createStore, myStores,getStoreById,updateStoreStatus,getStoreAnalytics , getWidgetStats, updateWidgetConfig, getPresenceOverview, previewStoreUrl} from "../controllers/storeController.js";
+import { createStore, myStores,getStoreById,updateStoreStatus,updateStoreDetails,getStoreAnalytics , getWidgetStats, updateWidgetConfig, getPresenceOverview, previewStoreUrl} from "../controllers/storeController.js";
 import { updateReviewStatus, getStoreProducts, merchantReplyToReview, getReviews, getStoreDisputes, hideReview, unhideReview, bulkHideByRating } from "../controllers/reviewController.js";
 import {
   connectGoogleReviews,
@@ -18,7 +18,7 @@ import {
   scheduleCampaign,
   listCampaigns,
 } from "../controllers/campaignController.js";
-import { createStoreReviewRequest } from "../controllers/reviewRequestController.js";
+import { createStoreReviewRequest, listStoreReviewRequests } from "../controllers/reviewRequestController.js";
 import { listStoreActivity } from "../controllers/activityController.js";
 
 const storeRouter=Router();
@@ -29,6 +29,7 @@ storeRouter.get('/presence/overview', authUser, getPresenceOverview)
 storeRouter.post('/preview-url', authUser, previewStoreUrl)
 storeRouter.get('/:id',authUser,authStore,getStoreById);
 storeRouter.patch('/:id/status',authUser,authStore,updateStoreStatus);
+storeRouter.patch('/:id/details',authUser,authStore,updateStoreDetails);
 storeRouter.get('/:id/analytics', authUser, authStore, checkStoreScopedAccess, getStoreAnalytics);
 storeRouter.get('/:id/widget-stats', authUser, authStore, checkStoreScopedAccess, getWidgetStats);
 storeRouter.get('/:id/activity', authUser, authStore, checkPermission(['moderation', 'products', 'campaigns', 'settings']), listStoreActivity);
@@ -50,6 +51,7 @@ storeRouter.get('/:id/disputes',authUser,authStore,checkPermission(['moderation'
 storeRouter.post('/:id/reviews/:reviewId/reply',authUser,authStore,checkPermission('moderation'),merchantReplyToReview);
 storeRouter.post('/:id/ai/generate-reply', authUser, authStore, checkPermission('moderation'), generateSmartReply);
 
+storeRouter.get('/:id/review-requests', authUser, authStore, checkPermission(['campaigns', 'products']), listStoreReviewRequests);
 storeRouter.post('/:id/review-requests', authUser, authStore, checkPermission(['campaigns', 'products']), createStoreReviewRequest);
 
 // Email campaigns — owner or staff with `campaigns` permission

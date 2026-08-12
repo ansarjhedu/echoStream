@@ -2,28 +2,46 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../Api';
 import { useAuth } from '../context/AuthContext';
-import { toast } from 'react-toastify'; // <-- Import Toast
-import { 
-  Store, Plus, Server, ShoppingCart, ChevronRight, 
-  Ban, CheckCircle, Trash, Clock, Lock 
+import { toast } from 'react-toastify';
+import {
+  Store,
+  Plus,
+  Server,
+  ShoppingCart,
+  ChevronRight,
+  Ban,
+  CheckCircle,
+  Trash,
+  Clock,
+  Lock,
+  Pencil,
+  X,
+  Globe,
 } from 'lucide-react';
+import { redirectIfPlanError } from '../utils/planGates';
 
 export default function StoresHub() {
   const [stores, setStores] = useState([]);
-  const[loading, setLoading] = useState(true);
-  
+  const [loading, setLoading] = useState(true);
+  const [editStore, setEditStore] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editUrl, setEditUrl] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
   const { user, setActiveStore } = useAuth();
   const navigate = useNavigate();
   const isOwner = user?.role === 'owner' || user?.role === 'admin';
 
-  useEffect(() => { fetchStores(); },[]);
+  useEffect(() => {
+    fetchStores();
+  }, []);
 
   const fetchStores = async () => {
     try {
       const res = await api.get('/store/mystores');
-      setStores(res.data.data ||[]);
-    } catch (error) {
-      toast.error("Failed to fetch your stores.");
+      setStores(res.data.data || []);
+    } catch {
+      toast.error('Failed to fetch your stores.');
     } finally {
       setLoading(false);
     }
@@ -32,49 +50,82 @@ export default function StoresHub() {
   const updateStoreApi = async (storeId, payload, successMessage) => {
     try {
       const res = await api.patch(`/store/${storeId}/status`, payload);
-      setStores(stores.map(s => s._id === storeId ? res.data.data : s));
+      setStores((prev) => prev.map((s) => (s._id === storeId ? res.data.data : s)));
       toast.success(successMessage);
     } catch (error) {
-      toast.error(error.response?.data?.message || error.response?.data || "Failed to update store");
+      if (redirectIfPlanError(error, navigate, toast)) return;
+      toast.error(error.response?.data?.message || error.response?.data || 'Failed to update store');
+    }
+  };
+
+  const openEdit = (e, store) => {
+    e.stopPropagation();
+    setEditStore(store);
+    setEditName(store.storeName || '');
+    setEditUrl(store.websiteUrl || '');
+  };
+
+  const saveEdit = async () => {
+    if (!editStore) return;
+    if (!editName.trim()) return toast.error('Store name is required.');
+    setSavingEdit(true);
+    try {
+      const res = await api.patch(`/store/${editStore._id}/details`, {
+        storeName: editName.trim(),
+        websiteUrl: editUrl.trim(),
+        refreshPreview: Boolean(editUrl.trim()),
+      });
+      setStores((prev) => prev.map((s) => (s._id === editStore._id ? res.data.data : s)));
+      toast.success(res.data?.message || 'Store updated.');
+      setEditStore(null);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not update store.');
+    } finally {
+      setSavingEdit(false);
     }
   };
 
   const handleToggleStatus = (e, store) => {
-    e.stopPropagation(); 
-    if(!window.confirm(`Are you sure you want to ${store.status === 'live' ? 'DISABLE' : 'ACTIVATE'} this store?`)) return;
-    
-    updateStoreApi(store._id, { 
-      status: store.status === 'live' ? 'disabled' : 'live', 
-      isDeleted: false 
-    }, `Store is now ${store.status === 'live' ? 'disabled' : 'live'}.`);
+    e.stopPropagation();
+    if (!window.confirm(`Are you sure you want to ${store.status === 'live' ? 'DISABLE' : 'ACTIVATE'} this store?`))
+      return;
+    updateStoreApi(
+      store._id,
+      { status: store.status === 'live' ? 'disabled' : 'live', isDeleted: false },
+      `Store is now ${store.status === 'live' ? 'disabled' : 'live'}.`
+    );
   };
 
   const handleDelete = (e, store) => {
     e.stopPropagation();
-    if(!window.confirm("Soft delete this store? It will stop working and be permanently removed in 30 days.")) return;
-    updateStoreApi(store._id, { status: 'deleted', isDeleted: true }, "Store moved to trash.");
+    if (!window.confirm('Soft delete this store? It will stop working and be permanently removed in 30 days.'))
+      return;
+    updateStoreApi(store._id, { status: 'deleted', isDeleted: true }, 'Store moved to trash.');
   };
 
   const handleRestore = (e, store) => {
     e.stopPropagation();
-    if(!window.confirm("Restore this store? It will go back live immediately.")) return;
-    updateStoreApi(store._id, { status: 'live', isDeleted: false }, "Store restored successfully!");
+    if (!window.confirm('Restore this store? It will go back live immediately.')) return;
+    updateStoreApi(store._id, { status: 'live', isDeleted: false }, 'Store restored successfully!');
   };
 
   const handleLockedRestoreRequest = (e, store) => {
     e.stopPropagation();
-    let reason = store.status === "suspended" ? "suspended by a Platform Administrator" : "locked due to an active dispute";
-    updateStoreApi(store._id, {status:'disputed'}, "Restore request sent. Our team will review and get back to you shortly.");
+    const reason =
+      store.status === 'suspended'
+        ? 'suspended by a Platform Administrator'
+        : 'locked due to an active dispute';
+    updateStoreApi(store._id, { status: 'disputed' }, 'Restore request sent. Our team will review shortly.');
     toast.warning(`RESTORE LOCKED: This store is ${reason}. Please contact support.`);
   };
 
   const handleStoreClick = (store) => {
-    if (store.isDeleted || ["suspended", "disputed"].includes(store.status)) {
+    if (store.isDeleted || ['suspended', 'disputed'].includes(store.status)) {
       toast.error(`Access Denied: Store is currently ${store.isDeleted ? 'deleted' : store.status}.`);
       return;
     }
-    setActiveStore(store);  
-    navigate('/workspace/analytics/overview');  
+    setActiveStore(store);
+    navigate('/workspace/analytics/overview');
   };
 
   const getDaysLeft = (deletedAt) => {
@@ -82,62 +133,125 @@ export default function StoresHub() {
     return Math.max(0, 30 - Math.floor((Date.now() - new Date(deletedAt).getTime()) / (1000 * 60 * 60 * 24)));
   };
 
+  const goCreateStore = () => {
+    navigate('/hub/onboarding/store');
+  };
+
   return (
     <div className="min-h-screen bg-[#0A0F1A] text-white p-4 md:p-12 relative overflow-y-auto selection:bg-cyan-500/30 overflow-hidden w-full">
-      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-cyan-500/20 blur-[120px] rounded-full pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-purple-600/20 blur-[120px] rounded-full pointer-events-none"></div>
+      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-cyan-500/20 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-purple-600/20 blur-[120px] rounded-full pointer-events-none" />
 
       <div className="max-w-6xl mx-auto relative z-10">
-       <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
           <div>
-            <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 tracking-tight mb-2">Welcome, {user?.userName}</h1>
-            <p className="text-gray-400 text-sm md:text-base">{user?.role === 'admin' ? "You are logged in as a Super Admin." : "Select a store to manage its reviews and integrations."}</p>
+            <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 tracking-tight mb-2">
+              Welcome, {user?.userName}
+            </h1>
+            <p className="text-gray-400 text-sm md:text-base">
+              {user?.role === 'admin'
+                ? 'You are logged in as a Super Admin.'
+                : 'Select a store to manage reviews — or edit name / website anytime.'}
+            </p>
           </div>
           {user?.role === 'admin' ? (
-             <button onClick={() => navigate('/hub/admin/overview')} className="flex items-center gap-2 bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30 px-6 py-3 rounded-xl font-bold transition-all">Go to Admin Portal</button>
+            <button
+              onClick={() => navigate('/hub/admin/overview')}
+              className="flex items-center gap-2 bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30 px-6 py-3 rounded-xl font-bold transition-all"
+            >
+              Go to Admin Portal
+            </button>
           ) : isOwner ? (
-            <button onClick={() => navigate('/hub/onboarding/store')} className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-[0_0_20px_rgba(34,211,238,0.3)]"><Plus size={20} /> Initialize New Store</button>
+            <button
+              onClick={goCreateStore}
+              className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-[0_0_20px_rgba(34,211,238,0.3)]"
+            >
+              <Plus size={20} /> Initialize New Store
+            </button>
           ) : null}
         </header>
 
         {loading ? (
-          <div className="text-cyan-400 animate-pulse flex items-center gap-3"><Store /> Fetching your stores...</div>
+          <div className="text-cyan-400 animate-pulse flex items-center gap-3">
+            <Store /> Fetching your stores...
+          </div>
         ) : stores.length === 0 ? (
           <div className="text-center bg-white/[0.02] border border-white/10 p-10 md:p-16 rounded-[2rem] backdrop-blur-xl shadow-xl animate-fade-in-down">
             <Store size={64} className="mx-auto mb-6 text-gray-600" />
             <h2 className="text-2xl font-bold mb-2">No Stores Found</h2>
-            <p className="text-gray-400 mb-8 max-w-md mx-auto text-sm md:text-base">{isOwner ? "You haven't initialized any stores yet. Create one to generate your unique API key and start collecting reviews." : "No stores are available on your parent account yet."}</p>
-            {isOwner && <button onClick={() => navigate('/hub/onboarding/store')} className="bg-white/5 border border-white/10 hover:bg-white/10 text-white px-8 py-3 rounded-xl font-bold transition-all">Create First Store</button>}
+            <p className="text-gray-400 mb-8 max-w-md mx-auto text-sm md:text-base">
+              {isOwner
+                ? "You haven't initialized any stores yet. Create one to generate your unique API key and start collecting reviews."
+                : 'No stores are available on your parent account yet.'}
+            </p>
+            {isOwner && (
+              <button
+                onClick={goCreateStore}
+                className="bg-white/5 border border-white/10 hover:bg-white/10 text-white px-8 py-3 rounded-xl font-bold transition-all"
+              >
+                Create First Store
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-            {stores.map(store => {
-              const isLocked = store.isDeleted || ["suspended", "disputed"].includes(store.status);
+            {stores.map((store) => {
+              const isLocked = store.isDeleted || ['suspended', 'disputed'].includes(store.status);
               const previewImg = store.siteMeta?.image || store.siteMeta?.favicon;
               return (
-                <div key={store._id} className={`group bg-white/[0.02] border border-white/10 p-5 md:p-6 rounded-2xl backdrop-blur-xl transition-all duration-300 flex flex-col justify-between min-h-[260px] ${isLocked ? 'opacity-75 grayscale-[30%]' : 'hover:bg-white/[0.05] hover:border-cyan-500/50 hover:shadow-[0_0_30px_rgba(34,211,238,0.15)] cursor-pointer'}`}>
+                <div
+                  key={store._id}
+                  className={`group bg-white/[0.02] border border-white/10 p-5 md:p-6 rounded-2xl backdrop-blur-xl transition-all duration-300 flex flex-col justify-between min-h-[260px] ${
+                    isLocked
+                      ? 'opacity-75 grayscale-[30%]'
+                      : 'hover:bg-white/[0.05] hover:border-cyan-500/50 hover:shadow-[0_0_30px_rgba(34,211,238,0.15)] cursor-pointer'
+                  }`}
+                >
                   <div onClick={() => handleStoreClick(store)}>
                     <div className="flex justify-between items-start mb-4">
                       <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center border border-white/10 group-hover:border-cyan-500/50 transition-colors overflow-hidden">
                         {previewImg ? (
-                          <img src={previewImg} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                          <img
+                            src={previewImg}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
                         ) : (
                           <ShoppingCart className="text-cyan-400 w-6 h-6" />
                         )}
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         {store.isDeleted ? (
-                          <span className="px-3 py-1 text-[10px] md:text-xs font-bold uppercase tracking-wider rounded-full border bg-red-500/10 text-red-400 border-red-500/20 flex items-center gap-1"><Clock size={12}/> {getDaysLeft(store.deletedAt)} Days Left</span>
-                        ) : ["suspended", "disputed"].includes(store.status) ? (
-                          <span className="px-3 py-1 text-[10px] md:text-xs font-bold uppercase tracking-wider rounded-full border bg-orange-500/10 text-orange-400 border-orange-500/20 flex items-center gap-1"><Lock size={12}/> {store.status}</span>
+                          <span className="px-3 py-1 text-[10px] md:text-xs font-bold uppercase tracking-wider rounded-full border bg-red-500/10 text-red-400 border-red-500/20 flex items-center gap-1">
+                            <Clock size={12} /> {getDaysLeft(store.deletedAt)} Days Left
+                          </span>
+                        ) : ['suspended', 'disputed'].includes(store.status) ? (
+                          <span className="px-3 py-1 text-[10px] md:text-xs font-bold uppercase tracking-wider rounded-full border bg-orange-500/10 text-orange-400 border-orange-500/20 flex items-center gap-1">
+                            <Lock size={12} /> {store.status}
+                          </span>
                         ) : (
-                          <span className={`px-3 py-1 text-[10px] md:text-xs font-bold uppercase tracking-wider rounded-full border ${store.status === 'live' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-gray-500/10 text-gray-400 border-gray-500/20'}`}>{store.status}</span>
+                          <span
+                            className={`px-3 py-1 text-[10px] md:text-xs font-bold uppercase tracking-wider rounded-full border ${
+                              store.status === 'live'
+                                ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                                : 'bg-gray-500/10 text-gray-400 border-gray-500/20'
+                            }`}
+                          >
+                            {store.status}
+                          </span>
                         )}
                       </div>
                     </div>
-                    <h3 className="text-xl font-bold text-white group-hover:text-cyan-300 transition-colors truncate">{store.storeName}</h3>
+                    <h3 className="text-xl font-bold text-white group-hover:text-cyan-300 transition-colors truncate">
+                      {store.storeName}
+                    </h3>
                     {store.websiteUrl && (
-                      <p className="text-[11px] text-gray-500 truncate mt-1">{store.websiteUrl}</p>
+                      <p className="text-[11px] text-gray-500 truncate mt-1 flex items-center gap-1">
+                        <Globe size={10} /> {store.websiteUrl}
+                      </p>
                     )}
                     <div className="flex justify-between items-center pt-2 mt-2 mb-4">
                       <div className="flex items-center gap-2 text-sm text-gray-400 capitalize">
@@ -149,19 +263,56 @@ export default function StoresHub() {
                   <div className="pt-4 border-t border-white/5 flex items-center justify-between gap-2 mt-auto">
                     {isLocked ? (
                       isOwner ? (
-                        <button onClick={(e) => handleLockedRestoreRequest(e, store)} className="w-full px-4 py-2.5 rounded-lg text-xs font-bold inline-flex justify-center items-center gap-2 transition-all bg-gray-500/10 text-gray-400 hover:bg-gray-500/20 border border-gray-500/30"><Lock size={14} /> Request Restore</button>
+                        store.isDeleted ? (
+                          <button
+                            onClick={(e) => handleRestore(e, store)}
+                            className="w-full px-4 py-2.5 rounded-lg text-xs font-bold inline-flex justify-center items-center gap-2 transition-all bg-green-500/10 text-green-400 hover:bg-green-500/20 border border-green-500/30"
+                          >
+                            <CheckCircle size={14} /> Restore
+                          </button>
+                        ) : (
+                          <button
+                            onClick={(e) => handleLockedRestoreRequest(e, store)}
+                            className="w-full px-4 py-2.5 rounded-lg text-xs font-bold inline-flex justify-center items-center gap-2 transition-all bg-gray-500/10 text-gray-400 hover:bg-gray-500/20 border border-gray-500/30"
+                          >
+                            <Lock size={14} /> Request Restore
+                          </button>
+                        )
                       ) : (
                         <span className="w-full text-center text-xs text-gray-500 py-2">Store locked — contact owner</span>
                       )
                     ) : isOwner ? (
                       <>
-                        <button onClick={(e) => handleToggleStatus(e, store)} className={`flex-1 px-3 py-2.5 rounded-lg text-xs font-bold inline-flex justify-center items-center gap-2 transition-all ${store.status === 'live' ? 'bg-gray-500/10 text-gray-400 hover:bg-gray-500/20 border border-gray-500/30' : 'bg-green-500/10 text-green-400 hover:bg-green-500/20 border border-green-500/30'}`}>
-                          {store.status === 'live' ? <Ban size={14}/> : <CheckCircle size={14}/>} {store.status === 'live' ? 'Disable' : 'Go Live'}
+                        <button
+                          onClick={(e) => openEdit(e, store)}
+                          className="px-3 py-2.5 rounded-lg text-xs font-bold inline-flex justify-center items-center gap-2 transition-all bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/30"
+                          title="Edit name or website"
+                        >
+                          <Pencil size={14} /> Edit
                         </button>
-                        <button onClick={(e) => handleDelete(e, store)} className="px-3 py-2.5 rounded-lg text-xs font-bold inline-flex justify-center items-center gap-2 transition-all bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30"><Trash size={14}/> Trash</button>
+                        <button
+                          onClick={(e) => handleToggleStatus(e, store)}
+                          className={`flex-1 px-3 py-2.5 rounded-lg text-xs font-bold inline-flex justify-center items-center gap-2 transition-all ${
+                            store.status === 'live'
+                              ? 'bg-gray-500/10 text-gray-400 hover:bg-gray-500/20 border border-gray-500/30'
+                              : 'bg-green-500/10 text-green-400 hover:bg-green-500/20 border border-green-500/30'
+                          }`}
+                        >
+                          {store.status === 'live' ? <Ban size={14} /> : <CheckCircle size={14} />}{' '}
+                          {store.status === 'live' ? 'Disable' : 'Go Live'}
+                        </button>
+                        <button
+                          onClick={(e) => handleDelete(e, store)}
+                          className="px-3 py-2.5 rounded-lg text-xs font-bold inline-flex justify-center items-center gap-2 transition-all bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30"
+                        >
+                          <Trash size={14} />
+                        </button>
                       </>
                     ) : (
-                      <button onClick={() => handleStoreClick(store)} className="w-full px-4 py-2.5 rounded-lg text-xs font-bold inline-flex justify-center items-center gap-2 transition-all bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/30">
+                      <button
+                        onClick={() => handleStoreClick(store)}
+                        className="w-full px-4 py-2.5 rounded-lg text-xs font-bold inline-flex justify-center items-center gap-2 transition-all bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/30"
+                      >
                         Open Workspace <ChevronRight size={14} />
                       </button>
                     )}
@@ -172,6 +323,62 @@ export default function StoresHub() {
           </div>
         )}
       </div>
+
+      {editStore ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0A0F1A] p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-bold text-white">Edit store</h3>
+              <button
+                type="button"
+                onClick={() => setEditStore(null)}
+                className="p-2 rounded-lg text-gray-400 hover:bg-white/5"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <label className="flex flex-col gap-1.5 text-xs text-gray-500">
+                Store name
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="min-h-11 rounded-xl bg-black/40 border border-white/10 px-3 text-sm text-white"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5 text-xs text-gray-500">
+                Website / domain
+                <input
+                  value={editUrl}
+                  onChange={(e) => setEditUrl(e.target.value)}
+                  placeholder="https://yourstore.com"
+                  className="min-h-11 rounded-xl bg-black/40 border border-white/10 px-3 text-sm text-white"
+                />
+              </label>
+              <p className="text-[11px] text-gray-600">
+                Changing the website refreshes the preview card (Open Graph image) when available.
+              </p>
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditStore(null)}
+                  className="flex-1 min-h-11 rounded-xl border border-white/10 bg-white/5 text-sm font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={savingEdit}
+                  onClick={saveEdit}
+                  className="flex-1 min-h-11 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-sm font-bold disabled:opacity-50"
+                >
+                  {savingEdit ? 'Saving…' : 'Save changes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

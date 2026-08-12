@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import api from '../Api';
 import { useAuth } from '../context/AuthContext';
 import { setSignupIntent } from '../utils/permissionHelpers';
+import { redirectIfPlanError } from '../utils/planGates';
 
 /**
  * Commerce onboarding — paste store URL → meta preview → create → Widget Catalog.
@@ -75,6 +76,7 @@ export default function StoreOnboarding() {
       toast.success('Store registered — open the Widget Catalog.');
       navigate('/workspace/widgets');
     } catch (err) {
+      if (redirectIfPlanError(err, navigate, toast)) return;
       toast.error(err.response?.data?.message || err.response?.data || 'Failed to create store');
     } finally {
       setCreating(false);

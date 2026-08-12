@@ -88,23 +88,12 @@ export function computeTrialEndsAt(from = new Date()) {
 }
 
 /**
- * Effective entitlements for an owner account (trial → Growth features).
- * Staff inherit the parent's entitlements via owner doc when calling APIs.
+ * Effective entitlements — always match the user's billed plan (Free by default for new owners).
  */
 export function getEffectivePlanId(userLike = {}) {
   const status = String(userLike.subscriptionStatus || '').toLowerCase();
-  const trialEnds = userLike.trialEndsAt ? new Date(userLike.trialEndsAt) : null;
-  const now = new Date();
-
   if (status === 'active' || status === 'past_due') {
     return resolvePlanId(userLike.plan);
-  }
-  if (status === 'trialing' && trialEnds && trialEnds > now) {
-    // Trial unlocks Growth entitlements even if plan field is free
-    return resolvePlanId(userLike.plan === 'pro' ? 'pro' : 'growth');
-  }
-  if (trialEnds && trialEnds > now && (!status || status === 'none' || status === 'trialing')) {
-    return 'growth';
   }
   return resolvePlanId(userLike.plan);
 }
@@ -112,19 +101,13 @@ export function getEffectivePlanId(userLike = {}) {
 export function getEntitlements(userLike = {}) {
   const planId = getEffectivePlanId(userLike);
   const catalog = getPlanLimits(planId);
-  const trialEnds = userLike.trialEndsAt ? new Date(userLike.trialEndsAt) : null;
-  const now = new Date();
-  const onTrial =
-    String(userLike.subscriptionStatus || '').toLowerCase() === 'trialing' &&
-    trialEnds &&
-    trialEnds > now;
 
   return {
     planId,
     catalog,
-    onTrial,
-    trialEndsAt: trialEnds,
-    subscriptionStatus: userLike.subscriptionStatus || (onTrial ? 'trialing' : 'none'),
+    onTrial: false,
+    trialEndsAt: null,
+    subscriptionStatus: userLike.subscriptionStatus || 'none',
     currentPeriodEnd: userLike.currentPeriodEnd || null,
     cancelAtPeriodEnd: Boolean(userLike.cancelAtPeriodEnd),
     features: catalog.features,

@@ -107,7 +107,7 @@ const StoreLayout = ({ children }) => {
                       Overview
                     </Link>
                     <Link to="/workspace/analytics/products" onClick={closeMenu} className={`px-4 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${location.pathname.includes('/analytics/products') ? 'text-cyan-400 bg-white/5 font-bold shadow-sm' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.02]'}`}>
-                      Products
+                      Product performance
                     </Link>
                   </div>
                 </div>

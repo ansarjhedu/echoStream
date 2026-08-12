@@ -9,6 +9,7 @@ import api from '../Api';
 import { useAuth } from '../context/AuthContext';
 import { canManageWidgets, isPresenceType } from '../utils/permissionHelpers';
 import { WIDGET_CATALOG, CatalogLayoutPreview, previewThemeStyle } from '../utils/widgetCatalog.jsx';
+import { buildTrustPageUrl } from '../utils/planGates';
 
 const WIDGET_SCRIPT_SRC =
   import.meta.env.VITE_WIDGET_SCRIPT_URL ||
@@ -490,13 +491,15 @@ export default function DesignLab() {
               )}
             </div>
           </div>
-          {widgetStats.trustPageUrl ? (
+          {buildTrustPageUrl(widgetStats.publicSlug) || widgetStats.trustPageUrl ? (
             <button
               type="button"
               onClick={async () => {
                 try {
-                  await navigator.clipboard.writeText(widgetStats.trustPageUrl);
-                  toast.success('Trust page link copied.');
+                  const url =
+                    buildTrustPageUrl(widgetStats.publicSlug) || widgetStats.trustPageUrl;
+                  await navigator.clipboard.writeText(url);
+                  toast.success('Public trust page link copied (EchoStream showcase, not your storefront).');
                 } catch {
                   toast.error('Could not copy link.');
                 }

@@ -34,7 +34,7 @@ const PRICING = [
     id: "growth",
     name: "Growth",
     price: "$29",
-    blurb: "30-day trial unlocks Growth. Multi-store teams & campaigns.",
+    blurb: "Multi-store teams, campaigns, and thank-you emails.",
     highlights: ["5 stores", "10 team seats", "20 campaigns / month", "Thank-you emails + AI draft"],
     featured: true,
   },
@@ -316,7 +316,7 @@ export default function LandingPage() {
           <div className="text-center mb-10">
             <h2 className="text-2xl md:text-3xl font-extrabold mb-2">Plans that match how stores grow</h2>
             <p className="text-gray-500 text-sm max-w-xl mx-auto">
-              Every new owner gets a <span className="text-cyan-300">30-day Growth trial</span>.
+              Start on Free — upgrade when you need more stores, seats, or campaigns.
               Subscribe with Lemon Squeezy (Visa / Mastercard / Google Pay). Only account owners manage billing.
             </p>
           </div>
@@ -352,7 +352,7 @@ export default function LandingPage() {
                       : 'bg-white/10 text-white border border-white/10'
                   }`}
                 >
-                  Start free trial
+                  Get started free
                 </Link>
               </div>
             ))}

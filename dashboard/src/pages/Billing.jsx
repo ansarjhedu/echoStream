@@ -14,6 +14,7 @@ import {
 import { toast } from 'react-toastify';
 import api from '../Api';
 import { useAuth } from '../context/AuthContext';
+import PaymentCardVisual from '../components/ui/PaymentCardVisual';
 
 function limLabel(n) {
   return n < 0 ? 'Unlimited' : String(n);
@@ -183,30 +184,33 @@ export default function Billing() {
           </button>
         </div>
 
+        {/* Active card — synced from Lemon Squeezy */}
+        <div className="mb-8">
+          <PaymentCardVisual
+            brand={pm.brand}
+            last4={pm.last4}
+            expMonth={pm.expMonth}
+            expYear={pm.expYear}
+          />
+          {pm.last4 ? (
+            <p className="text-xs text-gray-500 mt-2">
+              This is the card on your subscription. Use &quot;Update card / invoices&quot; below to change it in Lemon Squeezy.
+            </p>
+          ) : null}
+        </div>
+
         {/* Status strip */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
           <div className="rounded-2xl border border-white/10 bg-[#0A0F1A] p-4">
             <p className="text-[10px] uppercase tracking-wider text-gray-500">Effective plan</p>
             <p className="text-xl font-bold text-white mt-1 capitalize">{ent?.catalog?.name || activePlanId}</p>
-            {ent?.onTrial && (
-              <p className="text-xs text-emerald-400 mt-1">Free trial · ends {fmtDate(ent.trialEndsAt)}</p>
-            )}
           </div>
           <div className="rounded-2xl border border-white/10 bg-[#0A0F1A] p-4">
             <p className="text-[10px] uppercase tracking-wider text-gray-500 flex items-center gap-1">
               <Calendar size={12} /> Renewal / period end
             </p>
-            <p className="text-xl font-bold text-white mt-1">{fmtDate(sub.currentPeriodEnd || ent?.trialEndsAt)}</p>
+            <p className="text-xl font-bold text-white mt-1">{fmtDate(sub.currentPeriodEnd)}</p>
             <p className="text-xs text-gray-500 mt-1 capitalize">Status: {sub.status || 'none'}</p>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-[#0A0F1A] p-4">
-            <p className="text-[10px] uppercase tracking-wider text-gray-500">Payment method</p>
-            <p className="text-xl font-bold text-white mt-1">
-              {pm.last4 ? `${(pm.brand || 'card').toUpperCase()} ···· ${pm.last4}` : 'No card on file'}
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              {pm.expMonth && pm.expYear ? `Exp ${pm.expMonth}/${pm.expYear}` : 'Add via Checkout or portal'}
-            </p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-[#0A0F1A] p-4">
             <p className="text-[10px] uppercase tracking-wider text-gray-500">Auto-renew</p>

@@ -146,6 +146,71 @@ const updateStoreStatus=async(req,res)=>{
     }
 }
 
+/** Owner can rename store / update website domain after create */
+const updateStoreDetails = async (req, res) => {
+    try {
+        if (req.user.role === 'staff') {
+            return res.status(403).json({
+                message: 'Only the store owner can edit store name or website URL.',
+            });
+        }
+
+        const store = req.store;
+        if (!store || store.isDeleted) {
+            return res.status(404).json({ message: 'Store not found.' });
+        }
+
+        const { storeName, websiteUrl, refreshPreview } = req.body || {};
+        const nextName = storeName != null ? String(storeName).trim() : null;
+        const nextUrl =
+            websiteUrl !== undefined
+                ? String(websiteUrl || '').trim() || null
+                : undefined;
+
+        if (nextName !== null) {
+            if (!nextName) {
+                return res.status(400).json({ message: 'Store name cannot be empty.' });
+            }
+            if (nextName !== store.storeName) {
+                const clash = await Store.findOne({
+                    storeName: nextName,
+                    owner: store.owner,
+                    _id: { $ne: store._id },
+                    isDeleted: { $ne: true },
+                });
+                if (clash) {
+                    return res.status(400).json({
+                        message: 'You already have another store with that name.',
+                    });
+                }
+                store.storeName = nextName;
+            }
+        }
+
+        if (nextUrl !== undefined) {
+            store.websiteUrl = nextUrl;
+        }
+
+        if (refreshPreview && store.websiteUrl) {
+            try {
+                const meta = await fetchPageMeta(store.websiteUrl);
+                if (meta) store.siteMeta = meta;
+            } catch {
+                /* keep previous siteMeta if preview fails */
+            }
+        }
+
+        await store.save();
+        return res.status(200).json({
+            data: store,
+            message: 'Store details updated.',
+        });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+};
+
 const deleteStore=async(req,res)=>{
     try {
         if (req.user.role === 'staff') {
@@ -305,7 +370,7 @@ const getStoreAnalytics = async (req, res) => {
             Product.countDocuments({ store: storeId, isDeleted: false }),
             Review.countDocuments({ store: storeId, isDeleted: false }),
             Review.countDocuments({ store: storeId, status: "approved", isDeleted: false }),
-            Review.countDocuments({ store: storeId, status: "rejected", isDeleted: false }),
+            Review.countDocuments({ store: storeId, status: "pending", isDeleted: false }),
             Store.findById(storeId).select('widgetStats widgetMeta widgetConfig.layout publicSlug'),
         ]);
 
@@ -447,4 +512,4 @@ const previewStoreUrl = async (req, res) => {
     }
 };
 
-export { createStore, myStores, getStoreById, updateStoreStatus, deleteProduct, deleteStore, getStoreAnalytics, getWidgetStats, updateWidgetConfig, getPresenceOverview, previewStoreUrl };
+export { createStore, myStores, getStoreById, updateStoreStatus, updateStoreDetails, deleteProduct, deleteStore, getStoreAnalytics, getWidgetStats, updateWidgetConfig, getPresenceOverview, previewStoreUrl };

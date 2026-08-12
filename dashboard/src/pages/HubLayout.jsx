@@ -159,6 +159,11 @@ const HubLayout = ({ children }) => {
                     <StoreIcon size={20} /> Platform Stores
                   </Link>
                 )}
+                {(master || hasPerm(user, 'users_read') || hasPerm(user, 'analytics_platform')) && (
+                  <Link to="/hub/admin/subscriptions" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/subscriptions') ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
+                    <CreditCard size={20} className={location.pathname.includes('/subscriptions') ? "text-red-400" : ""} /> Subscriptions
+                  </Link>
+                )}
                 {(master || hasPerm(user, 'users_read')) && (
                   <Link to="/hub/admin/users" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/users') ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
                     <Users size={20} /> Registered Users

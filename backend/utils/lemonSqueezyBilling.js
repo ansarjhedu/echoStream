@@ -11,11 +11,14 @@ export function isLemonConfigured() {
 }
 
 export function frontendBase() {
-  return (
-    process.env.FRONTEND_URL ||
-    process.env.FRONTEND_BASE_URL ||
-    'http://localhost:5173'
-  ).replace(/\/$/, '');
+  const fromEnv = (process.env.FRONTEND_URL || process.env.FRONTEND_BASE_URL || '')
+    .trim()
+    .replace(/\/$/, '');
+  if (fromEnv) return fromEnv;
+  if (process.env.NODE_ENV === 'production') {
+    return 'https://echostream-eight.vercel.app';
+  }
+  return 'http://localhost:5173';
 }
 
 export function publicPricing() {

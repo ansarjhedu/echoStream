@@ -4,13 +4,14 @@ import Token from "../models/Token.js";
 import Support from "../models/Support.js";
 import Review from "../models/Review.js";
 import Store from "../models/Store.js";
+import Product from "../models/Product.js";
 import Notification from "../models/Notification.js";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";
 
 import sendEmail, { isEmailTransportError } from "../utils/sendEmail.js";
-import { getPlanLimits, isWithinLimit, resolvePlanId, getEntitlements, computeTrialEndsAt } from "../utils/plans.js";
+import { getPlanLimits, isWithinLimit, resolvePlanId, getEntitlements } from "../utils/plans.js";
 import Campaign from "../models/Campaign.js";
 
 const googleClient = () => {
@@ -128,9 +129,8 @@ const registerUser = async (req, res) => {
         otpPurpose: 'signup',
         isVerified: false,
         role: 'owner',
-        trialEndsAt: computeTrialEndsAt(),
-        subscriptionStatus: 'trialing',
         plan: 'free',
+        subscriptionStatus: 'none',
         planUpdatedAt: new Date(),
       });
     }
@@ -436,6 +436,79 @@ const logoutUser = async (req, res) => {
         return res.status(500).json("Internal Server Error ")
     }
 }
+
+/** Owner self-serve soft-delete — mirrors admin delete + 30-day purge window */
+const deleteOwnAccount = async (req, res) => {
+  try {
+    if (req.user.role !== 'owner') {
+      return res.status(403).json({
+        message: 'Only the account owner can delete this account. Staff should leave via Team Management.',
+      });
+    }
+
+    const confirm = String(req.body?.confirm || '').trim().toLowerCase();
+    if (confirm !== 'delete') {
+      return res.status(400).json({
+        message: 'Type DELETE to confirm account deletion.',
+        code: 'CONFIRM_REQUIRED',
+      });
+    }
+
+    const userId = req.user._id;
+    const deletedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        isDeleted: true,
+        deletedAt: Date.now(),
+        isActive: false,
+      },
+      { new: true }
+    );
+    if (!deletedUser) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    const userStores = await Store.find({ owner: userId });
+    const storeIds = userStores.map((s) => s._id);
+    await Store.updateMany(
+      { owner: userId },
+      {
+        $set: {
+          isDeleted: true,
+          deletedAt: Date.now(),
+          status: 'deleted',
+          isActive: false,
+        },
+      }
+    );
+    if (storeIds.length) {
+      await Product.updateMany(
+        { store: { $in: storeIds } },
+        { $set: { isDeleted: true, deletedAt: Date.now() } }
+      );
+      await Review.updateMany(
+        { store: { $in: storeIds } },
+        { $set: { isDeleted: true, deletedAt: Date.now() } }
+      );
+    }
+
+    await User.updateMany(
+      { parentAccount: userId, role: 'staff', isDeleted: { $ne: true } },
+      { $set: { isDeleted: true, deletedAt: Date.now(), isActive: false } }
+    );
+
+    res.clearCookie?.('accessToken');
+    res.clearCookie?.('refreshToken');
+
+    return res.status(200).json({
+      message:
+        'Account scheduled for deletion. You can contact support within 30 days to restore it.',
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
 
   const generateTicket=async(req, res)=>{
    try {
@@ -1137,9 +1210,8 @@ const googleAuthLogin = async (req, res) => {
         isVerified: true,
         role: 'owner',
         password: crypto.randomBytes(32).toString('hex'),
-        trialEndsAt: computeTrialEndsAt(),
-        subscriptionStatus: 'trialing',
         plan: 'free',
+        subscriptionStatus: 'none',
         planUpdatedAt: new Date(),
       });
     }
@@ -1166,4 +1238,4 @@ const googleAuthLogin = async (req, res) => {
   }
 };
 
-export { registerUser, loginUser, logoutUser, refreshToken,updateUserCredentials, generateTicket,getTickets,replyToAdmin, verifyOTP,resendOTP, inviteStaff, resendInvite, acceptInvite, getStaffMembers, updateStaffPermissions, revokeStaffAccess, getOwnerNavBadges, requestLoginOtp, verifyLoginOtp, requestPasswordReset, resetPasswordWithOtp, googleAuthLogin };
+export { registerUser, loginUser, logoutUser, refreshToken,updateUserCredentials, deleteOwnAccount, generateTicket,getTickets,replyToAdmin, verifyOTP,resendOTP, inviteStaff, resendInvite, acceptInvite, getStaffMembers, updateStaffPermissions, revokeStaffAccess, getOwnerNavBadges, requestLoginOtp, verifyLoginOtp, requestPasswordReset, resetPasswordWithOtp, googleAuthLogin };

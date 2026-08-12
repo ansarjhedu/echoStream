@@ -21,6 +21,7 @@ import {
   canManageWidgets,
   persistWorkspaceMode,
 } from '../utils/permissionHelpers';
+import { redirectIfPlanError } from '../utils/planGates';
 
 /**
  * Presence Dashboard — Portfolio / Blog workspaces (no product commerce chrome).
@@ -115,6 +116,7 @@ export default function PresenceOverview() {
       setPreview(null);
       toast.success('Site workspace ready.');
     } catch (err) {
+      if (redirectIfPlanError(err, navigate, toast)) return;
       toast.error(err.response?.data?.message || err.response?.data || 'Failed to create site.');
     } finally {
       setCreating(false);

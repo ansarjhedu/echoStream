@@ -3,7 +3,7 @@ import { authAdmin, requireMasterAdmin, checkPlatformPermission } from "../middl
 import {
   listUsers, listStores, deleteUser, updateStore, getPlatformAnalytics,
   getDisputedReviews, resolveDispute, restoreStore, restoreUser,
-  getTicketsFromUsers, replyToTicket, resolveTicket, claimTicket
+  getTicketsFromUsers, replyToTicket, resolveTicket, claimTicket, listSubscriptions
 } from '../controllers/adminController.js';
 import {
   invitePlatformStaff, getPlatformStaff, resendPlatformInvite,
@@ -18,6 +18,7 @@ adminRouter.get('/nav-badges', authAdmin, getAdminNavBadges);
 
 // Users — read for users_read; mutate Master only
 adminRouter.get('/user/list', authAdmin, checkPlatformPermission('users_read'), listUsers);
+adminRouter.get('/subscriptions/list', authAdmin, checkPlatformPermission(['users_read', 'analytics_platform']), listSubscriptions);
 adminRouter.patch('/user/:id', authAdmin, requireMasterAdmin, deleteUser);
 adminRouter.patch('/user/:id/restore', authAdmin, requireMasterAdmin, restoreUser);
 

@@ -162,7 +162,7 @@ const draftCampaignCopy = async (req, res) => {
     const entitlements = await resolveOwnerEntitlements(req.user);
     if (!entitlements.features.aiCampaignDraft) {
       return res.status(403).json({
-        message: 'AI campaign drafts require Growth or Pro (or an active trial). Upgrade in Billing.',
+        message: 'AI campaign drafts require Growth or Pro. Upgrade in Billing.',
         code: 'PLAN_FEATURE_AI_DRAFT',
       });
     }

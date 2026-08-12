@@ -46,6 +46,7 @@ import AdminDisputes from './pages/admin/AdminDisputes';
 import AdminStores from './pages/admin/AdminStores';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminSupport from './pages/admin/AdminSupport';
+import AdminSubscriptions from './pages/admin/AdminSubscriptions';
 import SupportAssistant from './components/SupportAssistant';
 
 const DashboardAssistant = () => {
@@ -242,6 +243,7 @@ export default function App() {
                     <Route path="admin/disputes" element={<AdminPortalRoute><PlatformPermRoute perm="disputes_resolve"><AdminDisputes /></PlatformPermRoute></AdminPortalRoute>} />
                     <Route path="admin/stores" element={<AdminPortalRoute><PlatformPermRoute perm={['stores_read', 'moderation']}><AdminStores /></PlatformPermRoute></AdminPortalRoute>} />
                     <Route path="admin/users" element={<AdminPortalRoute><PlatformPermRoute perm="users_read"><AdminUsers /></PlatformPermRoute></AdminPortalRoute>} />
+                    <Route path="admin/subscriptions" element={<AdminPortalRoute><PlatformPermRoute perm={['users_read', 'analytics_platform']}><AdminSubscriptions /></PlatformPermRoute></AdminPortalRoute>} />
                     <Route path="admin/support" element={<AdminPortalRoute><PlatformPermRoute perm="support_queue"><AdminSupport /></PlatformPermRoute></AdminPortalRoute>} />
                     <Route path="admin/team" element={<MasterAdminRoute><TeamManagement variant="platform" /></MasterAdminRoute>} />
 

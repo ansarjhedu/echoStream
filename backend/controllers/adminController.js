@@ -7,6 +7,7 @@ import mongoose from "mongoose";
 import crypto from "crypto";
 import { applyDisputeDecision } from "./aiController.js";
 import { notifyUser } from "../services/notificationService.js";
+import { resolvePlanId } from "../utils/plans.js";
 
 const listUsers=async(req,res)=>{
 
@@ -410,4 +411,73 @@ const claimTicket = async (req, res) => {
     }
 };
 
-export { listUsers, deleteUser, listStores, updateStore, getPlatformAnalytics, getDisputedReviews, resolveDispute, restoreStore,restoreUser, getTicketsFromUsers, replyToTicket, resolveTicket, claimTicket};
+const listSubscriptions = async (req, res) => {
+    try {
+        const planFilter = String(req.query.plan || 'all').toLowerCase();
+        const statusFilter = String(req.query.status || 'all').toLowerCase();
+
+        const query = { role: 'owner', isDeleted: { $ne: true } };
+
+        if (planFilter !== 'all') {
+            query.plan = planFilter;
+        }
+
+        if (statusFilter === 'renewing') {
+            query.subscriptionStatus = 'active';
+            query.cancelAtPeriodEnd = { $ne: true };
+        } else if (statusFilter === 'canceled') {
+            query.$or = [
+                { subscriptionStatus: 'canceled' },
+                { cancelAtPeriodEnd: true },
+            ];
+        } else if (statusFilter === 'past_due') {
+            query.subscriptionStatus = 'past_due';
+        } else if (statusFilter === 'free') {
+            query.plan = 'free';
+            query.subscriptionStatus = { $in: ['none', null] };
+        } else if (statusFilter === 'active') {
+            query.subscriptionStatus = 'active';
+        }
+
+        const owners = await User.find(query)
+            .select(
+                'userName email plan subscriptionStatus cancelAtPeriodEnd currentPeriodEnd trialEndsAt paymentMethodBrand paymentMethodLast4 paymentMethodExpMonth paymentMethodExpYear lemonSqueezySubscriptionId createdAt isActive'
+            )
+            .sort({ subscriptionStatus: 1, currentPeriodEnd: -1, createdAt: -1 })
+            .lean();
+
+        const summary = {
+            total: owners.length,
+            free: owners.filter((o) => resolvePlanId(o.plan) === 'free').length,
+            growth: owners.filter((o) => resolvePlanId(o.plan) === 'growth').length,
+            pro: owners.filter((o) => resolvePlanId(o.plan) === 'pro').length,
+            activelyRenewing: owners.filter(
+                (o) => o.subscriptionStatus === 'active' && !o.cancelAtPeriodEnd
+            ).length,
+            canceled: owners.filter(
+                (o) => o.subscriptionStatus === 'canceled' || o.cancelAtPeriodEnd
+            ).length,
+        };
+
+        return res.status(200).json({
+            data: owners.map((o) => ({
+                ...o,
+                planLabel:
+                    resolvePlanId(o.plan) === 'pro'
+                        ? 'Pro'
+                        : resolvePlanId(o.plan) === 'growth'
+                          ? 'Growth'
+                          : 'Free',
+                renewingMonthly:
+                    o.subscriptionStatus === 'active' && !o.cancelAtPeriodEnd,
+            })),
+            summary,
+            message: 'Subscriptions listed successfully',
+        });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+};
+
+export { listUsers, deleteUser, listStores, updateStore, getPlatformAnalytics, getDisputedReviews, resolveDispute, restoreStore,restoreUser, getTicketsFromUsers, replyToTicket, resolveTicket, claimTicket, listSubscriptions};
