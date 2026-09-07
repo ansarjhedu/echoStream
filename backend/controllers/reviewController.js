@@ -4,7 +4,6 @@ import Product from "../models/Product.js";
 import Store from "../models/Store.js";
 import crypto from "crypto";
 import { notifyUser } from "../services/notificationService.js";
-import { autoResolveDisputeWithAi } from "./aiController.js";
 import { sendReviewThankYouEmail } from "../services/reviewMailService.js";
 import User from "../models/User.js";
 import { getEntitlements } from "../utils/plans.js";
@@ -95,81 +94,19 @@ const createReview=async(req,res)=>{
 };
 
 
-const updateReviewStatus = async (req, res) => {
-    try {
-        const { reviewId } = req.params;
-        let { status, content } = req.body;
-        const storeId = req.store._id;
-
-        // Store owners may ONLY dispute — never approve/reject.
-        if (!status || status !== "disputed") {
-            return res.status(400).json({
-                message: "Store owners can only set review status to 'disputed'.",
-            });
-        }
-        if (!content || !String(content).trim()) {
-            return res.status(400).json({ message: "A dispute reason is required." });
-        }
-
-        const images = req.files ? req.files.map(file => file.path) : [];
-
-        const review = await Review.findOne({ _id: reviewId, store: storeId });
-        if (!review) {
-            return res.status(404).json({ message: "Review not found." });
-        }
-
-        if (review.status !== "approved") {
-            return res.status(400).json({
-                message: "Only approved (live) reviews can be disputed.",
-            });
-        }
-
-        const priorCount = review.disputeCount || review.disputedReason?.count || 0;
-        if (review.isLocked || priorCount >= 3) {
-            return res.status(403).json({
-                message: "This review is permanently locked by Platform Admin or has reached the maximum dispute count.",
-            });
-        }
-
-        const nextCount = priorCount + 1;
-        review.status = "disputed";
-        review.disputeCount = nextCount;
-        review.disputedReason = {
-            reason: content,
-            proofImages: images,
-            count: nextCount,
-            createdAt: new Date(),
-        };
-        review.disputeResolution = undefined;
-        review.markModified('disputeResolution');
-        await review.save();
-        // disputed reviews are excluded from public widget (status !== approved)
-        await recalculateProductStats(review.product);
-
-        // AI agent analyzes and may auto-resolve with owner-visible reasoning
-        setImmediate(() => autoResolveDisputeWithAi(review._id));
-
-        res.status(200).json({
-            message: "Dispute submitted. Our AI agent is analyzing the case now.",
-            data: review,
-        });
-    } catch (error) {
-        console.error("Status Update Error:", error);
-        res.status(500).json({ message: "Failed to update review status" });
-    }
-};
-
 const getStoreProducts=async(req,res)=>{
         try {
             const storeId=req.store._id;
-            const products=await Product.find({store:storeId}).select('_id productHandle productTitle stats');
-            if(!products){
-                return res.status(404).json({message:"No products found for this store"});
+            const includeHidden = String(req.query.includeHidden || '') === '1';
+            let query = Product.find({ store: storeId }).select('_id productHandle productTitle stats isDeleted deletedAt createdAt');
+            if (includeHidden) {
+                query = query.setOptions({ includeDeleted: true });
             }
+            const products = await query.sort({ createdAt: -1 });
 
             res.status(200).json({
-                data:products,
-                message:products.length===0?"No products found for this store":"Products fetched successfully"
+                data: products,
+                message: products.length === 0 ? "No products found for this store" : "Products fetched successfully"
             });
         }
         catch (error) {
@@ -308,7 +245,7 @@ const getReviews = async (req, res) => {
         }
         const includeHidden = String(req.query.includeHidden || '') === '1';
         if (!includeHidden) {
-            // default: live + disputed still visible in inbox; soft-hidden excluded by middleware
+            // default: live reviews; soft-hidden excluded by middleware
         } else {
             // include soft-hidden so merchant can unhide
         }
@@ -331,9 +268,6 @@ const hideReview = async (req, res) => {
         const { reviewId } = req.params;
         const review = await Review.findOne({ _id: reviewId, store: storeId });
         if (!review) return res.status(404).json({ message: 'Review not found.' });
-        if (review.isLocked) {
-            return res.status(403).json({ message: 'This review is locked by Platform Admin.' });
-        }
 
         review.isDeleted = true;
         review.deletedAt = new Date();
@@ -391,7 +325,75 @@ const unhideReview = async (req, res) => {
     }
 };
 
-/** Download reviews as XML (includes hidden — for merchant records). */
+const unescapeXml = (v) =>
+    String(v ?? '')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        .replace(/&amp;/g, '&');
+
+const tagValue = (block, tag) => {
+    const m = block.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, 'i'));
+    return m ? unescapeXml(m[1].trim()) : '';
+};
+
+/** Parse EchoStream XML or JSON review payloads into normalized rows. */
+const parseReviewImportPayload = (raw, mimeHint = '') => {
+    const text = String(raw || '').trim();
+    if (!text) return [];
+
+    const looksJson =
+        text.startsWith('{') ||
+        text.startsWith('[') ||
+        String(mimeHint).includes('json');
+
+    if (looksJson) {
+        const parsed = JSON.parse(text);
+        const list = Array.isArray(parsed)
+            ? parsed
+            : Array.isArray(parsed?.reviews)
+              ? parsed.reviews
+              : [];
+        return list.map((r) => ({
+            productHandle: String(r.productHandle || r.handle || '').trim(),
+            productTitle: String(r.productTitle || r.title || r.productHandle || '').trim(),
+            customerName: String(r.customerName || r.name || '').trim(),
+            customerEmail: String(r.customerEmail || r.email || '').trim(),
+            rating: Number(r.rating),
+            comment: String(r.comment || r.body || '').trim(),
+            status: ['pending', 'approved', 'rejected'].includes(r.status) ? r.status : 'approved',
+            isDeleted: r.hidden === true || r.hidden === 'true' || r.isDeleted === true,
+            isVerifiedBuyer: r.verifiedBuyer === true || r.isVerifiedBuyer === true,
+            createdAt: r.createdAt ? new Date(r.createdAt) : undefined,
+            externalId: r.externalId || r.id ? `import:${String(r.externalId || r.id)}` : null,
+        }));
+    }
+
+    const blocks = text.match(/<review>[\s\S]*?<\/review>/gi) || [];
+    return blocks.map((block) => {
+        const id = tagValue(block, 'id');
+        const hidden = tagValue(block, 'hidden').toLowerCase() === 'true';
+        const verified = tagValue(block, 'verifiedBuyer').toLowerCase() === 'true';
+        const statusRaw = tagValue(block, 'status');
+        const createdRaw = tagValue(block, 'createdAt');
+        return {
+            productHandle: tagValue(block, 'productHandle'),
+            productTitle: tagValue(block, 'productTitle'),
+            customerName: tagValue(block, 'customerName'),
+            customerEmail: tagValue(block, 'customerEmail'),
+            rating: Number(tagValue(block, 'rating')),
+            comment: tagValue(block, 'comment'),
+            status: ['pending', 'approved', 'rejected'].includes(statusRaw) ? statusRaw : 'approved',
+            isDeleted: hidden,
+            isVerifiedBuyer: verified,
+            createdAt: createdRaw ? new Date(createdRaw) : undefined,
+            externalId: id ? `import:${id}` : null,
+        };
+    });
+};
+
+/** Download reviews as XML (includes hidden — for merchant records / round-trip import). */
 const exportReviewsXml = async (req, res) => {
     try {
         const storeId = req.store._id;
@@ -405,6 +407,13 @@ const exportReviewsXml = async (req, res) => {
             .limit(5000)
             .lean();
 
+        const productIds = [...new Set(reviews.map((r) => String(r.product)).filter(Boolean))];
+        const products = await Product.find({ _id: { $in: productIds } })
+            .setOptions({ includeDeleted: true })
+            .select('_id productHandle productTitle')
+            .lean();
+        const productMap = Object.fromEntries(products.map((p) => [String(p._id), p]));
+
         const esc = (v) =>
             String(v ?? '')
                 .replace(/&/g, '&amp;')
@@ -413,10 +422,12 @@ const exportReviewsXml = async (req, res) => {
                 .replace(/"/g, '&quot;');
 
         const body = reviews
-            .map(
-                (r) => `  <review>
+            .map((r) => {
+                const p = productMap[String(r.product)] || {};
+                return `  <review>
     <id>${esc(r._id)}</id>
-    <productTitle>${esc(r.productTitle)}</productTitle>
+    <productHandle>${esc(p.productHandle || '')}</productHandle>
+    <productTitle>${esc(r.productTitle || p.productTitle || '')}</productTitle>
     <customerName>${esc(r.customerName)}</customerName>
     <customerEmail>${esc(r.customerEmail)}</customerEmail>
     <rating>${esc(r.rating)}</rating>
@@ -425,8 +436,8 @@ const exportReviewsXml = async (req, res) => {
     <verifiedBuyer>${r.isVerifiedBuyer ? 'true' : 'false'}</verifiedBuyer>
     <comment>${esc(r.comment)}</comment>
     <createdAt>${esc(r.createdAt?.toISOString?.() || r.createdAt)}</createdAt>
-  </review>`
-            )
+  </review>`;
+            })
             .join('\n');
 
         const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -447,6 +458,109 @@ ${body}
     }
 };
 
+/**
+ * Import reviews from XML (EchoStream export) or JSON.
+ * Reuses products by handle (including hidden) so history cannot be wiped by re-import.
+ */
+const importReviews = async (req, res) => {
+    try {
+        const storeId = req.store._id;
+        const raw =
+            req.file?.buffer?.toString('utf8') ||
+            (typeof req.body?.payload === 'string' ? req.body.payload : '') ||
+            (typeof req.body?.xml === 'string' ? req.body.xml : '') ||
+            '';
+
+        let rows;
+        try {
+            rows = parseReviewImportPayload(raw, req.file?.mimetype || req.body?.format || '');
+        } catch (parseErr) {
+            return res.status(400).json({
+                message: 'Could not parse import file. Use EchoStream XML export or a JSON reviews array.',
+                detail: parseErr.message,
+            });
+        }
+
+        if (!rows.length) {
+            return res.status(400).json({ message: 'No reviews found in the import file.' });
+        }
+        if (rows.length > 2000) {
+            return res.status(400).json({ message: 'Import is limited to 2000 reviews per file.' });
+        }
+
+        let imported = 0;
+        let skipped = 0;
+        let failed = 0;
+        const touchedProducts = new Set();
+        const errors = [];
+
+        for (const row of rows) {
+            const handle = row.productHandle || row.productTitle;
+            if (!handle || !row.customerName || !row.comment || !(row.rating >= 1 && row.rating <= 5)) {
+                failed += 1;
+                errors.push('Skipped a row with missing handle, name, comment, or invalid rating.');
+                continue;
+            }
+
+            try {
+                if (row.externalId) {
+                    const existing = await Review.findOne({
+                        store: storeId,
+                        source: 'native',
+                        externalId: row.externalId,
+                    }).setOptions({ includeDeleted: true });
+                    if (existing) {
+                        skipped += 1;
+                        continue;
+                    }
+                }
+
+                const review = await createReviewWithDiscovery(storeId, {
+                    productHandle: handle,
+                    productTitle: row.productTitle || handle,
+                    customerName: row.customerName,
+                    customerEmail: row.customerEmail || undefined,
+                    rating: row.rating,
+                    comment: row.comment,
+                    isVerifiedBuyer: row.isVerifiedBuyer,
+                    isDeleted: row.isDeleted,
+                    status: row.status,
+                    source: 'native',
+                    externalId: row.externalId || null,
+                    createdAt: row.createdAt && !Number.isNaN(row.createdAt.getTime()) ? row.createdAt : undefined,
+                });
+
+                touchedProducts.add(String(review.product));
+                imported += 1;
+            } catch (err) {
+                failed += 1;
+                if (errors.length < 8) {
+                    errors.push(err.message || 'Failed to import a review.');
+                }
+            }
+        }
+
+        await Promise.all([...touchedProducts].map((pid) => recalculateProductStats(pid)));
+
+        await logActivity({
+            storeId,
+            actorId: req.user?._id,
+            action: 'review.import',
+            targetType: 'store',
+            targetId: String(storeId),
+            meta: { imported, skipped, failed, total: rows.length },
+        });
+
+        return res.status(200).json({
+            data: { imported, skipped, failed, total: rows.length, errors: errors.slice(0, 5) },
+            message: `Imported ${imported} review(s)${skipped ? `, skipped ${skipped} duplicate(s)` : ''}${failed ? `, ${failed} failed` : ''}.`,
+        });
+    } catch (error) {
+        console.error('importReviews', error);
+        return res.status(500).json({ message: 'Failed to import reviews.' });
+    }
+};
+
 /** Bulk-hide approved reviews at or below a star rating. */
 const bulkHideByRating = async (req, res) => {
     try {
@@ -461,7 +575,6 @@ const bulkHideByRating = async (req, res) => {
             isDeleted: { $ne: true },
             status: { $in: ['approved', 'pending'] },
             rating: { $lte: maxRating },
-            isLocked: { $ne: true },
         };
         if (req.body?.productId) filter.product = req.body.productId;
 
@@ -489,55 +602,15 @@ const bulkHideByRating = async (req, res) => {
     }
 };
 
-/** Store dispute inbox: reviews this store has disputed (pending + resolved history). */
-const getStoreDisputes = async (req, res) => {
-    try {
-        const storeId = req.store._id;
-        const filterParam = (req.query.filter || 'all').toLowerCase();
-        const allowed = ['all', 'pending', 'approved', 'rejected'];
-        if (!allowed.includes(filterParam)) {
-            return res.status(400).json({ message: "Invalid filter. Use all|pending|approved|rejected." });
-        }
-
-        const baseFilter = {
-            store: storeId,
-            'disputedReason.reason': { $exists: true, $nin: [null, ''] },
-        };
-
-        const allDisputed = await Review.find(baseFilter).sort({
-            'disputedReason.createdAt': -1,
-            updatedAt: -1,
-        });
-
-        const summary = {
-            total: allDisputed.length,
-            pending: allDisputed.filter((r) => r.status === 'disputed').length,
-            approved: allDisputed.filter((r) => r.status === 'approved').length,
-            rejected: allDisputed.filter((r) => r.status === 'rejected').length,
-        };
-
-        let data = allDisputed;
-        if (filterParam === 'pending') data = allDisputed.filter((r) => r.status === 'disputed');
-        else if (filterParam === 'approved') data = allDisputed.filter((r) => r.status === 'approved');
-        else if (filterParam === 'rejected') data = allDisputed.filter((r) => r.status === 'rejected');
-
-        return res.status(200).json({ data, summary });
-    } catch (error) {
-        console.error("Error in getStoreDisputes", error);
-        return res.status(500).json({ message: "Failed to fetch store disputes" });
-    }
-};
-
 export {
     createReview,
-    updateReviewStatus,
     getStoreProducts,
     getPublicProductReviews,
     merchantReplyToReview,
     getReviews,
-    getStoreDisputes,
     hideReview,
     unhideReview,
     bulkHideByRating,
     exportReviewsXml,
+    importReviews,
 };

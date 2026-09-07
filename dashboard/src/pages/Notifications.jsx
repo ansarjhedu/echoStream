@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../Api';
-import { Bell, CheckCheck, Sparkles, MessageSquare, LifeBuoy, AlertOctagon } from 'lucide-react';
+import { Bell, CheckCheck, Sparkles, MessageSquare, LifeBuoy } from 'lucide-react';
 import { toast } from 'react-toastify';
 import AccordionItem from '../components/ui/AccordionItem';
 
 const TYPE_META = {
   new_review: { icon: MessageSquare, label: 'Review', color: 'text-cyan-400' },
-  dispute_resolved: { icon: AlertOctagon, label: 'Dispute', color: 'text-orange-400' },
   support_reply: { icon: LifeBuoy, label: 'Support', color: 'text-yellow-400' },
   support_resolved: { icon: LifeBuoy, label: 'Support', color: 'text-green-400' },
   system: { icon: Sparkles, label: 'System', color: 'text-purple-400' },
@@ -82,7 +81,7 @@ export default function Notifications() {
               <Bell className="text-cyan-400" /> Notifications
             </h1>
             <p className="text-gray-400 text-sm">
-              New reviews, dispute outcomes, and support replies.{' '}
+              New reviews and support replies.{' '}
               {unread > 0 ? `${unread} unread.` : 'You are all caught up.'}
             </p>
           </div>

@@ -1,5 +1,5 @@
 export const ROLE_PRESETS = {
-  administrator: ['moderation', 'products', 'integrations', 'settings', 'disputes', 'tickets', 'campaigns'],
+  administrator: ['moderation', 'products', 'integrations', 'settings', 'tickets', 'campaigns'],
   editor: ['moderation', 'products', 'campaigns'],
   support: ['tickets'],
 };
@@ -8,26 +8,24 @@ export const PLATFORM_ROLE_PRESETS = {
   administrator: [
     'stores_read',
     'users_read',
-    'disputes_resolve',
     'support_queue',
     'analytics_platform',
     'moderation',
     'settings',
   ],
-  editor: ['stores_read', 'moderation', 'disputes_resolve', 'analytics_platform'],
+  editor: ['stores_read', 'moderation', 'analytics_platform'],
   support: ['support_queue'],
 };
 
 export const STORE_PERM_GROUPS = [
   { title: 'Store', keys: ['moderation', 'products', 'integrations', 'settings'] },
   { title: 'Growth', keys: ['campaigns'] },
-  { title: 'Disputes', keys: ['disputes'] },
   { title: 'Support', keys: ['tickets'] },
 ];
 
 export const PLATFORM_PERM_GROUPS = [
   { title: 'Platform access', keys: ['stores_read', 'users_read', 'analytics_platform'] },
-  { title: 'Reviews & disputes', keys: ['moderation', 'disputes_resolve', 'settings'] },
+  { title: 'Stores', keys: ['moderation', 'settings'] },
   { title: 'Support', keys: ['support_queue'] },
 ];
 
@@ -38,12 +36,10 @@ export const PERM_LABELS = {
   integrations: 'Integrations',
   settings: 'Settings',
   campaigns: 'Email campaigns',
-  disputes: 'Disputes',
   tickets: 'Help & support',
   stores_read: 'View stores',
   users_read: 'View users',
   analytics_platform: 'Platform analytics',
-  disputes_resolve: 'Resolve disputes',
   support_queue: 'Support queue',
 };
 
@@ -155,7 +151,6 @@ export const getPostLoginPath = (user) => {
     if (hasPerm(user, 'analytics_platform') || hasPerm(user, 'stores_read')) {
       return '/hub/admin/overview';
     }
-    if (hasPerm(user, 'disputes_resolve')) return '/hub/admin/disputes';
     if (hasPerm(user, 'support_queue')) return '/hub/admin/support';
     return '/hub/admin/overview';
   }

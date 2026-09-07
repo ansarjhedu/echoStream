@@ -12,7 +12,6 @@ const notificationSchema = new mongoose.Schema(
       type: String,
       enum: [
         'new_review',
-        'dispute_resolved',
         'support_reply',
         'support_resolved',
         'system',

@@ -4,7 +4,6 @@ import {
   MessageSquare,
   CheckCircle,
   TrendingUp,
-  AlertOctagon,
   BadgeCheck,
   Users,
   Eye,
@@ -61,7 +60,7 @@ export default function StoreOverview({ products, reviews, campaignSummary, widg
 
   const stats = useMemo(() => {
     const approved = reviews.filter((r) => r.status === 'approved');
-    const disputed = reviews.filter((r) => r.status === 'disputed');
+    const hidden = reviews.filter((r) => r.isDeleted);
     const verified = reviews.filter((r) => r.isVerifiedBuyer);
     const guest = reviews.filter((r) => !r.isVerifiedBuyer);
 
@@ -74,7 +73,7 @@ export default function StoreOverview({ products, reviews, campaignSummary, widg
       totalProducts: products.length,
       totalReviews: reviews.length,
       approvedReviews: approved.length,
-      disputedReviews: disputed.length,
+      hiddenReviews: hidden.length,
       avgRating,
       approvalRate: reviews.length > 0 ? Math.round((approved.length / reviews.length) * 100) : 0,
       verifiedCount: verified.length,
@@ -133,7 +132,7 @@ export default function StoreOverview({ products, reviews, campaignSummary, widg
   const activeChartData = chartTimeframe === '7d' ? reviewTrendData7d : reviewTrendData30d;
 
   const statusData = useMemo(() => {
-    const counts = { approved: 0, pending: 0, rejected: 0, disputed: 0 };
+    const counts = { approved: 0, pending: 0, rejected: 0 };
     reviews.forEach((r) => {
       if (counts[r.status] !== undefined) counts[r.status]++;
     });
@@ -141,7 +140,6 @@ export default function StoreOverview({ products, reviews, campaignSummary, widg
       { name: 'Approved', value: counts.approved, color: '#10b981' },
       { name: 'Pending', value: counts.pending, color: '#f59e0b' },
       { name: 'Rejected', value: counts.rejected, color: '#6b7280' },
-      { name: 'Disputed', value: counts.disputed, color: '#ef4444' },
     ].filter((d) => d.value > 0);
   }, [reviews]);
 
@@ -185,10 +183,10 @@ export default function StoreOverview({ products, reviews, campaignSummary, widg
           color="text-emerald-400"
         />
         <StatCard
-          title="Disputed Reviews"
-          value={stats.disputedReviews}
-          icon={<AlertOctagon size={20} className={stats.disputedReviews > 0 ? 'text-red-400' : 'text-gray-400'} />}
-          color={stats.disputedReviews > 0 ? 'text-red-400' : 'text-white'}
+          title="Hidden Reviews"
+          value={stats.hiddenReviews}
+          icon={<Eye size={20} className={stats.hiddenReviews > 0 ? 'text-orange-400' : 'text-gray-400'} />}
+          color={stats.hiddenReviews > 0 ? 'text-orange-400' : 'text-white'}
         />
       </div>
 

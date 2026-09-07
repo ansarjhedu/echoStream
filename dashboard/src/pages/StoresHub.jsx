@@ -114,8 +114,8 @@ export default function StoresHub() {
     const reason =
       store.status === 'suspended'
         ? 'suspended by a Platform Administrator'
-        : 'locked due to an active dispute';
-    updateStoreApi(store._id, { status: 'disputed' }, 'Restore request sent. Our team will review shortly.');
+        : 'currently locked by the platform';
+    updateStoreApi(store._id, { status: 'suspended' }, 'Restore request sent. Our team will review shortly.');
     toast.warning(`RESTORE LOCKED: This store is ${reason}. Please contact support.`);
   };
 

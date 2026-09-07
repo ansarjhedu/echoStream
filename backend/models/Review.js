@@ -43,7 +43,7 @@ const reviewSchema=new schema({
     },
     status:{
         type:String,
-        enum:["pending","approved","rejected","disputed"],
+        enum:["pending","approved","rejected"],
         default:"approved",
     },
     isVerifiedBuyer: {
@@ -59,45 +59,7 @@ const reviewSchema=new schema({
         type: String,
         default: null,
     },
-    disputeCount: {
-        type: Number,
-        default: 0,
-        max: 3,
-    },
-    disputedReason: {
-       reason: {
-        type: String,
-       },
-       proofImages: [{
-        type: String // Cloudinary URLs
-       }],
-       count:{
-        type:Number,
-        default:1,
-        max:3
-       },
-       createdAt: Date
-    },
-    /** Outcome shown to the store owner after AI or admin resolution */
-    disputeResolution: {
-        decision: {
-            type: String,
-            enum: ['approve_dispute', 'reject_dispute'],
-            default: undefined,
-        },
-        reason: { type: String, default: null },
-        resolvedBy: {
-            type: String,
-            enum: ['ai', 'admin'],
-            default: undefined,
-        },
-        confidence: { type: Number, default: null },
-        resolvedAt: { type: Date, default: null },
-    },
-    isLocked: {
-        type: Boolean,
-        default: false
-    },
+    /** Soft-hide from public widget (merchant control). Not a hard delete. */
     isDeleted:{
         type:Boolean,
         default:false

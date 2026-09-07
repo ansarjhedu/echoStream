@@ -156,7 +156,7 @@ export default function LandingPage() {
               {
                 icon: Store,
                 title: "eCommerce",
-                body: "Product reviews, hide controls, disputes, and rating insights your store needs.",
+                body: "Product reviews, hide controls, and rating insights your store needs.",
                 accent: "from-cyan-500/20 to-transparent border-cyan-500/20",
               },
               {
@@ -440,8 +440,8 @@ export default function LandingPage() {
             </h3>
             <p className="text-sm text-gray-400 leading-relaxed mb-6">
               Paste the embed on your site and start collecting reviews. Hide poor
-              reviews from your storefront when needed, and use Disputes for abuse
-              or fake purchases — EchoStream keeps a clear record.
+              reviews from your storefront when needed — EchoStream keeps them in
+              your records so you can unhide later.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Link

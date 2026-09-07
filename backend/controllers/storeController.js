@@ -247,36 +247,75 @@ const deleteStore=async(req,res)=>{
         return res.status(500).json("Internal Server Error ")
         }
 }
-const deleteProduct=async(req,res)=>{
+/** Soft-hide a product from embeds. Reviews stay attached — cannot wipe history by re-adding the same handle. */
+const hideProduct = async (req, res) => {
     try {
-        const productId=req.params.id;
-        const storeId=req.store._id; // This is set by authStore middleware
-        //user can only delete product of their own store
-        const product=await Product.findOneAndUpdate({_id:productId,store:storeId},
-            {
-                isDeleted:true,
-                deletedAt:Date.now()
-            },
-            {new:true}
-        );
-        if(!product){
-            return res.status(404).json("Product not found or you are not authorized to delete this product")
+        const productId = req.params.productId;
+        const storeId = req.store._id;
+
+        const product = await Product.findOne({ _id: productId, store: storeId });
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found.' });
         }
-        //mark all reviews of this product as deleted
-        await Review.updateMany({product:productId},{
-            isDeleted:true,
-            deletedAt:Date.now()
-        })
+
+        product.isDeleted = true;
+        product.deletedAt = new Date();
+        await product.save();
+
+        await logActivity({
+            storeId,
+            actorId: req.user?._id,
+            action: 'product.hide',
+            targetType: 'product',
+            targetId: String(productId),
+            meta: { productHandle: product.productHandle },
+        });
+
         return res.status(200).json({
-            data:product,
-            message:"Product has been deleted successfully"
-        })
-        
+            data: product,
+            message:
+                'Product hidden from your storefront. Its reviews stay in your records — reusing the same product handle will reopen this history, not a blank product.',
+        });
     } catch (error) {
-        console.log(error)
-        return res.status(500).json("Internal Server Error ")
+        console.log(error);
+        return res.status(500).json({ message: 'Failed to hide product.' });
     }
-}
+};
+
+const unhideProduct = async (req, res) => {
+    try {
+        const productId = req.params.productId;
+        const storeId = req.store._id;
+
+        const product = await Product.findOne({ _id: productId, store: storeId }).setOptions({
+            includeDeleted: true,
+        });
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found.' });
+        }
+
+        product.isDeleted = false;
+        product.deletedAt = null;
+        await product.save();
+
+        await logActivity({
+            storeId,
+            actorId: req.user?._id,
+            action: 'product.unhide',
+            targetType: 'product',
+            targetId: String(productId),
+            meta: { productHandle: product.productHandle },
+        });
+
+        return res.status(200).json({
+            data: product,
+            message: 'Product is visible on your storefront again (along with its review history).',
+        });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ message: 'Failed to unhide product.' });
+    }
+};
 // Presence hub telemetry — sentiment from rating buckets + open tickets
 const getPresenceOverview = async (req, res) => {
     try {
@@ -308,7 +347,7 @@ const getPresenceOverview = async (req, res) => {
                         $match: {
                             store: { $in: siteIds },
                             isDeleted: { $ne: true },
-                            status: { $in: ['approved', 'disputed'] },
+                            status: 'approved',
                         },
                     },
                     {
@@ -512,4 +551,4 @@ const previewStoreUrl = async (req, res) => {
     }
 };
 
-export { createStore, myStores, getStoreById, updateStoreStatus, updateStoreDetails, deleteProduct, deleteStore, getStoreAnalytics, getWidgetStats, updateWidgetConfig, getPresenceOverview, previewStoreUrl };
+export { createStore, myStores, getStoreById, updateStoreStatus, updateStoreDetails, hideProduct, unhideProduct, deleteStore, getStoreAnalytics, getWidgetStats, updateWidgetConfig, getPresenceOverview, previewStoreUrl };

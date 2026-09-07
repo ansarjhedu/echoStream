@@ -1,7 +1,7 @@
 import { useAuth } from "../context/AuthContext";
 import { useState, useEffect } from "react";
 import { useLocation, Link } from "react-router-dom";
-import { Menu, X, UserIcon, Activity, AlertOctagon, StoreIcon, Users, LogOut, LifeBuoy, LayoutDashboard, Globe2, Bell, CreditCard } from "lucide-react";
+import { Menu, X, UserIcon, Activity, StoreIcon, Users, LogOut, LifeBuoy, LayoutDashboard, Globe2, Bell, CreditCard } from "lucide-react";
 import logo from '../assets/logo.png';
 import api from '../Api';
 import {
@@ -15,11 +15,10 @@ import {
 } from '../utils/permissionHelpers';
 import { getAdminQueueSeen, markAdminQueueSeen } from '../utils/adminBadges';
 
-/** tone: danger (disputes) | warn (support) | info */
+/** tone: warn (support) | info */
 const Badge = ({ count, tone = 'info' }) => {
   if (!count || count < 1) return null;
   const styles = {
-    danger: 'bg-orange-500/20 text-orange-300 border border-orange-500/40',
     warn: 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40',
     info: 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40',
   };
@@ -33,7 +32,7 @@ const Badge = ({ count, tone = 'info' }) => {
 const HubLayout = ({ children }) => {
   const { user, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [badges, setBadges] = useState({ openTickets: 0, openDisputes: 0, unreadNotifications: 0 });
+  const [badges, setBadges] = useState({ openTickets: 0, unreadNotifications: 0 });
   const [workspaceMode, setWorkspaceMode] = useState(() => peekWorkspaceMode() || 'empty'); // commerce | presence | empty
   const location = useLocation();
   const closeMenu = () => setIsMobileMenuOpen(false);
@@ -59,11 +58,9 @@ const HubLayout = ({ children }) => {
     return () => { alive = false; };
   }, [user?._id, showAdminNav, location.pathname]);
 
-  // Opening a queue marks it read so the badge clears until newer items arrive
   useEffect(() => {
     if (!showAdminNav) return;
-    if (location.pathname.includes('/admin/disputes')) markAdminQueueSeen('disputes');
-    if (location.pathname.includes('/admin/support')) markAdminQueueSeen('tickets');
+    if (location.pathname.includes('/admin/support')) markAdminQueueSeen();
   }, [showAdminNav, location.pathname]);
 
   useEffect(() => {
@@ -72,15 +69,13 @@ const HubLayout = ({ children }) => {
       try {
         if (showAdminNav) {
           const params = {};
-          const disputesSince = getAdminQueueSeen('disputes');
           const ticketsSince = getAdminQueueSeen('tickets');
-          if (disputesSince) params.disputesSince = disputesSince;
           if (ticketsSince) params.ticketsSince = ticketsSince;
           const res = await api.get('/admin/nav-badges', { params });
-          if (alive) setBadges(res.data?.data || { openTickets: 0, openDisputes: 0, unreadNotifications: 0 });
+          if (alive) setBadges(res.data?.data || { openTickets: 0, unreadNotifications: 0 });
         } else if (user?.role === 'owner' || (user?.role === 'staff' && hasPerm(user, 'tickets'))) {
           const res = await api.get('/users/nav-badges');
-          if (alive) setBadges(res.data?.data || { openTickets: 0, openDisputes: 0, unreadNotifications: 0 });
+          if (alive) setBadges(res.data?.data || { openTickets: 0, unreadNotifications: 0 });
         } else if (user) {
           try {
             const res = await api.get('/users/notifications', { params: { unread: 1 } });
@@ -146,12 +141,6 @@ const HubLayout = ({ children }) => {
                 {(master || hasPerm(user, 'analytics_platform') || hasPerm(user, 'stores_read')) && (
                   <Link to="/hub/admin/overview" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/overview') ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
                     <Activity size={20} className={location.pathname.includes('/overview') ? "text-red-400" : ""} /> Overview & Summary
-                  </Link>
-                )}
-                {(master || hasPerm(user, 'disputes_resolve')) && (
-                  <Link to="/hub/admin/disputes" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/disputes') ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
-                    <AlertOctagon size={20} className={location.pathname.includes('/disputes') ? "text-red-400" : ""} /> Dispute Queue
-                    <Badge count={badges.openDisputes} tone="danger" />
                   </Link>
                 )}
                 {(master || hasPerm(user, 'stores_read') || hasPerm(user, 'moderation')) && (

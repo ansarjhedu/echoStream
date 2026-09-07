@@ -21,6 +21,7 @@ const productSchema=new schema({
             totalReviews:0,
         },
     },
+    /** Soft-hide from storefront embeds. Reviews stay attached for credibility. */
     isDeleted:{
         type:Boolean,
         default:false
@@ -32,7 +33,9 @@ const productSchema=new schema({
 },{timestamps:true});
 
 productSchema.pre(/^find/, function () {
-    this.where({ isDeleted: { $ne: true } });
+    if (!this.getOptions()?.includeDeleted) {
+        this.where({ isDeleted: { $ne: true } });
+    }
 });
 productSchema.index({store:1,productHandle:1},{unique:true});
 

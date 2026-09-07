@@ -1,7 +1,8 @@
 import { Router } from "express";
 import {authUser,authStore,checkPermission,checkStoreScopedAccess} from "../middlewares/authUser.js";
-import { createStore, myStores,getStoreById,updateStoreStatus,updateStoreDetails,getStoreAnalytics , getWidgetStats, updateWidgetConfig, getPresenceOverview, previewStoreUrl} from "../controllers/storeController.js";
-import { updateReviewStatus, getStoreProducts, merchantReplyToReview, getReviews, getStoreDisputes, hideReview, unhideReview, bulkHideByRating, exportReviewsXml } from "../controllers/reviewController.js";
+import multer from "multer";
+import { createStore, myStores,getStoreById,updateStoreStatus,updateStoreDetails,getStoreAnalytics , getWidgetStats, updateWidgetConfig, getPresenceOverview, previewStoreUrl, hideProduct, unhideProduct} from "../controllers/storeController.js";
+import { getStoreProducts, merchantReplyToReview, getReviews, hideReview, unhideReview, bulkHideByRating, exportReviewsXml, importReviews } from "../controllers/reviewController.js";
 import {
   connectGoogleReviews,
   updateGoogleReviewFilters,
@@ -10,7 +11,6 @@ import {
   getGoogleReviewsStatus,
 } from "../controllers/googleReviewsController.js";
 import { generateSmartReply } from "../controllers/aiController.js";
-import { upload } from "../utils/cloudinary.js";
 import {
   getCampaignAudience,
   draftCampaignCopy,
@@ -20,6 +20,11 @@ import {
 } from "../controllers/campaignController.js";
 import { createStoreReviewRequest, listStoreReviewRequests } from "../controllers/reviewRequestController.js";
 import { listStoreActivity } from "../controllers/activityController.js";
+
+const reviewImportUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
 
 const storeRouter=Router();
 
@@ -42,13 +47,14 @@ storeRouter.post('/:id/google-reviews/sync', authUser, authStore, checkPermissio
 storeRouter.delete('/:id/google-reviews', authUser, authStore, checkPermission(['integrations', 'settings']), disconnectGoogleReviews);
 
 storeRouter.get('/:id/products',authUser,authStore,checkPermission(['products','moderation']),getStoreProducts);
-storeRouter.patch('/:id/updateReview/:reviewId/status',authUser,authStore,checkPermission('moderation'),upload.array('images', 3),updateReviewStatus);
+storeRouter.patch('/:id/products/:productId/hide', authUser, authStore, checkPermission(['products', 'moderation']), hideProduct);
+storeRouter.patch('/:id/products/:productId/unhide', authUser, authStore, checkPermission(['products', 'moderation']), unhideProduct);
 storeRouter.get('/:id/reviews',authUser,authStore,checkPermission(['products','moderation']),getReviews);
 storeRouter.get('/:id/reviews/export', authUser, authStore, checkPermission(['products', 'moderation']), exportReviewsXml);
+storeRouter.post('/:id/reviews/import', authUser, authStore, checkPermission(['products', 'moderation']), reviewImportUpload.single('file'), importReviews);
 storeRouter.patch('/:id/reviews/:reviewId/hide', authUser, authStore, checkPermission(['moderation', 'products']), hideReview);
 storeRouter.patch('/:id/reviews/:reviewId/unhide', authUser, authStore, checkPermission(['moderation', 'products']), unhideReview);
 storeRouter.post('/:id/reviews/bulk-hide', authUser, authStore, checkPermission(['moderation', 'products']), bulkHideByRating);
-storeRouter.get('/:id/disputes',authUser,authStore,checkPermission(['moderation','disputes']),getStoreDisputes);
 storeRouter.post('/:id/reviews/:reviewId/reply',authUser,authStore,checkPermission('moderation'),merchantReplyToReview);
 storeRouter.post('/:id/ai/generate-reply', authUser, authStore, checkPermission('moderation'), generateSmartReply);
 

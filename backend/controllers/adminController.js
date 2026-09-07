@@ -5,7 +5,6 @@ import Product from "../models/Product.js";
 import Support from "../models/Support.js";
 import mongoose from "mongoose";
 import crypto from "crypto";
-import { applyDisputeDecision } from "./aiController.js";
 import { notifyUser } from "../services/notificationService.js";
 import { resolvePlanId } from "../utils/plans.js";
 
@@ -44,7 +43,7 @@ const deleteUser=async(req,res)=>{
         {new:true}
        );
        if(!deletedUser){
-        return res.status(500).json("Error while deleting user")
+        return res.status(404).json({ message: "User not found" });
        }
        const userStores=await Store.find({owner:userId});
        const storeIds = userStores.map((s) => s._id);
@@ -77,7 +76,7 @@ const restoreUser=async(req,res)=>{
         {new:true}
        );
          if(!restoredUser){
-        return res.status(500).json("Error while restoring user")
+        return res.status(404).json({ message: "User not found" });
          }
          const userStores=await Store.find({owner:userId});
          const storeIds = userStores.map((s) => s._id);
@@ -167,75 +166,16 @@ const updateStore=async(req,res)=>{
 const getPlatformAnalytics = async (req, res) => {
     try {
         // Run promises in parallel for speed
-        const[totalUsers, activeStores, totalStores, disputedReviews, tickets] = await Promise.all([
+        const[totalUsers, activeStores, totalStores, tickets] = await Promise.all([
             User.countDocuments({ isDeleted: false, role: "owner" }),
             Store.countDocuments({ isActive: true, isDeleted: false }),
             Store.countDocuments({ isDeleted: false }),
-            Review.countDocuments({ status: "disputed", isDeleted: false }),
-            Support.countDocuments({ status: { $ne: "resolved" } }) // Count of open tickets for AdminOverview
+            Support.countDocuments({ status: { $ne: "resolved" } })
         ]);
 
         return res.status(200).json({
-            data: { totalUsers, activeStores, totalStores, disputedReviews, tickets },
+            data: { totalUsers, activeStores, totalStores, tickets },
             message: "Platform analytics fetched successfully"
-        });
-    } catch (error) {
-        console.log(error);
-        return res.status(500).json("Internal Server Error");
-    }
-};
-
-const getDisputedReviews = async (req, res) => {
-    try {
-        // Fetch all disputed reviews platform-wide, and populate store info!
-        const disputes = await Review.find({ status: "disputed", isDeleted: false })
-            .populate('store', 'storeName')
-            .sort({ createdAt: -1 });
-            
-        return res.status(200).json({ data: disputes });
-    } catch (error) {
-        console.log(error);
-        return res.status(500).json("Internal Server Error");
-    }
-};
-
-
-const resolveDispute = async (req, res) => {
-    try {
-        const { reviewId } = req.params;
-        const { resolution, reason } = req.body;
-        // approve_dispute → admin agrees with merchant → status rejected (hidden)
-        // reject_dispute  → admin disagrees with merchant → status approved (live again)
-        if (!["approve_dispute", "reject_dispute"].includes(resolution)) {
-            return res.status(400).json({
-                message: "Invalid resolution. Use 'approve_dispute' or 'reject_dispute'.",
-            });
-        }
-
-        const review = await Review.findById(reviewId);
-        if (!review) return res.status(404).json({ message: "Review not found" });
-        if (review.status !== "disputed") {
-            return res.status(400).json({ message: "Only disputed reviews can be resolved." });
-        }
-
-        const adminReason =
-            (reason && String(reason).trim()) ||
-            (resolution === 'approve_dispute'
-                ? 'A platform admin reviewed your claim and upheld the dispute. The review is no longer shown on your widget.'
-                : 'A platform admin reviewed your claim and declined the dispute. The review remains live on your widget.');
-
-        const updated = await applyDisputeDecision(review, {
-            decision: resolution,
-            reason: adminReason,
-            resolvedBy: 'admin',
-            confidence: null,
-        });
-
-        return res.status(200).json({
-            data: updated,
-            message: updated.isLocked
-                ? `Dispute resolved. Review is ${updated.status} and permanently locked.`
-                : `Dispute resolved. Review marked as ${updated.status}.`,
         });
     } catch (error) {
         console.log(error);
@@ -249,10 +189,17 @@ const restoreStore = async (req, res) => {
 
         // 1. Un-delete the Store
         // We use `.collection.findOneAndUpdate` to bypass any Mongoose pre('find') hooks that hide deleted items!
-        await Store.collection.findOneAndUpdate(
+        const restored = await Store.collection.findOneAndUpdate(
             { _id: new mongoose.Types.ObjectId(storeId) },
             { $set: { isDeleted: false, deletedAt: null, status: "live", isActive: true } }
         );
+        const restoredDoc = restored && Object.prototype.hasOwnProperty.call(restored, 'value')
+            ? restored.value
+            : restored;
+
+        if (!restoredDoc) {
+            return res.status(404).json({ message: "Store not found" });
+        }
 
         // 2. Cascade Restore: Recover all associated Products
         await Product.collection.updateMany(
@@ -480,4 +427,4 @@ const listSubscriptions = async (req, res) => {
     }
 };
 
-export { listUsers, deleteUser, listStores, updateStore, getPlatformAnalytics, getDisputedReviews, resolveDispute, restoreStore,restoreUser, getTicketsFromUsers, replyToTicket, resolveTicket, claimTicket, listSubscriptions};
+export { listUsers, deleteUser, listStores, updateStore, getPlatformAnalytics, restoreStore,restoreUser, getTicketsFromUsers, replyToTicket, resolveTicket, claimTicket, listSubscriptions};

@@ -1,24 +1,13 @@
 import { useAuth } from "../context/AuthContext";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation, Link, Navigate } from "react-router-dom";
-import { X, Menu, BarChart3, Package, ArrowLeft, User, AlertOctagon, LayoutTemplate, Palette, Globe2, MessageSquare, Mail } from "lucide-react";
+import { X, Menu, BarChart3, Package, ArrowLeft, User, LayoutTemplate, Palette, Globe2, MessageSquare, Mail } from "lucide-react";
 import logo from '../assets/logo.png';
-import api from '../Api';
 import { hasPerm, isSupportOnly, getPostLoginPath, canAccessAdminPortal, canManageWidgets, isPresenceType } from '../utils/permissionHelpers';
-
-const NavBadge = ({ count }) => {
-  if (!count || count < 1) return null;
-  return (
-    <span className="ml-auto text-[10px] font-bold min-w-[20px] h-5 px-1.5 rounded-full inline-flex items-center justify-center bg-orange-500/20 text-orange-300 border border-orange-500/40">
-      {count > 99 ? '99+' : count}
-    </span>
-  );
-};
 
 const StoreLayout = ({ children }) => {
   const { activeStore, setActiveStore, user } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [pendingDisputes, setPendingDisputes] = useState(0);
   const location = useLocation();
   const closeMenu = () => setIsMobileMenuOpen(false);
 
@@ -27,32 +16,12 @@ const StoreLayout = ({ children }) => {
   const showAnalytics = !isPresence && !isSupportOnly(user);
   const showModeration = !isPresence && hasPerm(user, 'moderation');
   const showPresenceReviews = isPresence && (hasPerm(user, 'moderation') || hasPerm(user, 'products') || user?.role === 'owner');
-  const showDisputes = !isPresence && (hasPerm(user, 'moderation') || hasPerm(user, 'disputes'));
   const showWidgets = canManageWidgets(user);
   const showCampaigns = !isPresence && (user?.role === 'owner' || user?.role === 'admin' || hasPerm(user, 'campaigns'));
   const isWidgetsActive = location.pathname.includes('/widgets');
   const isDesignLabActive = location.pathname.includes('/design-lab') || location.pathname.includes('/integration');
   const isReviewsActive = location.pathname.includes('/reviews');
   const isCampaignsActive = location.pathname.includes('/campaigns');
-
-  useEffect(() => {
-    if (!activeStore?._id || !showDisputes) {
-      setPendingDisputes(0);
-      return;
-    }
-    let alive = true;
-    const loadBadge = async () => {
-      try {
-        const res = await api.get(`/store/${activeStore._id}/disputes`, { params: { filter: 'pending' } });
-        if (alive) setPendingDisputes(res.data?.summary?.pending || 0);
-      } catch {
-        if (alive) setPendingDisputes(0);
-      }
-    };
-    loadBadge();
-    const id = setInterval(loadBadge, 60000);
-    return () => { alive = false; clearInterval(id); };
-  }, [activeStore?._id, showDisputes, location.pathname]);
 
   if (!activeStore) return <Navigate to={getPostLoginPath(user)} replace />;
 
@@ -122,12 +91,6 @@ const StoreLayout = ({ children }) => {
             {showPresenceReviews && (
               <Link to="/workspace/reviews" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isReviewsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                 <MessageSquare size={20} className={isReviewsActive ? "text-cyan-400" : ""} /> Reviews
-              </Link>
-            )}
-            {showDisputes && (
-              <Link to="/workspace/disputes" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/disputes') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                <AlertOctagon size={20} className={location.pathname.includes('/disputes') ? "text-orange-400" : ""} /> Disputes
-                <NavBadge count={pendingDisputes} />
               </Link>
             )}
             {showCampaigns && (

@@ -28,7 +28,7 @@ export default function SupportAssistant() {
   const welcome = useMemo(
     () =>
       platformOps
-        ? 'Hi — I’m EchoBot for platform ops. Ask about Support Queue, Disputes, Stores, Users, or platform analytics. I won’t open merchant tickets from here.'
+        ? 'Hi — I’m EchoBot for platform ops. Ask about Support Queue, Stores, Users, or platform analytics. I won’t open merchant tickets from here.'
         : 'Hi — I’m EchoBot. Ask about widgets, Design Lab, Presence vs Commerce, campaigns, Billing, Google Reviews… Say “talk to a human” anytime to open a support ticket.',
     [platformOps]
   );

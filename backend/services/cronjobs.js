@@ -11,9 +11,6 @@ const collectReviewImageUrls = (reviews = []) => {
     const urls = [];
     for (const review of reviews) {
         if (Array.isArray(review.images)) urls.push(...review.images);
-        if (Array.isArray(review.disputedReason?.proofImages)) {
-            urls.push(...review.disputedReason.proofImages);
-        }
     }
     return urls;
 };
@@ -64,7 +61,7 @@ const startCronJobs = () => {
 
                 // Purge Cloudinary assets before cascade hard-delete
                 const storeReviews = await Review.find({ store: { $in: storeIds } })
-                    .select('images disputedReason.proofImages');
+                    .select('images');
                 await deleteCloudinaryImages(collectReviewImageUrls(storeReviews));
 
                 await Review.deleteMany({ store: { $in: storeIds } });
@@ -105,18 +102,7 @@ const startCronJobs = () => {
                 console.log(`🧹 Cleaned up ${abandonedUsers.deletedCount} unverified ghost accounts.`);
             }
 
-            // ==========================================
-            // 3. CLEAN UP INDIVIDUAL EXPIRED PRODUCTS & REVIEWS
-            // ==========================================
-            const expiredReviews = await Review.find({
-                isDeleted: true,
-                deletedAt: { $lte: thirtyDaysAgo }
-            }).select('images disputedReason.proofImages');
-
-            await deleteCloudinaryImages(collectReviewImageUrls(expiredReviews));
-            await Review.deleteMany({ isDeleted: true, deletedAt: { $lte: thirtyDaysAgo } });
-            await Product.deleteMany({ isDeleted: true, deletedAt: { $lte: thirtyDaysAgo } });
-
+            // Soft-hidden products/reviews are kept for credibility — only store purge removes them.
             console.log('✨ Daily cleanup job completed successfully.');
         } catch (error) {
             console.error('❌ Error occurred while running daily cleanup job:', error);

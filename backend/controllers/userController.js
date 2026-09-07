@@ -24,10 +24,10 @@ const googleClient = () => {
   return new OAuth2Client(clientId);
 };
 
-const ALLOWED_STAFF_PERMISSIONS = ['moderation', 'products', 'integrations', 'settings', 'disputes', 'tickets', 'campaigns'];
+const ALLOWED_STAFF_PERMISSIONS = ['moderation', 'products', 'integrations', 'settings', 'tickets', 'campaigns'];
 const ALLOWED_STORE_ROLES = ['administrator', 'editor', 'support', 'custom'];
 const ROLE_PRESETS = {
-  administrator: ['moderation', 'products', 'integrations', 'settings', 'disputes', 'tickets', 'campaigns'],
+  administrator: ['moderation', 'products', 'integrations', 'settings', 'tickets', 'campaigns'],
   editor: ['moderation', 'products', 'campaigns'],
   support: ['tickets'],
 };
@@ -565,7 +565,7 @@ const deleteOwnAccount = async (req, res) => {
             in_progress: allTickets.filter((t) => t.status === 'in_progress').length,
             resolved: allTickets.filter((t) => t.status === 'resolved').length,
         };
-        // pending alias → open (matches disputes overview wording)
+        // pending alias → open
         const statusFilter = filterParam === 'pending' ? 'open' : filterParam;
         const data = statusFilter === 'all'
             ? allTickets
@@ -953,18 +953,15 @@ const getOwnerNavBadges = async (req, res) => {
   try {
     const targetOwnerId = req.user.role === 'staff' ? req.user.parentAccount : req.user._id;
     if (!targetOwnerId) {
-      return res.status(200).json({ data: { openTickets: 0, openDisputes: 0, unreadNotifications: 0 } });
+      return res.status(200).json({ data: { openTickets: 0, unreadNotifications: 0 } });
     }
 
-    const storeIds = await Store.find({ owner: targetOwnerId, isDeleted: false }).distinct('_id');
-
-    const [openTickets, openDisputes, unreadNotifications] = await Promise.all([
+    const [openTickets, unreadNotifications] = await Promise.all([
       Support.countDocuments({ owner: targetOwnerId, status: 'open' }),
-      Review.countDocuments({ store: { $in: storeIds }, status: "disputed", isDeleted: false }),
       Notification.countDocuments({ user: targetOwnerId, isRead: false }),
     ]);
 
-    return res.status(200).json({ data: { openTickets, openDisputes, unreadNotifications } });
+    return res.status(200).json({ data: { openTickets, unreadNotifications } });
   } catch (error) {
     console.error("Error in getOwnerNavBadges", error);
     return res.status(500).json({ message: "Server error" });

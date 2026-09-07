@@ -2,14 +2,13 @@ import { Router } from "express";
 import { authAdmin, requireMasterAdmin, checkPlatformPermission } from "../middlewares/authUser.js";
 import {
   listUsers, listStores, deleteUser, updateStore, getPlatformAnalytics,
-  getDisputedReviews, resolveDispute, restoreStore, restoreUser,
+  restoreStore, restoreUser,
   getTicketsFromUsers, replyToTicket, resolveTicket, claimTicket, listSubscriptions
 } from '../controllers/adminController.js';
 import {
   invitePlatformStaff, getPlatformStaff, resendPlatformInvite,
   updatePlatformStaffPermissions, revokePlatformStaff, getAdminNavBadges
 } from '../controllers/adminTeamController.js';
-import { aiResolveDispute } from '../controllers/aiController.js';
 
 const adminRouter = Router();
 
@@ -29,11 +28,6 @@ adminRouter.patch('/store/:id/restore', authAdmin, requireMasterAdmin, restoreSt
 
 // Analytics — editor+ / analytics_platform
 adminRouter.get('/analytics', authAdmin, checkPlatformPermission('analytics_platform'), getPlatformAnalytics);
-
-// Disputes
-adminRouter.get('/disputes', authAdmin, checkPlatformPermission('disputes_resolve'), getDisputedReviews);
-adminRouter.patch('/disputes/:reviewId/resolve', authAdmin, checkPlatformPermission('disputes_resolve'), resolveDispute);
-adminRouter.post('/disputes/:reviewId/ai-resolve', authAdmin, checkPlatformPermission('disputes_resolve'), aiResolveDispute);
 
 // Support queue
 adminRouter.get('/support/list', authAdmin, checkPlatformPermission('support_queue'), getTicketsFromUsers);

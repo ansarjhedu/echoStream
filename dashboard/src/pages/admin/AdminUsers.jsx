@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import api from '../../Api';
-import { User, Trash2, Clock, RefreshCcw, AlertOctagon, LifeBuoy, Store, LayoutTemplate } from 'lucide-react';
+import { User, Trash2, Clock, RefreshCcw, LifeBuoy, Store, LayoutTemplate } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { isMasterAdmin } from '../../utils/permissionHelpers';
@@ -17,7 +17,6 @@ export default function AdminUsers() {
   const master = isMasterAdmin(user);
   const [users, setUsers] = useState([]);
   const [stores, setStores] = useState([]);
-  const [disputes, setDisputes] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userFilter, setUserFilter] = useState('all');
@@ -31,16 +30,14 @@ export default function AdminUsers() {
       const settled = await Promise.allSettled([
         api.get('/admin/user/list'),
         api.get('/admin/store/list'),
-        api.get('/admin/disputes'),
         api.get('/admin/support/list'),
       ]);
-      const [userRes, storeRes, dispRes, ticketRes] = settled;
+      const [userRes, storeRes, ticketRes] = settled;
       if (userRes.status === 'fulfilled') setUsers(userRes.value.data.data || []);
       else toast.error('Failed to fetch users');
       if (storeRes.status === 'fulfilled') {
         setStores(storeRes.value.data?.storesWithOwner || storeRes.value.data?.data || []);
       }
-      if (dispRes.status === 'fulfilled') setDisputes(dispRes.value.data?.data || []);
       if (ticketRes.status === 'fulfilled') setTickets(ticketRes.value.data?.data || []);
     } catch {
       toast.error('Failed to fetch platform data');
@@ -69,18 +66,11 @@ export default function AdminUsers() {
         return tOwner === userId && t.status !== 'resolved';
       }).length;
 
-      const storeIds = userStores.map((s) => String(s._id));
-      const userDisputesCount = disputes.filter((d) => {
-        const dStore = d.store?._id ? String(d.store._id) : String(d.store);
-        return storeIds.includes(dStore) && d.status === 'disputed';
-      }).length;
-
       return {
         ...u,
         totalStores,
         activeWidgets,
         openTickets: userTicketsCount,
-        pendingDisputes: userDisputesCount,
       };
     });
 
@@ -88,7 +78,7 @@ export default function AdminUsers() {
     return mappedUsers.sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
-  }, [users, stores, tickets, disputes]);
+  }, [users, stores, tickets]);
 
   const filteredUsers = useMemo(() => {
     let list = enrichedUsers.filter((u) => {
@@ -247,18 +237,6 @@ export default function AdminUsers() {
                               className={`text-sm font-bold ${u.openTickets > 0 ? 'text-yellow-400' : 'text-gray-500'}`}
                             >
                               {u.openTickets}
-                            </span>
-                          </div>
-
-                          <div className="w-px h-4 bg-white/10 hidden sm:block" />
-
-                          <div className="flex items-center gap-2">
-                            <AlertOctagon size={14} className="text-gray-500" />
-                            <span className="text-xs text-gray-400 hidden sm:inline">Disputes:</span>
-                            <span
-                              className={`text-sm font-bold ${u.pendingDisputes > 0 ? 'text-red-400' : 'text-gray-500'}`}
-                            >
-                              {u.pendingDisputes}
                             </span>
                           </div>
                         </div>

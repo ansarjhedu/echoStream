@@ -6,14 +6,13 @@ import {
   ArrowLeft,
   Package,
   Star,
-  Lock,
   X,
   Sparkles,
   EyeOff,
   Eye,
   Filter,
-  AlertOctagon,
   Download,
+  Upload,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { isPresenceType } from '../utils/permissionHelpers';
@@ -30,7 +29,6 @@ function StatusBadge({ status, hidden }) {
     pending: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
     approved: 'bg-green-500/10 text-green-400 border-green-500/20',
     rejected: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
-    disputed: 'bg-red-500/10 text-red-400 border-red-500/20',
   };
   return (
     <span
@@ -54,11 +52,11 @@ export default function Reviews() {
   const [aiLoading, setAiLoading] = useState(null);
   const [bulkMaxRating, setBulkMaxRating] = useState(2);
   const [bulkLoading, setBulkLoading] = useState(false);
-  const [disputeModalOpen, setDisputeModalOpen] = useState(false);
-  const [disputeData, setDisputeData] = useState({ reviewId: null, content: '', images: null });
-  const [disputeLoading, setDisputeLoading] = useState(false);
   const [visibility, setVisibility] = useState('all'); // all | visible | hidden
+  const [productVisibility, setProductVisibility] = useState('all');
   const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [productActionId, setProductActionId] = useState(null);
 
   useEffect(() => {
     if (!activeStore) return;
@@ -73,7 +71,9 @@ export default function Reviews() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/store/${activeStore._id}/products`);
+      const res = await api.get(`/store/${activeStore._id}/products`, {
+        params: { includeHidden: 1 },
+      });
       setProducts(res.data.data || []);
     } catch {
       toast.error('Failed to load products');
@@ -136,35 +136,6 @@ export default function Reviews() {
     }
   };
 
-  const submitDispute = async (e) => {
-    e.preventDefault();
-    if (!disputeData.content?.trim()) return toast.error('Please provide a reason for the dispute.');
-    setDisputeLoading(true);
-    const payload = new FormData();
-    payload.append('status', 'disputed');
-    payload.append('content', disputeData.content);
-    if (disputeData.images) {
-      for (let i = 0; i < Math.min(disputeData.images.length, 3); i++) {
-        payload.append('images', disputeData.images[i]);
-      }
-    }
-    try {
-      const res = await api.patch(
-        `/store/${activeStore._id}/updateReview/${disputeData.reviewId}/status`,
-        payload,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
-      );
-      setReviews((prev) => prev.map((r) => (r._id === disputeData.reviewId ? res.data.data : r)));
-      setDisputeModalOpen(false);
-      setDisputeData({ reviewId: null, content: '', images: null });
-      toast.success(res.data.message || 'Dispute submitted — AI is analyzing now.');
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to submit dispute.');
-    } finally {
-      setDisputeLoading(false);
-    }
-  };
-
   const handleBulkHide = async () => {
     if (
       !window.confirm(
@@ -211,6 +182,67 @@ export default function Reviews() {
     }
   };
 
+  const handleImportFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setImporting(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await api.post(`/store/${activeStore._id}/reviews/import`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      toast.success(res.data.message || 'Import complete.');
+      if (isPresence) await fetchAllReviews();
+      else if (selectedProduct) await handleSelectProduct(selectedProduct);
+      else await fetchProducts();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Import failed.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleHideProduct = async (product, e) => {
+    e?.stopPropagation?.();
+    if (
+      !window.confirm(
+        `Hide "${product.productTitle}" from your storefront? Reviews stay in your records — reusing the same product ID will reopen this history, not a blank product.`
+      )
+    ) {
+      return;
+    }
+    setProductActionId(product._id);
+    try {
+      const res = await api.patch(`/store/${activeStore._id}/products/${product._id}/hide`);
+      setProducts((prev) =>
+        prev.map((p) => (p._id === product._id ? { ...p, ...res.data.data, isDeleted: true } : p))
+      );
+      toast.success(res.data.message || 'Product hidden.');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to hide product.');
+    } finally {
+      setProductActionId(null);
+    }
+  };
+
+  const handleUnhideProduct = async (product, e) => {
+    e?.stopPropagation?.();
+    setProductActionId(product._id);
+    try {
+      const res = await api.patch(`/store/${activeStore._id}/products/${product._id}/unhide`);
+      setProducts((prev) =>
+        prev.map((p) => (p._id === product._id ? { ...p, ...res.data.data, isDeleted: false } : p))
+      );
+      toast.success(res.data.message || 'Product unhidden.');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to unhide product.');
+    } finally {
+      setProductActionId(null);
+    }
+  };
+
   const handleReply = async (id) => {
     if (!replyText[id]) return;
     try {
@@ -252,52 +284,137 @@ export default function Reviews() {
     : selectedProduct?.productHandle;
 
   if (!isPresence && !selectedProduct) {
+    const filteredProducts = products.filter((product) => {
+      const hidden = Boolean(product.isDeleted);
+      if (productVisibility === 'hidden') return hidden;
+      if (productVisibility === 'visible') return !hidden;
+      return true;
+    });
+
     return (
       <div className="p-4 md:p-8 relative z-10">
-        <h1 className="text-2xl md:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 mb-2">
-          Products
-        </h1>
-        <p className="text-gray-400 text-sm mb-6 md:mb-8">
-          Open a product to reply, hide, or dispute its reviews.
-        </p>
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 mb-2">
+              Products
+            </h1>
+            <p className="text-gray-400 text-sm max-w-2xl">
+              Hide a product you no longer sell instead of deleting it. Reviews stay attached — reusing the same
+              product ID reopens the same history, so bad reviews cannot be wiped by delete-and-readd.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <label className="inline-flex items-center gap-2 min-h-11 px-4 rounded-xl border border-white/10 bg-white/5 text-sm font-semibold text-gray-200 hover:bg-white/10 cursor-pointer">
+              <Upload size={16} /> {importing ? 'Importing…' : 'Import reviews'}
+              <input
+                type="file"
+                accept=".xml,.json,application/xml,text/xml,application/json"
+                className="hidden"
+                disabled={importing}
+                onChange={handleImportFile}
+              />
+            </label>
+            <button
+              type="button"
+              disabled={exporting}
+              onClick={handleExportXml}
+              className="inline-flex items-center gap-2 min-h-11 px-4 rounded-xl border border-white/10 bg-white/5 text-sm font-semibold text-gray-200 hover:bg-white/10 disabled:opacity-50"
+            >
+              <Download size={16} /> {exporting ? 'Exporting…' : 'Export XML'}
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 mb-6">
+          <Filter size={16} className="text-cyan-400" />
+          {[
+            { id: 'all', label: 'All' },
+            { id: 'visible', label: 'On storefront' },
+            { id: 'hidden', label: 'Hidden' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setProductVisibility(tab.id)}
+              className={`min-h-9 px-3 rounded-full text-xs font-bold border ${
+                productVisibility === tab.id
+                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                  : 'bg-white/5 text-gray-400 border-white/10'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         {loading ? (
           <div className="text-cyan-400 animate-pulse flex items-center gap-2">
             <Package /> Loading products…
           </div>
-        ) : products.length === 0 ? (
+        ) : filteredProducts.length === 0 ? (
           <div className="text-gray-500 text-left bg-white/5 p-10 rounded-2xl border border-white/10">
             <Package size={48} className="mb-4 opacity-50" />
-            <p>No products with reviews yet for {activeStore.storeName}.</p>
+            <p>
+              {products.length === 0
+                ? `No products with reviews yet for ${activeStore.storeName}.`
+                : 'No products match this visibility filter.'}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-            {products.map((product) => (
-              <div
-                key={product._id}
-                onClick={() => handleSelectProduct(product)}
-                className="group cursor-pointer bg-white/[0.02] border border-white/10 p-5 rounded-2xl backdrop-blur-xl hover:bg-white/[0.05] hover:border-cyan-500/50 transition-all"
-              >
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 shrink-0 rounded-xl bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center border border-white/10">
-                    <Package className="text-cyan-400" />
+            {filteredProducts.map((product) => {
+              const hidden = Boolean(product.isDeleted);
+              return (
+                <div
+                  key={product._id}
+                  onClick={() => handleSelectProduct(product)}
+                  className={`group cursor-pointer bg-white/[0.02] border p-5 rounded-2xl backdrop-blur-xl hover:bg-white/[0.05] hover:border-cyan-500/50 transition-all ${
+                    hidden ? 'border-white/5 opacity-80' : 'border-white/10'
+                  }`}
+                >
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-12 h-12 shrink-0 rounded-xl bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center border border-white/10">
+                      <Package className="text-cyan-400" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-lg font-bold text-white truncate">{product.productTitle}</h3>
+                        {hidden ? <StatusBadge hidden /> : null}
+                      </div>
+                      <p className="text-xs text-gray-500 truncate">ID: {product.productHandle}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="text-lg font-bold text-white truncate">{product.productTitle}</h3>
-                    <p className="text-xs text-gray-500 truncate">ID: {product.productHandle}</p>
+                  <div className="flex justify-between items-center pt-4 border-t border-white/5 gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <Star size={16} className="text-yellow-400 fill-yellow-400" />
+                      <span className="font-bold">{product.stats?.avgRating?.toFixed(1) || 0}</span>
+                      <span className="text-sm text-gray-400 ml-2">
+                        <span className="font-bold text-white">{product.stats?.totalReviews || 0}</span> Reviews
+                      </span>
+                    </div>
+                    {hidden ? (
+                      <button
+                        type="button"
+                        disabled={productActionId === product._id}
+                        onClick={(e) => handleUnhideProduct(product, e)}
+                        className="p-2 px-3 text-emerald-400 hover:bg-emerald-400/10 rounded-md transition-all flex items-center gap-1.5 text-xs font-bold border border-emerald-500/20 disabled:opacity-50"
+                      >
+                        <Eye size={14} /> Unhide
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={productActionId === product._id}
+                        onClick={(e) => handleHideProduct(product, e)}
+                        className="p-2 px-3 text-orange-400 hover:bg-orange-400/10 rounded-md transition-all flex items-center gap-1.5 text-xs font-bold border border-orange-500/20 disabled:opacity-50"
+                      >
+                        <EyeOff size={14} /> Hide
+                      </button>
+                    )}
                   </div>
                 </div>
-                <div className="flex justify-between items-center pt-4 border-t border-white/5">
-                  <div className="flex items-center gap-1.5">
-                    <Star size={16} className="text-yellow-400 fill-yellow-400" />
-                    <span className="font-bold">{product.stats?.avgRating?.toFixed(1) || 0}</span>
-                  </div>
-                  <span className="text-sm text-gray-400">
-                    <span className="font-bold text-white">{product.stats?.totalReviews || 0}</span>{' '}
-                    Reviews
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -325,18 +442,29 @@ export default function Reviews() {
           </h1>
           {listSubtitle && <p className="text-cyan-400 text-sm truncate">Product ID: {listSubtitle}</p>}
           <p className="text-xs text-gray-500 mt-2 max-w-xl">
-            Hide removes a review from your storefront only — it stays under Products so you can unhide.
-            Reviews are never permanently deleted. Use Dispute for abuse or fake purchases.
+            Hide removes a review from your storefront only — it stays in your records so you can unhide later.
           </p>
         </div>
-        <button
-          type="button"
-          disabled={exporting}
-          onClick={handleExportXml}
-          className="shrink-0 self-start inline-flex items-center gap-2 min-h-11 px-4 rounded-xl border border-white/10 bg-white/5 text-sm font-semibold text-gray-200 hover:bg-white/10 disabled:opacity-50"
-        >
-          <Download size={16} /> {exporting ? 'Exporting…' : 'Download XML'}
-        </button>
+        <div className="flex flex-wrap gap-2 shrink-0 self-start">
+          <label className="inline-flex items-center gap-2 min-h-11 px-4 rounded-xl border border-white/10 bg-white/5 text-sm font-semibold text-gray-200 hover:bg-white/10 cursor-pointer">
+            <Upload size={16} /> {importing ? 'Importing…' : 'Import'}
+            <input
+              type="file"
+              accept=".xml,.json,application/xml,text/xml,application/json"
+              className="hidden"
+              disabled={importing}
+              onChange={handleImportFile}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={exporting}
+            onClick={handleExportXml}
+            className="inline-flex items-center gap-2 min-h-11 px-4 rounded-xl border border-white/10 bg-white/5 text-sm font-semibold text-gray-200 hover:bg-white/10 disabled:opacity-50"
+          >
+            <Download size={16} /> {exporting ? 'Exporting…' : 'Export XML'}
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col lg:flex-row lg:items-center gap-3 mb-6 bg-white/[0.02] border border-white/10 rounded-2xl p-4">
@@ -408,7 +536,7 @@ export default function Reviews() {
               <div
                 key={review._id}
                 className={`bg-white/[0.02] border border-white/10 p-4 md:p-6 rounded-2xl backdrop-blur-xl relative group shadow-lg ${
-                  hidden || review.isLocked ? 'opacity-80' : ''
+                  hidden ? 'opacity-80' : ''
                 }`}
               >
                 <div className="flex flex-col sm:flex-row justify-between items-start mb-4 gap-4">
@@ -434,47 +562,22 @@ export default function Reviews() {
                   </div>
 
                   <div className="flex gap-2 bg-black/40 p-1.5 rounded-lg border border-white/5 w-full sm:w-auto justify-end flex-wrap">
-                    {review.isLocked ? (
-                      <span className="px-3 py-1 text-xs font-bold text-red-400 bg-red-500/10 rounded-md border border-red-500/20 flex items-center gap-1">
-                        <Lock size={14} /> Locked by Admin
-                      </span>
+                    {hidden ? (
+                      <button
+                        type="button"
+                        onClick={() => handleUnhide(review._id)}
+                        className="p-2 px-3 text-emerald-400 hover:bg-emerald-400/10 rounded-md transition-all flex items-center gap-2 text-xs font-bold"
+                      >
+                        <Eye size={16} /> Unhide
+                      </button>
                     ) : (
-                      <>
-                        {review.status === 'disputed' ? (
-                          <span className="px-3 py-1 text-xs font-bold text-orange-400 flex items-center gap-1">
-                            <AlertOctagon size={14} /> AI / Admin review
-                          </span>
-                        ) : null}
-                        {hidden ? (
-                          <button
-                            type="button"
-                            onClick={() => handleUnhide(review._id)}
-                            className="p-2 px-3 text-emerald-400 hover:bg-emerald-400/10 rounded-md transition-all flex items-center gap-2 text-xs font-bold"
-                          >
-                            <Eye size={16} /> Unhide
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleHide(review._id)}
-                            className="p-2 px-3 text-orange-400 hover:bg-orange-400/10 rounded-md transition-all flex items-center gap-2 text-xs font-bold"
-                          >
-                            <EyeOff size={16} /> Hide
-                          </button>
-                        )}
-                        {!isPresence && review.status === 'approved' && !hidden ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setDisputeData({ reviewId: review._id, content: '', images: null });
-                              setDisputeModalOpen(true);
-                            }}
-                            className="p-2 px-3 text-red-400 hover:bg-red-400/10 rounded-md transition-all flex items-center gap-2 text-xs font-bold"
-                          >
-                            <AlertOctagon size={16} /> Dispute
-                          </button>
-                        ) : null}
-                      </>
+                      <button
+                        type="button"
+                        onClick={() => handleHide(review._id)}
+                        className="p-2 px-3 text-orange-400 hover:bg-orange-400/10 rounded-md transition-all flex items-center gap-2 text-xs font-bold"
+                      >
+                        <EyeOff size={16} /> Hide
+                      </button>
                     )}
                   </div>
                 </div>
@@ -550,60 +653,6 @@ export default function Reviews() {
               </div>
             );
           })}
-        </div>
-      )}
-
-      {disputeModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-[#0A0F1A] border border-red-500/30 p-6 md:p-8 rounded-2xl w-full max-w-md shadow-2xl relative">
-            <button
-              type="button"
-              onClick={() => setDisputeModalOpen(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-white"
-            >
-              <X size={24} />
-            </button>
-            <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-              <AlertOctagon className="text-red-500" /> Dispute Review
-            </h2>
-            <p className="text-gray-400 text-sm mb-6">
-              Our AI agent will analyze your claim and decide with a written reason you can read in Disputes / Notifications.
-            </p>
-            <form onSubmit={submitDispute} className="space-y-4">
-              <div>
-                <label className="block text-xs text-gray-400 mb-2">Dispute reason</label>
-                <textarea
-                  required
-                  rows="4"
-                  value={disputeData.content}
-                  onChange={(e) =>
-                    setDisputeData((prev) => ({ ...prev, content: e.target.value }))
-                  }
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-400 text-sm resize-none"
-                  placeholder="e.g. Customer never purchased / abusive language / wrong product…"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-400 mb-2">Proof images (max 3)</label>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={(e) =>
-                    setDisputeData((prev) => ({ ...prev, images: e.target.files }))
-                  }
-                  className="w-full text-xs text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-red-500/10 file:text-red-400"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={disputeLoading}
-                className="w-full bg-gradient-to-r from-red-500 to-orange-600 py-3 rounded-xl font-bold text-white text-sm disabled:opacity-50"
-              >
-                {disputeLoading ? 'Submitting…' : 'Submit for AI review'}
-              </button>
-            </form>
-          </div>
         </div>
       )}
 

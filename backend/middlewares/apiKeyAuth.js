@@ -10,7 +10,11 @@ const apiKeyAuth=async (req,res,next)=>{
     try {
         const store=await Store.findOne({apiKey:apiKey}).select('_id name status isActive widgetConfig storeType apiKey');
         if(!store || !store.isActive || !["live","suspended"].includes(store.status)){
-            return res.status(401).json({message:store.status==="suspended"?"Your store is currently suspended, please contact support for more information":"Invalid API key or store is not active, authorization denied"});
+            const message =
+                store?.status === "suspended"
+                    ? "Your store is currently suspended, please contact support for more information"
+                    : "Invalid API key or store is not active, authorization denied";
+            return res.status(401).json({ message });
         }
 
         

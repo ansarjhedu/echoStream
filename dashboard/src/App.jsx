@@ -29,7 +29,6 @@ import GoogleReviews from './pages/GoogleReviews';
 import Analytics from './pages/Analytics';
 import HubLayout from './pages/HubLayout';
 import StoreLayout from './pages/StoreLayout';
-import StoreDisputes from './pages/StoreDisputes';
 import Support from './pages/Support';
 import Notifications from './pages/Notifications';
 import TeamManagement from './pages/TeamManagement';
@@ -42,7 +41,6 @@ import TrustPage from './pages/TrustPage';
 import PublicReviewForm from './pages/PublicReviewForm';
 
 import AdminOverview from './pages/admin/AdminOverview';
-import AdminDisputes from './pages/admin/AdminDisputes';
 import AdminStores from './pages/admin/AdminStores';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminSupport from './pages/admin/AdminSupport';
@@ -143,7 +141,7 @@ const WorkspaceGuard = ({ children }) => {
     // Portfolio / blog workspaces: commerce-only surfaces are hidden (Reviews stays available)
     if (
       presenceWorkspace &&
-      (path.includes('/analytics') || path.includes('/disputes') || path.includes('/campaigns'))
+      (path.includes('/analytics') || path.includes('/campaigns'))
     ) {
       toast.info('That section is for commerce stores. Opening Widgets.');
       navigate('/workspace/widgets', { replace: true });
@@ -174,7 +172,6 @@ const WorkspaceGuard = ({ children }) => {
       denied = true;
     }
     if (path.includes('/reviews') && !hasPerm(user, 'moderation') && !hasPerm(user, 'products')) denied = true;
-    if (path.includes('/disputes') && !hasPerm(user, 'moderation') && !hasPerm(user, 'disputes')) denied = true;
     if (
       path.includes('/analytics') &&
       !(
@@ -182,7 +179,6 @@ const WorkspaceGuard = ({ children }) => {
         hasPerm(user, 'products') ||
         hasPerm(user, 'integrations') ||
         hasPerm(user, 'settings') ||
-        hasPerm(user, 'disputes') ||
         hasPerm(user, 'stores_read') ||
         hasPerm(user, 'analytics_platform')
       )
@@ -240,7 +236,6 @@ export default function App() {
                     <Route path="billing" element={<OwnerRoute><Billing /></OwnerRoute>} />
 
                     <Route path="admin/overview" element={<AdminPortalRoute><PlatformPermRoute perm={['analytics_platform', 'stores_read']}><AdminOverview /></PlatformPermRoute></AdminPortalRoute>} />
-                    <Route path="admin/disputes" element={<AdminPortalRoute><PlatformPermRoute perm="disputes_resolve"><AdminDisputes /></PlatformPermRoute></AdminPortalRoute>} />
                     <Route path="admin/stores" element={<AdminPortalRoute><PlatformPermRoute perm={['stores_read', 'moderation']}><AdminStores /></PlatformPermRoute></AdminPortalRoute>} />
                     <Route path="admin/users" element={<AdminPortalRoute><PlatformPermRoute perm="users_read"><AdminUsers /></PlatformPermRoute></AdminPortalRoute>} />
                     <Route path="admin/subscriptions" element={<AdminPortalRoute><PlatformPermRoute perm={['users_read', 'analytics_platform']}><AdminSubscriptions /></PlatformPermRoute></AdminPortalRoute>} />
@@ -262,7 +257,6 @@ export default function App() {
                   <StoreLayout>
                     <Routes>
                       <Route path="reviews" element={<Reviews />} />
-                      <Route path="disputes" element={<StoreDisputes />} />
                       <Route path="campaigns/*" element={<EmailCampaigns />} />
                       <Route path="analytics/*" element={<Analytics />} />
                       <Route path="integration" element={<Integration />} />

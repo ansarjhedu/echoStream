@@ -31,9 +31,9 @@ const userSchema=new Schema({
         type: String,
         enum: [
             // Store staff
-            'moderation', 'products', 'integrations', 'settings', 'disputes', 'tickets', 'campaigns',
+            'moderation', 'products', 'integrations', 'settings', 'tickets', 'campaigns',
             // Platform staff
-            'stores_read', 'users_read', 'disputes_resolve', 'support_queue', 'analytics_platform'
+            'stores_read', 'users_read', 'support_queue', 'analytics_platform'
         ]
     }],
     tokenVersion: {
@@ -58,9 +58,10 @@ const userSchema=new Schema({
         enum: ['local', 'google'],
         default: 'local',
     },
+    // Omit when unused — sparse unique indexes still index `null`, so default:null
+    // breaks email/password signup after the first account (E11000 on googleId: null).
     googleId: {
         type: String,
-        default: null,
         sparse: true,
         unique: true,
     },

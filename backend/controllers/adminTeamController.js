@@ -2,13 +2,11 @@ import crypto from "crypto";
 import User from "../models/User.js";
 import Token from "../models/Token.js";
 import Support from "../models/Support.js";
-import Review from "../models/Review.js";
 import sendEmail from "../utils/sendEmail.js";
 
 const PLATFORM_PERMISSIONS = [
     'stores_read',
     'users_read',
-    'disputes_resolve',
     'support_queue',
     'analytics_platform',
     'moderation',
@@ -19,13 +17,12 @@ const PLATFORM_ROLE_PRESETS = {
     administrator: [
         'stores_read',
         'users_read',
-        'disputes_resolve',
         'support_queue',
         'analytics_platform',
         'moderation',
         'settings',
     ],
-    editor: ['stores_read', 'moderation', 'disputes_resolve', 'analytics_platform'],
+    editor: ['stores_read', 'moderation', 'analytics_platform'],
     support: ['support_queue'],
 };
 
@@ -60,6 +57,9 @@ const invitePlatformStaff = async (req, res) => {
         const { email, userName, storeRole, permissions } = req.body;
         if (!email || !userName) {
             return res.status(400).json({ message: "Email and userName are required" });
+        }
+        if (!/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(String(email).trim())) {
+            return res.status(400).json({ message: "Please provide a valid email address" });
         }
 
         const safeStoreRole = ALLOWED_STORE_ROLES.includes(storeRole) ? storeRole : 'support';
@@ -271,32 +271,19 @@ const revokePlatformStaff = async (req, res) => {
     }
 };
 
-/** Badges for admin sidebar: unread pending tickets + disputes (optionally since last viewed). */
+/** Badges for admin sidebar: unread pending tickets (optionally since last viewed). */
 const getAdminNavBadges = async (req, res) => {
     try {
         const ticketFilter = { status: 'open' };
-        const disputeFilter = { status: 'disputed', isDeleted: false };
 
         if (req.query.ticketsSince) {
             const d = new Date(req.query.ticketsSince);
             if (!Number.isNaN(d.getTime())) ticketFilter.createdAt = { $gt: d };
         }
-        if (req.query.disputesSince) {
-            const d = new Date(req.query.disputesSince);
-            if (!Number.isNaN(d.getTime())) {
-                disputeFilter.$or = [
-                    { 'disputedReason.createdAt': { $gt: d } },
-                    { createdAt: { $gt: d }, 'disputedReason.createdAt': { $exists: false } },
-                ];
-            }
-        }
 
-        const [openTickets, openDisputes] = await Promise.all([
-            Support.countDocuments(ticketFilter),
-            Review.countDocuments(disputeFilter),
-        ]);
+        const openTickets = await Support.countDocuments(ticketFilter);
         return res.status(200).json({
-            data: { openTickets, openDisputes },
+            data: { openTickets },
         });
     } catch (error) {
         console.error("Error in getAdminNavBadges", error);

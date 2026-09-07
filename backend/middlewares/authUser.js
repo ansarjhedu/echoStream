@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import Store from "../models/Store.js";
 
-const STORE_SCOPED_PERMISSIONS = ['moderation', 'products', 'integrations', 'settings', 'disputes'];
+const STORE_SCOPED_PERMISSIONS = ['moderation', 'products', 'integrations', 'settings'];
 const PLATFORM_IMPERSONATION_PERMS = ['stores_read', 'moderation', 'settings', 'analytics_platform'];
 
 const resolveStaffScope = (user, parent) => {

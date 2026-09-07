@@ -10,7 +10,6 @@ export default function AdminOverview() {
   const [analytics, setAnalytics] = useState(null);
   const [stores, setStores] = useState([]);
   const [users, setUsers] = useState([]);
-  const [disputes, setDisputes] = useState([]);
   const [tickets, setTickets] = useState([]); 
   const [loading, setLoading] = useState(true);
   const[chartTimeframe, setChartTimeframe] = useState('7d'); 
@@ -23,10 +22,9 @@ export default function AdminOverview() {
           api.get('/admin/analytics'),
           api.get('/admin/store/list'),
           api.get('/admin/user/list'),
-          api.get('/admin/disputes'),
           api.get('/admin/support/list')
         ]);
-        const [statRes, storeRes, userRes, dispRes, ticketRes] = settled;
+        const [statRes, storeRes, userRes, ticketRes] = settled;
 
         if (statRes.status === 'fulfilled') {
           setAnalytics(statRes.value.data?.data || statRes.value.data || null);
@@ -35,7 +33,6 @@ export default function AdminOverview() {
           setStores(storeRes.value.data?.storesWithOwner || storeRes.value.data?.data || []);
         }
         if (userRes.status === 'fulfilled') setUsers(userRes.value.data?.data || []);
-        if (dispRes.status === 'fulfilled') setDisputes(dispRes.value.data?.data || []);
         if (ticketRes.status === 'fulfilled') setTickets(ticketRes.value.data?.data || []);
 
         if (settled.every((r) => r.status === 'rejected')) {
@@ -154,10 +151,6 @@ export default function AdminOverview() {
   };
 
   if (loading) return <div className="p-12 text-red-400 animate-pulse flex gap-2"><Activity/> Gathering Platform Telemetry...</div>;
-  // Pending Disputes: status === disputed && not soft-deleted
-  const pendingDisputesCount = disputes.filter(
-    (d) => d.status === 'disputed' && !d.isDeleted
-  ).length;
   // Open Support Tickets: status !== resolved
   const openTicketsCount = tickets.filter((t) => t.status !== 'resolved').length;
 
@@ -178,17 +171,15 @@ export default function AdminOverview() {
           <h3 className="text-xl font-bold text-white mb-2">Welcome back, {user?.userName}</h3>
           <p className="text-gray-300 text-sm md:text-base leading-relaxed">
             EchoStream is hosting <strong>{analytics?.activeStores || 0} active widgets</strong> across <strong>{analytics?.totalUsers || 0} active owners.</strong> 
-            {pendingDisputesCount > 0 ? <span className="text-red-400 ml-1 font-bold"> {pendingDisputesCount} disputes need attention!</span> : ' No disputes today.'}
             {openTicketsCount > 0 ? <span className="text-yellow-400 ml-1 font-bold"> You have {openTicketsCount} open support tickets!</span> : ' No open support tickets.'}
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard title="Total Owners" value={analytics?.totalUsers || 0} />
         <StatCard title="Total Stores" value={analytics?.totalStores || 0} />
         <StatCard title="Active Widgets" value={analytics?.activeStores || 0} color="text-green-400" />
-        <StatCard title="Pending Disputes" value={pendingDisputesCount} color="text-red-400" />
         <StatCard title="Open Tickets" value={openTicketsCount} color="text-yellow-400" />
       </div>
 
