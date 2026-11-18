@@ -98,7 +98,7 @@ export default function PlatformLanding() {
               <div className="max-w-6xl mx-auto">
                 <h2 className="text-2xl sm:text-3xl font-extrabold max-w-2xl">{item.title}</h2>
                 <p className="text-sm sm:text-base text-gray-400 mt-3 mb-6 max-w-2xl leading-relaxed">{item.body}</p>
-                <img src={item.src} alt={item.alt} width="1440" height="900" className="w-full h-auto rounded-2xl border border-white/10" loading="lazy" />
+                <img src={item.src} alt={item.alt} width="1058" height="886" className="echo-shot rounded-2xl border border-white/10" loading="lazy" />
               </div>
             </section>
           ))}

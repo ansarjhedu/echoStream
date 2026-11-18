@@ -1,6 +1,18 @@
 @import 'tailwindcss';
 /* src/index.css */
 
+/* Marketing screenshots are a single frame. Do not tile or crop them. */
+.echo-shot {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  object-position: top left;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
 /* One scrollbar for the whole app: thin, transparent track, cyan thumb. */
 html,
 body,
