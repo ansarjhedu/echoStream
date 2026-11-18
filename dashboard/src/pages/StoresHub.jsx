@@ -138,7 +138,7 @@ export default function StoresHub() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0F1A] text-white p-4 md:p-12 relative overflow-y-auto selection:bg-cyan-500/30 overflow-hidden w-full">
+    <div className="min-h-full bg-[#0A0F1A] text-white p-4 md:p-12 relative overflow-y-auto selection:bg-cyan-500/30 overflow-hidden w-full">
       <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-cyan-500/20 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-purple-600/20 blur-[120px] rounded-full pointer-events-none" />
 

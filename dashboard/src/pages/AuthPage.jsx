@@ -7,7 +7,7 @@ import { setSignupIntent } from '../utils/permissionHelpers';
 import { navigateAfterAuth } from '../utils/navigateAfterAuth';
 import PasswordInput from '../components/PasswordInput';
 import GoogleSignInButton from '../components/GoogleSignInButton';
-import logo from '../assets/logo.png';
+import mark from '../assets/logo-mark.jpg';
 
 export default function AuthPage() {
   const [step, setStep] = useState('auth'); // 'auth' | 'otp' | 'login-otp'
@@ -163,7 +163,7 @@ export default function AuthPage() {
             </div>
           ) : (
             <div className="inline-flex items-center justify-center p-4 rounded-3xl bg-white/[0.02] border border-white/10 mb-5 shadow-[0_0_30px_rgba(34,211,238,0.15)] backdrop-blur-md">
-              <img src={logo} alt="EchoStream" className="h-14 w-auto object-contain drop-shadow-[0_0_20px_rgba(34,211,238,0.6)] transition-transform hover:scale-105 duration-500" />
+              <img src={mark} alt="EchoStream" className="h-14 w-14 rounded-2xl object-cover" />
             </div>
           )}
 

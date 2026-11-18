@@ -1,15 +1,15 @@
 import { useAuth } from "../context/AuthContext";
-import { useState } from "react";
 import { useLocation, Link, Navigate } from "react-router-dom";
-import { X, Menu, BarChart3, Package, ArrowLeft, User, LayoutTemplate, Palette, Globe2, MessageSquare, Mail } from "lucide-react";
-import logo from '../assets/logo.png';
+import { BarChart3, Package, ArrowLeft, User, LayoutTemplate, Palette, Globe2, MessageSquare, Mail } from "lucide-react";
+import logo from '../assets/logo-wordmark.jpg';
 import { hasPerm, isSupportOnly, getPostLoginPath, canAccessAdminPortal, canManageWidgets, isPresenceType } from '../utils/permissionHelpers';
+import MobileDock from '../components/MobileDock';
+import MobileHeader from '../components/MobileHeader';
+import { packDock } from '../utils/packDock';
 
 const StoreLayout = ({ children }) => {
-  const { activeStore, setActiveStore, user } = useAuth();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { activeStore, setActiveStore, user, logout } = useAuth();
   const location = useLocation();
-  const closeMenu = () => setIsMobileMenuOpen(false);
 
   const isPresence = isPresenceType(activeStore?.storeType);
   const isAnalyticsActive = location.pathname.includes('/analytics');
@@ -25,26 +25,57 @@ const StoreLayout = ({ children }) => {
 
   if (!activeStore) return <Navigate to={getPostLoginPath(user)} replace />;
 
+  const hubItem = canAccessAdminPortal(user)
+    ? { key: 'admin', to: getPostLoginPath(user), label: 'Admin', icon: User }
+    : {
+        key: 'hub',
+        to: isPresence ? '/hub/presence' : getPostLoginPath(user),
+        label: 'Hub',
+        icon: ArrowLeft,
+        onClick: () => setActiveStore(null),
+      };
+
+  const mobileDock = packDock(
+    [
+      showAnalytics && { key: 'analytics', to: '/workspace/analytics/overview', label: 'Analytics', icon: BarChart3, active: isAnalyticsActive },
+      showModeration && { key: 'products', to: '/workspace/reviews', label: 'Products', icon: Package, active: isReviewsActive },
+      showPresenceReviews && { key: 'reviews', to: '/workspace/reviews', label: 'Reviews', icon: MessageSquare, active: isReviewsActive },
+      showCampaigns && { key: 'campaigns', to: '/workspace/campaigns/request', label: 'Campaigns', icon: Mail, active: isCampaignsActive },
+      showWidgets && { key: 'widgets', to: '/workspace/widgets', label: 'Widgets', icon: LayoutTemplate, active: isWidgetsActive },
+      showWidgets && { key: 'google', to: '/workspace/google-reviews', label: 'Google', icon: Globe2, active: location.pathname.includes('/google-reviews') },
+      hubItem,
+    ],
+    {
+      center: showWidgets
+        ? { key: 'design', to: '/workspace/design-lab', label: 'Design', icon: Palette, active: isDesignLabActive }
+        : null,
+      extras: [
+        showAnalytics && { key: 'performance', to: '/workspace/analytics/products', label: 'Product performance', icon: BarChart3, active: location.pathname.includes('/analytics/products') },
+        showCampaigns && { key: 'launch', to: '/workspace/campaigns/launch', label: 'Launch campaign', icon: Mail, active: location.pathname.includes('/campaigns/launch') },
+      ],
+      account: {
+        key: 'account',
+        to: '/hub/profile',
+        user,
+        onClick: () => setActiveStore(null),
+      },
+    }
+  );
+
   return (
-    <div className="min-h-screen bg-[#0A0F1A] text-white flex flex-col md:flex-row font-sans selection:bg-cyan-500/30 overflow-hidden">
-      <div className="md:hidden flex items-center justify-between p-4 border-b border-white/10 bg-[#0A0F1A] z-40 relative">
-        <div className="flex items-center gap-2">
-          <img src={logo} alt="EchoStream Logo" className="h-6 w-auto object-contain drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]" />
-          <h2 className="text-xl font-black tracking-tighter truncate max-w-[150px]">{activeStore.storeName}</h2>
-        </div>
-        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-gray-400">
-          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
-      </div>
+    <div className="echo-shell h-dvh bg-[#0A0F1A] text-white flex flex-col md:flex-row font-sans selection:bg-cyan-500/30 overflow-hidden">
+      <MobileHeader
+        store={activeStore}
+        homeTo={isPresence ? '/hub/presence' : '/hub/stores'}
+        onLogout={logout}
+        onLeave={() => setActiveStore(null)}
+      />
 
-      {isMobileMenuOpen && <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden" onClick={closeMenu} />}
-
-      <aside className={`fixed inset-y-0 left-0 z-50 w-72 border-r border-white/10 bg-[#0A0F1A] flex flex-col justify-between transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 md:bg-black/20 md:backdrop-blur-3xl ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className="hidden md:flex md:h-screen md:flex-col md:w-72 md:shrink-0 md:justify-between md:overflow-y-auto border-r border-white/10 bg-black/20 backdrop-blur-3xl">
         <div>
           <div className="p-8 hidden md:block">
-            <h2 className="text-2xl font-black tracking-tighter flex items-center gap-3 mb-6">
-              <img src={logo} alt="EchoStream Logo" className="h-8 w-auto object-contain drop-shadow-[0_0_15px_rgba(34,211,238,0.6)]" />
-              EchoStream
+            <h2 className="mb-6">
+              <img src={logo} alt="EchoStream" className="h-10 w-auto max-w-[220px] object-contain object-left" />
             </h2>
             <div className="bg-white/5 border border-white/10 rounded-xl p-4">
               <p className="text-xs text-gray-500 mb-1">{isPresence ? 'Site' : 'Workspace'}</p>
@@ -62,7 +93,6 @@ const StoreLayout = ({ children }) => {
               <div className="space-y-1">
                 <Link
                   to="/workspace/analytics/overview"
-                  onClick={closeMenu}
                   className={`w-full flex items-center px-4 py-3 rounded-xl transition-all ${isAnalyticsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                 >
                   <div className="flex items-center gap-3">
@@ -72,10 +102,10 @@ const StoreLayout = ({ children }) => {
                 </Link>
                 <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isAnalyticsActive ? 'max-h-40 opacity-100 mt-1 mb-2' : 'max-h-0 opacity-0'}`}>
                   <div className="flex flex-col gap-1 pr-2">
-                    <Link to="/workspace/analytics/overview" onClick={closeMenu} className={`px-4 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${location.pathname.includes('/analytics/overview') ? 'text-cyan-400 bg-white/5 font-bold shadow-sm' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.02]'}`}>
+                    <Link to="/workspace/analytics/overview" className={`px-4 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${location.pathname.includes('/analytics/overview') ? 'text-cyan-400 bg-white/5 font-bold shadow-sm' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.02]'}`}>
                       Overview
                     </Link>
-                    <Link to="/workspace/analytics/products" onClick={closeMenu} className={`px-4 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${location.pathname.includes('/analytics/products') ? 'text-cyan-400 bg-white/5 font-bold shadow-sm' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.02]'}`}>
+                    <Link to="/workspace/analytics/products" className={`px-4 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${location.pathname.includes('/analytics/products') ? 'text-cyan-400 bg-white/5 font-bold shadow-sm' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.02]'}`}>
                       Product performance
                     </Link>
                   </div>
@@ -84,12 +114,12 @@ const StoreLayout = ({ children }) => {
             )}
 
             {showModeration && (
-              <Link to="/workspace/reviews" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isReviewsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+              <Link to="/workspace/reviews" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isReviewsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                 <Package size={20} className={isReviewsActive ? "text-cyan-400" : ""} /> Products
               </Link>
             )}
             {showPresenceReviews && (
-              <Link to="/workspace/reviews" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isReviewsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+              <Link to="/workspace/reviews" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isReviewsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                 <MessageSquare size={20} className={isReviewsActive ? "text-cyan-400" : ""} /> Reviews
               </Link>
             )}
@@ -97,7 +127,6 @@ const StoreLayout = ({ children }) => {
               <div className="space-y-1">
                 <Link
                   to="/workspace/campaigns/request"
-                  onClick={closeMenu}
                   className={`w-full flex items-center px-4 py-3 rounded-xl transition-all ${isCampaignsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                 >
                   <div className="flex items-center gap-3">
@@ -109,14 +138,12 @@ const StoreLayout = ({ children }) => {
                   <div className="flex flex-col gap-1 pr-2">
                     <Link
                       to="/workspace/campaigns/request"
-                      onClick={closeMenu}
                       className={`px-4 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${location.pathname.includes('/campaigns/request') ? 'text-cyan-400 bg-white/5 font-bold shadow-sm' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.02]'}`}
                     >
                       Request a review
                     </Link>
                     <Link
                       to="/workspace/campaigns/launch"
-                      onClick={closeMenu}
                       className={`px-4 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${location.pathname.includes('/campaigns/launch') ? 'text-cyan-400 bg-white/5 font-bold shadow-sm' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.02]'}`}
                     >
                       Launch campaign
@@ -126,17 +153,17 @@ const StoreLayout = ({ children }) => {
               </div>
             )}
             {showWidgets && (
-              <Link to="/workspace/widgets" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isWidgetsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+              <Link to="/workspace/widgets" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isWidgetsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                 <LayoutTemplate size={20} className={isWidgetsActive ? "text-cyan-400" : ""} /> Widgets
               </Link>
             )}
             {showWidgets && (
-              <Link to="/workspace/design-lab" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isDesignLabActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+              <Link to="/workspace/design-lab" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isDesignLabActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                 <Palette size={20} className={isDesignLabActive ? "text-purple-400" : ""} /> Design Lab
               </Link>
             )}
             {showWidgets && (
-              <Link to="/workspace/google-reviews" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/google-reviews') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+              <Link to="/workspace/google-reviews" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/google-reviews') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                 <Globe2 size={20} className={location.pathname.includes('/google-reviews') ? "text-emerald-400" : ""} /> Google Reviews
               </Link>
             )}
@@ -145,13 +172,13 @@ const StoreLayout = ({ children }) => {
 
         <div className="p-4 border-t border-white/10 space-y-2">
           {canAccessAdminPortal(user) ? (
-            <Link to={getPostLoginPath(user)} onClick={closeMenu} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-gray-400 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold">
+            <Link to={getPostLoginPath(user)} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-gray-400 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold">
               <User size={18} /> Admin Hub
             </Link>
           ) : (
             <Link
               to={isPresence ? '/hub/presence' : getPostLoginPath(user)}
-              onClick={() => { closeMenu(); setActiveStore(null); }}
+              onClick={() => setActiveStore(null)}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 text-gray-400 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold"
             >
               <ArrowLeft size={18} /> Back to Hub
@@ -160,9 +187,11 @@ const StoreLayout = ({ children }) => {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto relative z-0 h-[calc(100vh-65px)] md:h-screen custom-scrollbar">
+      <main className="echo-shell-main flex-1 overflow-y-auto relative z-0 custom-scrollbar">
         {children}
       </main>
+
+      <MobileDock {...mobileDock} />
     </div>
   );
 };

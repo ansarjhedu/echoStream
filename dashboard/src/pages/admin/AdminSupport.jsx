@@ -141,7 +141,7 @@ export default function AdminSupport() {
   };
 
   return (
-    <div className="p-4 md:p-8 lg:p-10 relative h-[calc(100vh-80px)] w-full flex flex-col no-scrollbar">
+    <div className="p-4 md:p-8 lg:p-10 relative h-full w-full flex flex-col no-scrollbar">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl md:text-3xl font-extrabold text-white flex items-center gap-3">
           <LifeBuoy className="text-red-500 shrink-0" /> Admin Support Desk

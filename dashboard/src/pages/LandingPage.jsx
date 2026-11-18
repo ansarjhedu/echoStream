@@ -13,7 +13,8 @@ import {
   Check,
 } from "lucide-react";
 import { setSignupIntent } from "../utils/permissionHelpers";
-import logo from "../assets/logo.png";
+import mark from '../assets/logo-mark.jpg';
+import wordmark from '../assets/logo-wordmark.jpg';
 import EchoWidgetEmbed from "../components/EchoWidgetEmbed";
 import { CatalogLayoutPreview, previewThemeStyle, WIDGET_CATALOG } from "../utils/widgetCatalog.jsx";
 
@@ -62,14 +63,9 @@ export default function LandingPage() {
 
       <header className="relative z-20 flex items-center justify-between px-6 md:px-12 py-5 border-b border-white/5 backdrop-blur-md bg-[#070B14]/60">
         <Link to="/" className="flex items-center gap-3">
-          <img
-            src={logo}
-            alt="EchoStream"
-            className="h-8 w-auto object-contain drop-shadow-[0_0_16px_rgba(34,211,238,0.55)]"
-          />
-          <span className="font-black tracking-tighter text-lg">
-            EchoStream
-          </span>
+          <img src={mark} alt="" className="h-9 w-9 rounded-lg object-cover md:hidden" />
+          <img src={wordmark} alt="EchoStream" className="hidden md:block h-10 w-auto object-contain" />
+          <span className="font-black tracking-tighter text-lg md:hidden">EchoStream</span>
         </Link>
         <nav className="hidden md:flex items-center gap-8 text-sm text-gray-400">
           <a href="#use-cases" className="hover:text-white transition-colors">

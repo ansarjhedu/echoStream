@@ -10,6 +10,43 @@
   scrollbar-width: none;  /* Firefox */
 }
 
+/* Phone shell scrolls only the page. The bottom bar is fixed so narrow screens cannot push it off. */
+.echo-shell {
+  height: 100svh;
+  max-height: 100svh;
+}
+.echo-shell-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px));
+}
+.echo-mobile-dock {
+  min-height: 4.75rem;
+}
+@media (min-width: 768px) {
+  .echo-shell {
+    height: 100vh;
+    max-height: none;
+  }
+  .echo-shell-main {
+    height: 100vh;
+    padding-bottom: 0;
+  }
+}
+@media (max-width: 360px) {
+  .echo-dock-label {
+    font-size: 9px;
+  }
+}
+
+/* The More sheet uses the same corner as the support launcher. Hide the launcher while it is open. */
+@media (max-width: 767px) {
+  body[data-dock-more='open'] .echo-support {
+    visibility: hidden;
+  }
+}
+
 /* Dark, readable native selects (symmetrical control height) */
 select,
 .echo-select {

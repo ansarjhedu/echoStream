@@ -1,9 +1,12 @@
 import { useAuth } from "../context/AuthContext";
 import { useState, useEffect } from "react";
 import { useLocation, Link } from "react-router-dom";
-import { Menu, X, UserIcon, Activity, StoreIcon, Users, LogOut, LifeBuoy, LayoutDashboard, Globe2, Bell, CreditCard } from "lucide-react";
-import logo from '../assets/logo.png';
+import { UserIcon, Activity, StoreIcon, Users, LogOut, LifeBuoy, LayoutDashboard, Globe2, Bell, CreditCard } from "lucide-react";
+import logo from '../assets/logo-wordmark.jpg';
 import api from '../Api';
+import MobileDock from '../components/MobileDock';
+import MobileHeader from '../components/MobileHeader';
+import { packDock } from '../utils/packDock';
 import {
   hasPerm,
   isSupportOnly,
@@ -31,11 +34,9 @@ const Badge = ({ count, tone = 'info' }) => {
 
 const HubLayout = ({ children }) => {
   const { user, logout } = useAuth();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [badges, setBadges] = useState({ openTickets: 0, unreadNotifications: 0 });
   const [workspaceMode, setWorkspaceMode] = useState(() => peekWorkspaceMode() || 'empty'); // commerce | presence | empty
   const location = useLocation();
-  const closeMenu = () => setIsMobileMenuOpen(false);
 
   const showAdminNav = canAccessAdminPortal(user);
   const master = isMasterAdmin(user);
@@ -97,26 +98,76 @@ const HubLayout = ({ children }) => {
     };
   }, [user?._id, user?.role, showAdminNav]);
 
+  const billingItem = user?.role === 'owner'
+    ? { key: 'billing', to: '/hub/billing', label: 'Billing', icon: CreditCard, active: location.pathname.includes('/billing') }
+    : null;
+  const account = {
+    key: 'account',
+    to: '/hub/profile',
+    user,
+    active: location.pathname.includes('/profile'),
+  };
+
+  const mobileDock = showAdminNav
+    ? packDock(
+      [
+        (master || hasPerm(user, 'analytics_platform') || hasPerm(user, 'stores_read')) && {
+          key: 'overview', to: '/hub/admin/overview', label: 'Overview', icon: Activity, active: location.pathname.includes('/overview'),
+        },
+        (master || hasPerm(user, 'stores_read') || hasPerm(user, 'moderation')) && {
+          key: 'stores', to: '/hub/admin/stores', label: 'Stores', icon: StoreIcon,
+          active: location.pathname.includes('/admin/stores'),
+        },
+        (master || hasPerm(user, 'support_queue')) && {
+          key: 'queue', to: '/hub/admin/support', label: 'Support', icon: LifeBuoy, badge: badges.openTickets,
+          active: location.pathname.includes('/admin/support'),
+        },
+        (master || hasPerm(user, 'users_read')) && {
+          key: 'users', to: '/hub/admin/users', label: 'Users', icon: Users, active: location.pathname.includes('/admin/users'),
+        },
+      ],
+      {
+        centerIsMore: true,
+        extras: [
+          (master || hasPerm(user, 'users_read') || hasPerm(user, 'analytics_platform')) && {
+            key: 'subs', to: '/hub/admin/subscriptions', label: 'Subscriptions', icon: CreditCard, active: location.pathname.includes('/subscriptions'),
+          },
+          master && { key: 'team', to: '/hub/admin/team', label: 'Platform team', icon: Users, active: location.pathname.includes('/admin/team') },
+        ],
+        account,
+      }
+    )
+    : packDock(
+      [
+        showPresenceNav && {
+          key: 'home', to: '/hub/presence', label: 'Home', icon: LayoutDashboard, active: location.pathname.includes('/hub/presence'),
+        },
+        showCommerceNav && !isSupportOnly(user) && {
+          key: 'stores', to: '/hub/stores', label: 'Stores', icon: StoreIcon, active: location.pathname.includes('/hub/stores'),
+        },
+        user?.role === 'owner' && {
+          key: 'team', to: '/hub/team', label: 'Team', icon: Users, active: location.pathname.includes('/hub/team'),
+        },
+        hasPerm(user, 'tickets') && {
+          key: 'help', to: '/hub/support', label: 'Help', icon: LifeBuoy, badge: badges.openTickets,
+          active: location.pathname.includes('/hub/support'),
+        },
+      ],
+      { centerIsMore: true, extras: [billingItem], account }
+    );
+
   return (
-    <div className="min-h-screen bg-[#0A0F1A] text-white flex flex-col md:flex-row font-sans selection:bg-cyan-500/30 overflow-hidden">
-      <div className="md:hidden flex items-center justify-between p-4 border-b border-white/10 bg-[#0A0F1A] z-40 relative">
-        <div className="flex items-center gap-2">
-          <img src={logo} alt="EchoStream Logo" className="h-6 w-auto object-contain drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]" />
-          <h2 className="text-xl font-black tracking-tighter">Echo Hub</h2>
-        </div>
-        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-gray-400">
-          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
-      </div>
+    <div className="echo-shell h-dvh bg-[#0A0F1A] text-white flex flex-col md:flex-row font-sans selection:bg-cyan-500/30 overflow-hidden">
+      <MobileHeader
+        alertCount={showAdminNav ? undefined : badges.unreadNotifications}
+        onLogout={logout}
+      />
 
-      {isMobileMenuOpen && <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden" onClick={closeMenu} />}
-
-      <aside className={`fixed inset-y-0 left-0 z-50 w-72 border-r border-white/10 bg-[#0A0F1A] flex flex-col justify-between transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 md:bg-black/20 md:backdrop-blur-3xl ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className="hidden md:flex md:h-screen md:flex-col md:w-72 md:shrink-0 md:justify-between md:overflow-y-auto border-r border-white/10 bg-black/20 backdrop-blur-3xl">
         <div>
           <div className="p-8 pb-4">
-            <h2 className="text-2xl font-black tracking-tighter flex items-center gap-3 mb-8 hidden md:flex">
-              <img src={logo} alt="EchoStream Logo" className="h-8 w-auto object-contain drop-shadow-[0_0_15px_rgba(34,211,238,0.6)]" />
-              EchoStream
+            <h2 className="mb-8 hidden md:block">
+              <img src={logo} alt="EchoStream" className="h-10 w-auto max-w-[220px] object-contain object-left" />
             </h2>
             <div className="flex items-center gap-4 bg-white/5 border border-white/10 p-4 rounded-2xl w-full">
               {user?.profilePic ? (
@@ -139,49 +190,49 @@ const HubLayout = ({ children }) => {
             {showAdminNav ? (
               <>
                 {(master || hasPerm(user, 'analytics_platform') || hasPerm(user, 'stores_read')) && (
-                  <Link to="/hub/admin/overview" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/overview') ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
+                  <Link to="/hub/admin/overview" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/overview') ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
                     <Activity size={20} className={location.pathname.includes('/overview') ? "text-red-400" : ""} /> Overview & Summary
                   </Link>
                 )}
                 {(master || hasPerm(user, 'stores_read') || hasPerm(user, 'moderation')) && (
-                  <Link to="/hub/admin/stores" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/admin/stores') || (location.pathname.includes('/stores') && location.pathname.includes('/admin')) ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
+                  <Link to="/hub/admin/stores" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/admin/stores') || (location.pathname.includes('/stores') && location.pathname.includes('/admin')) ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
                     <StoreIcon size={20} /> Platform Stores
                   </Link>
                 )}
                 {(master || hasPerm(user, 'users_read') || hasPerm(user, 'analytics_platform')) && (
-                  <Link to="/hub/admin/subscriptions" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/subscriptions') ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
+                  <Link to="/hub/admin/subscriptions" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/subscriptions') ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
                     <CreditCard size={20} className={location.pathname.includes('/subscriptions') ? "text-red-400" : ""} /> Subscriptions
                   </Link>
                 )}
                 {(master || hasPerm(user, 'users_read')) && (
-                  <Link to="/hub/admin/users" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/users') ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
+                  <Link to="/hub/admin/users" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/users') ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
                     <Users size={20} /> Registered Users
                   </Link>
                 )}
                 {(master || hasPerm(user, 'support_queue')) && (
-                  <Link to="/hub/admin/support" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/admin/support') || (location.pathname.includes('/support') && location.pathname.includes('/admin')) ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
+                  <Link to="/hub/admin/support" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/admin/support') || (location.pathname.includes('/support') && location.pathname.includes('/admin')) ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
                     <LifeBuoy size={20} /> Support Queue
                     <Badge count={badges.openTickets} tone="warn" />
                   </Link>
                 )}
                 {master && (
-                  <Link to="/hub/admin/team" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/admin/team') ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
+                  <Link to="/hub/admin/team" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/admin/team') ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
                     <Users size={20} className={location.pathname.includes('/admin/team') ? "text-red-400" : ""} /> Platform Team
                   </Link>
                 )}
               </>
             ) : showPresenceNav ? (
               <>
-                <Link to="/hub/presence" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/presence') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                <Link to="/hub/presence" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/presence') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                   <LayoutDashboard size={20} className={location.pathname.includes('/hub/presence') ? 'text-emerald-400' : ''} /> Presence Home
                 </Link>
                 {user?.role === 'owner' && (
-                  <Link to="/hub/team" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/team') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                  <Link to="/hub/team" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/team') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                     <Users size={20} className={location.pathname.includes('/hub/team') ? 'text-cyan-400' : ''} /> Team
                   </Link>
                 )}
                 {hasPerm(user, 'tickets') && (
-                  <Link to="/hub/support" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/support') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                  <Link to="/hub/support" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/support') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                     <LifeBuoy size={20} className={location.pathname.includes('/hub/support') ? 'text-cyan-400' : ''} /> Help & Support
                     <Badge count={badges.openTickets} tone="warn" />
                   </Link>
@@ -193,17 +244,17 @@ const HubLayout = ({ children }) => {
             ) : showCommerceNav ? (
               <>
                 {!isSupportOnly(user) && (
-                  <Link to="/hub/stores" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/stores') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                  <Link to="/hub/stores" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/stores') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                     <StoreIcon size={20} className={location.pathname.includes('/hub/stores') ? "text-cyan-400" : ""} /> My Stores
                   </Link>
                 )}
                 {user?.role === 'owner' && (
-                  <Link to="/hub/team" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/team') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                  <Link to="/hub/team" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/team') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                     <Users size={20} className={location.pathname.includes('/hub/team') ? "text-cyan-400" : ""} /> Team
                   </Link>
                 )}
                 {hasPerm(user, 'tickets') && (
-                  <Link to="/hub/support" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/support') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                  <Link to="/hub/support" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/support') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                     <LifeBuoy size={20} className={location.pathname.includes('/hub/support') ? "text-cyan-400" : ""} /> Help & Support
                     <Badge count={badges.openTickets} tone="warn" />
                   </Link>
@@ -212,17 +263,17 @@ const HubLayout = ({ children }) => {
             ) : null}
 
             {!showAdminNav && (
-              <Link to="/hub/notifications" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/notifications') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+              <Link to="/hub/notifications" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/notifications') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                 <Bell size={20} className={location.pathname.includes('/notifications') ? 'text-cyan-400' : ''} /> Notifications
                 <Badge count={badges.unreadNotifications} tone="info" />
               </Link>
             )}
 
-            <Link to="/hub/profile" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/profile') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+            <Link to="/hub/profile" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/profile') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
               <UserIcon size={20} className={location.pathname.includes('/profile') ? "text-purple-400" : ""} /> Profile Settings
             </Link>
             {user?.role === 'owner' && (
-              <Link to="/hub/billing" onClick={closeMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/billing') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+              <Link to="/hub/billing" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/billing') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                 <CreditCard size={20} className={location.pathname.includes('/billing') ? 'text-cyan-400' : ''} /> Billing
               </Link>
             )}
@@ -236,9 +287,11 @@ const HubLayout = ({ children }) => {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto relative z-0 h-[calc(100vh-65px)] md:h-screen">
+      <main className="echo-shell-main flex-1 overflow-y-auto relative z-0">
         {children}
       </main>
+
+      <MobileDock {...mobileDock} />
     </div>
   );
 };

@@ -121,9 +121,9 @@ export default function SupportAssistant() {
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-[200] flex flex-col items-end gap-3 pointer-events-none">
+    <div className="echo-support fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] right-4 md:bottom-5 md:right-5 z-[200] flex flex-col items-end gap-3 pointer-events-none transition-[bottom] duration-200">
       {open && (
-        <div className="pointer-events-auto w-[min(100vw-1.5rem,380px)] h-[min(70vh,520px)] bg-[#0A0F1A]/95 border border-white/15 rounded-2xl shadow-2xl backdrop-blur-xl flex flex-col overflow-hidden">
+        <div className="pointer-events-auto w-[min(100vw-1.5rem,380px)] h-[min(56vh,520px)] md:h-[min(70vh,520px)] bg-[#0A0F1A]/95 border border-white/15 rounded-2xl shadow-2xl backdrop-blur-xl flex flex-col overflow-hidden">
           <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between bg-gradient-to-r from-cyan-500/10 to-purple-500/10">
             <div className="flex items-center gap-2 min-w-0">
               <Bot className="text-cyan-400 shrink-0" size={18} />

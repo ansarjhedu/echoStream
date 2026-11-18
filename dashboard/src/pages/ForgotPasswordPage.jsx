@@ -4,7 +4,7 @@ import { Mail, Lock, KeyRound, ArrowLeft, ArrowRight, RefreshCcw } from 'lucide-
 import { toast } from 'react-toastify';
 import api from '../Api';
 import PasswordInput from '../components/PasswordInput';
-import logo from '../assets/logo.png';
+import mark from '../assets/logo-mark.jpg';
 
 /**
  * Forgot password — email → OTP → new password + confirm.
@@ -82,7 +82,7 @@ export default function ForgotPasswordPage() {
             {step === 'otp' ? (
               <KeyRound className="text-purple-400" size={40} />
             ) : (
-              <img src={logo} alt="EchoStream" className="h-12 w-auto object-contain" />
+              <img src={mark} alt="EchoStream" className="h-12 w-12 rounded-xl object-cover" />
             )}
           </div>
           <h1 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">
