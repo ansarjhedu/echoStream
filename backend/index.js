@@ -33,6 +33,8 @@ const allowedAdminOrigins = [
     "http://127.0.0.1:5500",
     "https://echo-stream-5nch.vercel.app",
     "https://echostream-eight.vercel.app",
+    "https://www.echo-stream.org",
+    "https://echo-stream.org",
     process.env.FRONTEND_URL,
     process.env.FRONTEND_BASE_URL,
     ...(process.env.CORS_ORIGINS || "").split(","),

@@ -16,7 +16,7 @@ export function frontendBase() {
     .replace(/\/$/, '');
   if (fromEnv) return fromEnv;
   if (process.env.NODE_ENV === 'production') {
-    return 'https://echostream-eight.vercel.app';
+    return 'https://www.echo-stream.org';
   }
   return 'http://localhost:5173';
 }

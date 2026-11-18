@@ -1,5 +1,9 @@
 {
-  "rewrites":[
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://echo-stream-pi.vercel.app/api/:path*"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"

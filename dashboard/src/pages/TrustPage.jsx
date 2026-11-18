@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Star, ExternalLink, Shield } from 'lucide-react';
 
-const backendBase = (import.meta.env.VITE_BACKEND_URL || 'https://echo-stream-pi.vercel.app/api')
+const backendBase = (import.meta.env.VITE_BACKEND_URL || '/api')
   .trim()
   .replace(/^['"]|['"]$/g, '')
   .replace(/\/$/, '');

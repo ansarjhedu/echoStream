@@ -1,8 +1,9 @@
 import axios from 'axios';
 
-const backendBase = (import.meta.env.VITE_BACKEND_URL || 'https://echo-stream-pi.vercel.app/api')
+const backendBase = (import.meta.env.VITE_BACKEND_URL || '/api')
   .trim()
-  .replace(/^['"]|['"]$/g, '');
+  .replace(/^['"]|['"]$/g, '')
+  .replace(/\/$/, '');
 
 const api = axios.create({
   baseURL: backendBase,
