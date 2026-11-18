@@ -6,6 +6,7 @@ import logo from '../assets/logo-wordmark.png';
 import mark from '../assets/logo-mark.png';
 import api from '../Api';
 import MobileDock from '../components/MobileDock';
+import UserAvatar from '../components/UserAvatar';
 import MobileHeader from '../components/MobileHeader';
 import { packDock } from '../utils/packDock';
 import {
@@ -187,13 +188,11 @@ const HubLayout = ({ children }) => {
               <img src={mark} alt="" className="echo-side-mark w-10 h-auto mx-auto" />
             </div>
             <div className="echo-side-profile flex items-center gap-4 bg-white/5 border border-white/10 p-4 rounded-2xl w-full">
-              {user?.profilePic ? (
-                <img src={user.profilePic} alt="Profile" className="w-12 h-12 rounded-full object-cover border border-cyan-500/50" />
-              ) : (
-                <div className="w-12 h-12 rounded-full bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50">
-                  <UserIcon className="text-cyan-400" size={24} />
-                </div>
-              )}
+              <UserAvatar
+                src={user?.profilePic}
+                name={user?.userName}
+                className="w-12 h-12 rounded-full object-cover border border-cyan-500/50 text-lg"
+              />
               <div className="echo-side-extra overflow-hidden">
                 <p className="text-sm font-bold text-white truncate">Hello, {user?.userName}</p>
                 <p className={`text-xs capitalize ${master || platform ? 'text-red-400' : 'text-cyan-400'}`}>

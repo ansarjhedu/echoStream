@@ -407,8 +407,12 @@ const logoutUser = async (req, res) => {
 
         user.email=req.body.email || user.email;
         user.userName=req.body.userName || user.userName;
-        if(req.file){
-          user.profilePic=req.file.path;
+        if (req.file) {
+          const nextPic = req.file.path || req.file.secure_url;
+          if (!nextPic) {
+            return res.status(500).json({ message: 'Avatar upload did not return an image URL.' });
+          }
+          user.profilePic = nextPic;
         }
 
 
@@ -1191,7 +1195,9 @@ const googleAuthLogin = async (req, res) => {
         user.authProvider = 'google';
       }
       user.isVerified = true;
-      if (profilePic && !user.profilePic) user.profilePic = profilePic;
+      if (profilePic && (!user.profilePic || String(user.profilePic).includes('googleusercontent.com'))) {
+        user.profilePic = profilePic;
+      }
       if ((!user.userName || user.userName === email.split('@')[0]) && userName) {
         user.userName = userName;
       }

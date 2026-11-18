@@ -48,7 +48,7 @@ const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: {
         folder: 'echostream_reviews',
-        allowed_formats: ['jpg', 'png', 'webp'],
+        allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'gif'],
         transformation: [{ width: 800, crop: "limit" }] // Optimization
     },
 });

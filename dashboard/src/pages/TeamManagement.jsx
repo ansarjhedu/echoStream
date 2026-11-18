@@ -5,6 +5,7 @@ import api from '../Api';
 import { toast } from 'react-toastify';
 import { UserPlus, Mail, User, Shield, Trash2, Users, RefreshCcw, Pencil, X } from 'lucide-react';
 import AccordionItem from '../components/ui/AccordionItem';
+import UserAvatar from '../components/UserAvatar';
 import PermissionPills from '../components/ui/PermissionPills';
 import {
   ROLE_PRESETS,
@@ -186,11 +187,7 @@ export default function TeamManagement({ variant = 'store' }) {
 
   const StaffAvatar = ({ member }) => (
     <div className="w-10 h-10 rounded-full bg-black/50 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
-      {member.profilePic ? (
-        <img src={member.profilePic} alt="" className="w-full h-full object-cover" />
-      ) : (
-        <User size={18} className="text-gray-500" />
-      )}
+      <UserAvatar src={member.profilePic} name={member.userName} className="w-full h-full object-cover text-sm" />
     </div>
   );
 

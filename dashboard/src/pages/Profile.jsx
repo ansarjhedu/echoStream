@@ -5,9 +5,10 @@ import api from '../Api';
 import { toast } from 'react-toastify';
 import { User, Mail, Lock, Camera, Trash2 } from 'lucide-react';
 import PaymentCardVisual from '../components/ui/PaymentCardVisual';
+import UserAvatar from '../components/UserAvatar';
 
 export default function Profile() {
-  const { user, logout } = useAuth();
+  const { user, setUser, logout } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     userName: user?.userName || '',
@@ -61,9 +62,14 @@ export default function Profile() {
     if (formData.profilePic) submitData.append('profilePic', formData.profilePic);
 
     try {
-      await api.put('/users/update', submitData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      toast.success('Profile updated successfully! Refreshing...');
-      setTimeout(() => window.location.reload(), 1500);
+      const res = await api.put('/users/update', submitData);
+      const next = res.data?.data;
+      if (next) {
+        setUser((prev) => ({ ...(prev || {}), ...next }));
+        setPreviewImage(next.profilePic || previewImage);
+        setFormData((prev) => ({ ...prev, profilePic: null, password: '', confirmPassword: '' }));
+      }
+      toast.success('Profile updated.');
     } catch (error) {
       toast.error(error.response?.data?.message || error.response?.data || 'Failed to update profile');
     } finally {
@@ -136,11 +142,7 @@ export default function Profile() {
             <div className="flex flex-col items-center mb-8">
               <div className="relative group cursor-pointer">
                 <div className="w-28 h-28 rounded-full bg-black/50 border-2 border-white/10 overflow-hidden flex items-center justify-center relative shadow-[0_0_20px_rgba(34,211,238,0.1)]">
-                  {previewImage ? (
-                    <img src={previewImage} alt="Preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <User size={40} className="text-gray-500" />
-                  )}
+                  <UserAvatar src={previewImage} name={formData.userName || user?.userName} className="w-full h-full object-cover text-2xl" />
                   <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <Camera className="text-white" size={24} />
                   </div>

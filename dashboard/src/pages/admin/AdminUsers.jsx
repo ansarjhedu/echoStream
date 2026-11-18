@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { isMasterAdmin } from '../../utils/permissionHelpers';
 import Fold from '../../components/Fold';
+import UserAvatar from '../../components/UserAvatar';
 
 const FILTER_OPTIONS = [
   { value: 'all', label: 'All users' },
@@ -168,13 +169,7 @@ export default function AdminUsers() {
         ) : filteredUsers.map((u) => (
           <article key={u._id} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
             <div className="flex items-start gap-3">
-              {u.profilePic ? (
-                <img src={u.profilePic} alt="" className="w-12 h-12 rounded-full object-cover border border-white/15 shrink-0" />
-              ) : (
-                <div className="w-12 h-12 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-300 font-bold text-lg shrink-0">
-                  {(u.userName || '?').charAt(0).toUpperCase()}
-                </div>
-              )}
+              <UserAvatar src={u.profilePic} name={u.userName} className="w-12 h-12 rounded-full object-cover border border-white/15 shrink-0 text-lg" />
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-2">
                   <p className={`font-bold text-base truncate ${u.isDeleted ? 'text-gray-500 line-through' : 'text-white'}`}>{u.userName}</p>
@@ -263,17 +258,7 @@ export default function AdminUsers() {
                 <td className="p-5">
                   <div className="flex items-start gap-4">
                     <div className="relative shrink-0 mt-1">
-                      {u.profilePic ? (
-                        <img
-                          src={u.profilePic}
-                          alt=""
-                          className="w-12 h-12 rounded-full object-cover border border-white/15"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-300 font-bold text-lg">
-                          {u.userName.charAt(0).toUpperCase()}
-                        </div>
-                      )}
+                      <UserAvatar src={u.profilePic} name={u.userName} className="w-12 h-12 rounded-full object-cover border border-white/15 text-lg" />
                     </div>
 
                     <div className="flex flex-col w-full min-w-0">

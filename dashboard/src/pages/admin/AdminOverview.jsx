@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { ShieldAlert, Activity, Server, Crown, Users,LifeBuoy } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import UserAvatar from '../../components/UserAvatar';
 
 export default function AdminOverview() {
   const { user } = useAuth();
@@ -269,13 +270,7 @@ export default function AdminOverview() {
                     #{index + 1}
                   </div>
                   
-                  {merchant.profilePic ? (
-                    <img src={merchant.profilePic} className="w-10 h-10 rounded-full object-cover" alt="" />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold">
-                      {merchant.userName.charAt(0)}
-                    </div>
-                  )}
+                  <UserAvatar src={merchant.profilePic} name={merchant.userName} className="w-10 h-10 rounded-full object-cover text-sm" />
 
                   <div className="flex-1 overflow-hidden">
                     <p className="font-bold text-white truncate">{merchant.userName}</p>

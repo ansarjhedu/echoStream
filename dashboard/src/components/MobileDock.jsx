@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutGrid, UserRound } from 'lucide-react';
+import { LayoutGrid } from 'lucide-react';
+import UserAvatar from './UserAvatar';
 
 function Count({ count }) {
   if (!count || count < 1) return null;
@@ -76,13 +77,7 @@ function AccountTab({ item }) {
   return (
     <DockLink item={item} active={item.active}>
       <span className={`flex items-center justify-center w-9 h-9 rounded-full overflow-hidden border-2 ${item.active ? 'border-cyan-300' : 'border-white/20'}`}>
-        {user?.profilePic ? (
-          <img src={user.profilePic} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <span className="w-full h-full bg-cyan-500/15 flex items-center justify-center">
-            <UserRound size={16} className="text-cyan-300" />
-          </span>
-        )}
+        <UserAvatar src={user?.profilePic} name={user?.userName} className="w-full h-full object-cover text-sm" />
       </span>
       <span className={`echo-dock-label text-[10px] font-semibold ${item.active ? 'text-cyan-300' : 'text-gray-300'}`}>Account</span>
     </DockLink>
