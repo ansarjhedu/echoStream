@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../../Api';
-import { LifeBuoy, Send, CheckCircle, MessageSquare, ArrowLeft, Check, UserCheck } from 'lucide-react';
+import { LifeBuoy, Send, CheckCircle, MessageSquare, ArrowLeft, Check, UserCheck, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { refreshAdminBadges } from '../../utils/adminBadges';
+import { isGenericLine, isHandoffMessage, ticketTitle, userProblem } from '../../utils/ticketChat';
+import TicketEchoSummary from '../../components/TicketEchoSummary';
 
 const FILTERS = [
   { key: 'all', label: 'All' },
@@ -27,6 +29,15 @@ export default function AdminSupport() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeTicketId, tickets]);
+
+  useEffect(() => {
+    if (!activeTicketId) {
+      delete document.body.dataset.ticketChat;
+      return undefined;
+    }
+    document.body.dataset.ticketChat = 'open';
+    return () => { delete document.body.dataset.ticketChat; };
+  }, [activeTicketId]);
 
   useEffect(() => {
     if (activeTicketId && !tickets.some((t) => t._id === activeTicketId)) {
@@ -114,6 +125,32 @@ export default function AdminSupport() {
     }
   };
 
+  const handleReject = async () => {
+    if (!window.confirm('Decline this request?')) return;
+    const prevStatus = activeTicket?.status;
+    try {
+      const res = await api.patch(`/admin/support/${activeTicketId}/reject`);
+      const updated = res.data.data;
+      toast.success('Request declined.');
+      if (filter === 'resolved' || filter === 'all') {
+        setTickets((prev) => prev.map((t) => (t._id === activeTicketId ? updated : t)));
+      } else {
+        setTickets((prev) => prev.filter((t) => t._id !== activeTicketId));
+        setActiveTicketId(null);
+      }
+      setSummary((s) => ({
+        ...s,
+        resolved: (s.resolved || 0) + 1,
+        open: prevStatus === 'open' ? Math.max(0, s.open - 1) : s.open,
+        in_progress: prevStatus === 'in_progress' ? Math.max(0, s.in_progress - 1) : s.in_progress,
+      }));
+      refreshAdminBadges();
+      await fetchTickets(filter);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to decline the request');
+    }
+  };
+
   const handleResolve = async () => {
     if (!window.confirm('Mark this ticket as resolved?')) return;
     const prevStatus = activeTicket?.status;
@@ -184,10 +221,10 @@ export default function AdminSupport() {
       {loading ? (
         <div className="text-red-400 animate-pulse py-10">Loading Support Desk...</div>
       ) : (
-        <div className="flex flex-1 min-h-0 overflow-hidden bg-white/[0.02] border border-white/10 rounded-2xl backdrop-blur-xl shadow-2xl animate-fade-in-down">
+        <div className="flex flex-1 min-h-0 overflow-hidden bg-white/[0.02] border border-white/10 rounded-2xl shadow-2xl animate-fade-in-down">
           <div className={`w-full md:w-1/3 flex flex-col border-r border-white/10 ${activeTicketId ? 'hidden md:flex' : 'flex'}`}>
             <div className="p-4 border-b border-white/10 bg-black/20 font-bold text-gray-300">Conversations</div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
+            <div className="flex-1 overflow-y-auto echo-scroll">
               {tickets.length === 0 ? (
                 <p className="p-6 text-center text-gray-500">No tickets match this filter.</p>
               ) : (
@@ -202,7 +239,7 @@ export default function AdminSupport() {
                     }`}
                   >
                     <div className="flex justify-between items-start mb-1">
-                      <h3 className="font-bold text-white truncate pr-2">{ticket.subject}</h3>
+                      <h3 className="font-bold text-white truncate pr-2">{ticketTitle(ticket)}</h3>
                       <span
                         className={`px-3 py-1 text-[10px] md:text-xs font-bold uppercase tracking-wider rounded-full border shrink-0 ${
                           ticket.status === 'in_progress'
@@ -215,7 +252,9 @@ export default function AdminSupport() {
                         {ticket.status === 'open' ? 'pending' : ticket.status.replace('_', ' ')}
                       </span>
                     </div>
-                    <p className="text-xs text-cyan-400 mb-1">{ticket.ownerName}</p>
+                    <p className="text-xs text-gray-400 mb-1 truncate">
+                      {ticket.source === 'chatbot' ? userProblem(ticket) : ticket.ownerName}
+                    </p>
                     {ticket.source === 'chatbot' && (
                       <p className="text-[10px] text-purple-400 mb-1">Via EchoBot</p>
                     )}
@@ -228,7 +267,7 @@ export default function AdminSupport() {
             </div>
           </div>
 
-          <div className={`flex-1 flex flex-col bg-black/20 relative ${!activeTicketId ? 'hidden md:flex' : 'flex'}`}>
+          <div className={`${!activeTicketId ? 'hidden md:flex' : 'flex fixed inset-0 z-[90] md:relative md:inset-auto md:z-auto'} md:flex-1 min-h-0 flex-col bg-[#0A0F1A] md:bg-black/20 pt-[env(safe-area-inset-top,0px)] md:pt-0`}>
             {!activeTicket ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-500">
                 <MessageSquare size={48} className="mb-4 opacity-50" />
@@ -236,39 +275,45 @@ export default function AdminSupport() {
               </div>
             ) : (
               <>
-                <div className="p-4 border-b border-white/10 bg-black/40 flex justify-between items-center">
-                  <div className="flex items-center gap-4 min-w-0">
-                    <button onClick={() => setActiveTicketId(null)} className="md:hidden text-gray-400 hover:text-white shrink-0">
-                      <ArrowLeft size={20} />
-                    </button>
-                    <div className="min-w-0">
-                      <h3 className="font-bold text-white text-lg truncate">{activeTicket.subject}</h3>
-                      <p className="text-xs font-mono text-cyan-400 truncate">{activeTicket.ownerEmail}</p>
-                    </div>
+                <div className="px-3 py-3 md:px-4 border-b border-white/10 bg-[#0A0F1A] md:bg-black/40 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTicketId(null)}
+                    aria-label="Back to tickets"
+                    className="md:hidden shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-gray-200 hover:text-white hover:bg-white/5"
+                  >
+                    <ArrowLeft size={20} />
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-bold text-white text-base truncate">{ticketTitle(activeTicket)}</h3>
+                    <p className="text-xs text-gray-400 truncate">
+                      {activeTicket.source === 'chatbot' ? userProblem(activeTicket) : activeTicket.ownerEmail}
+                    </p>
                   </div>
-                  {activeTicket.status !== 'resolved' && (
-                    <div className="flex items-center gap-2 shrink-0">
-                      {activeTicket.status === 'open' && (
-                        <button
-                          type="button"
-                          onClick={handleClaim}
-                          className="px-3 py-1.5 bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-cyan-500/30"
-                        >
-                          <UserCheck size={14} /> Accept
-                        </button>
-                      )}
-                      <button
-                        onClick={handleResolve}
-                        className="px-3 py-1.5 bg-green-500/20 text-green-400 border border-green-500/50 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-green-500/30"
-                      >
-                        <Check size={14} /> Resolve
-                      </button>
-                    </div>
+                  {activeTicket.status === 'in_progress' && (
+                    <button
+                      type="button"
+                      onClick={handleResolve}
+                      className="shrink-0 px-3 py-1.5 bg-green-500/20 text-green-400 border border-green-500/50 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-green-500/30"
+                    >
+                      <Check size={14} /> Resolve
+                    </button>
                   )}
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 custom-scrollbar">
-                  {activeTicket.conversation?.map((msg, index) => (
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 echo-scroll">
+                  {activeTicket.conversation?.map((msg, index) => {
+                    if (isHandoffMessage(msg)) {
+                      return <TicketEchoSummary key={index} ticket={activeTicket} />;
+                    }
+                    if (
+                      msg.sender === 'owner'
+                      && activeTicket.source === 'chatbot'
+                      && (isGenericLine(msg.content) || msg.content === userProblem(activeTicket))
+                    ) {
+                      return null;
+                    }
+                    return (
                     <div key={index} className={`flex flex-col ${msg.sender === 'admin' ? 'items-end' : 'items-start'}`}>
                       <span className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 px-1">
                         {msg.sender === 'admin'
@@ -300,9 +345,33 @@ export default function AdminSupport() {
                         </div>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                   <div ref={messagesEndRef} />
                 </div>
+
+                {activeTicket.status === 'open' && (
+                  <div className="absolute bottom-[4.75rem] right-3 z-10 w-[min(100%-1.5rem,260px)] rounded-2xl border border-white/10 bg-[#121a2b]/95 shadow-[0_16px_40px_rgba(0,0,0,0.45)] p-3 backdrop-blur-md">
+                    <p className="text-xs font-semibold text-white">Waiting for approval</p>
+                    <p className="text-[11px] text-gray-400 mt-1 mb-3">Accept this request or decline it.</p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleClaim}
+                        className="flex-1 h-9 rounded-xl bg-cyan-400 text-[#04120c] text-xs font-bold inline-flex items-center justify-center gap-1"
+                      >
+                        <UserCheck size={14} /> Accept
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleReject}
+                        className="flex-1 h-9 rounded-xl border border-rose-400/40 text-rose-300 text-xs font-bold inline-flex items-center justify-center gap-1 hover:bg-rose-500/10"
+                      >
+                        <X size={14} /> Reject
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {activeTicket.status === 'resolved' ? (
                   <div className="p-4 bg-green-500/10 border-t border-green-500/20 text-center text-green-400 font-bold text-sm">

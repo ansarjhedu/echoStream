@@ -4,6 +4,7 @@ import { User, Trash2, Clock, RefreshCcw, LifeBuoy, Store, LayoutTemplate } from
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { isMasterAdmin } from '../../utils/permissionHelpers';
+import Fold from '../../components/Fold';
 
 const FILTER_OPTIONS = [
   { value: 'all', label: 'All users' },
@@ -161,7 +162,85 @@ export default function AdminUsers() {
         </label>
       </div>
 
-      <div className="bg-white/[0.02] border border-white/10 rounded-2xl overflow-x-auto shadow-2xl custom-scrollbar">
+      <div className="md:hidden space-y-3">
+        {filteredUsers.length === 0 ? (
+          <p className="p-6 text-center text-gray-500 italic rounded-2xl border border-white/10">No users match this filter.</p>
+        ) : filteredUsers.map((u) => (
+          <article key={u._id} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+            <div className="flex items-start gap-3">
+              {u.profilePic ? (
+                <img src={u.profilePic} alt="" className="w-12 h-12 rounded-full object-cover border border-white/15 shrink-0" />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-300 font-bold text-lg shrink-0">
+                  {(u.userName || '?').charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <p className={`font-bold text-base truncate ${u.isDeleted ? 'text-gray-500 line-through' : 'text-white'}`}>{u.userName}</p>
+                  {u.isDeleted ? (
+                    <span className="shrink-0 px-2 py-1 text-[10px] font-bold rounded-full border bg-red-500/10 text-red-400 border-red-500/20">DELETED</span>
+                  ) : (
+                    <span className="shrink-0 px-2 py-1 text-[10px] font-bold rounded-full border bg-green-500/10 text-green-400 border-green-500/20">ACTIVE</span>
+                  )}
+                </div>
+                {u.role === 'admin' && (
+                  <span className="mt-1 inline-flex px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 text-[10px] uppercase font-bold rounded-full">
+                    Platform Admin
+                  </span>
+                )}
+              </div>
+            </div>
+            {u.role !== 'admin' && (
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                <div className="rounded-xl bg-black/30 border border-white/5 p-2">
+                  <p className="text-[10px] uppercase text-gray-500">Widgets</p>
+                  <p className="text-sm font-bold text-cyan-400">{u.activeWidgets}</p>
+                </div>
+                <div className="rounded-xl bg-black/30 border border-white/5 p-2">
+                  <p className="text-[10px] uppercase text-gray-500">Stores</p>
+                  <p className="text-sm font-bold text-gray-200">{u.totalStores}</p>
+                </div>
+                <div className="rounded-xl bg-black/30 border border-white/5 p-2">
+                  <p className="text-[10px] uppercase text-gray-500">Tickets</p>
+                  <p className={`text-sm font-bold ${u.openTickets > 0 ? 'text-yellow-400' : 'text-gray-400'}`}>{u.openTickets}</p>
+                </div>
+              </div>
+            )}
+            <div className="mt-3">
+              {!master ? (
+                <span className="text-xs text-gray-500 italic">View only</span>
+              ) : u.isDeleted ? (
+                <button
+                  onClick={() => restoreUserAction(u._id)}
+                  className="px-4 py-2 bg-green-500/10 text-green-400 hover:bg-green-500/30 rounded-lg border border-green-500/30 transition-all inline-flex items-center gap-2 text-xs font-bold"
+                >
+                  <RefreshCcw size={14} /> Restore
+                </button>
+              ) : u.role !== 'admin' ? (
+                <button
+                  onClick={() => deleteUserAction(u._id)}
+                  className="px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/30 rounded-lg border border-red-500/30 transition-all inline-flex items-center gap-2 text-xs font-bold"
+                >
+                  <Trash2 size={14} /> Soft Delete
+                </button>
+              ) : (
+                <span className="text-xs text-gray-500 font-bold uppercase">Protected</span>
+              )}
+            </div>
+            <Fold title="Account details">
+              <p className="text-sm text-gray-300 break-all">{u.email}</p>
+              {u.isDeleted ? (
+                <p className="text-xs text-gray-500 flex items-center gap-1">
+                  <Clock size={12} /> {getDaysLeft(u.deletedAt)} days until purge
+                </p>
+              ) : null}
+            </Fold>
+          </article>
+        ))}
+      </div>
+
+      <div className="hidden md:block bg-white/[0.02] border border-white/10 rounded-2xl overflow-x-auto shadow-2xl custom-scrollbar">
         <table className="w-full text-left min-w-[800px]">
           <thead className="bg-black/40 border-b border-white/10 text-gray-400 text-xs uppercase tracking-wider">
             <tr>

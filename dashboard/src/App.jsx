@@ -17,6 +17,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 import AuthPage from './pages/AuthPage';
 import LandingPage from './pages/LandingPage';
+import PlatformLanding from './pages/PlatformLanding';
 import StoresHub from './pages/StoresHub';
 import PresenceOverview from './pages/PresenceOverview';
 import StoreOnboarding from './pages/StoreOnboarding';
@@ -46,11 +47,17 @@ import AdminUsers from './pages/admin/AdminUsers';
 import AdminSupport from './pages/admin/AdminSupport';
 import AdminSubscriptions from './pages/admin/AdminSubscriptions';
 import SupportAssistant from './components/SupportAssistant';
+import TicketApprovalDock from './components/TicketApprovalDock';
 
 const DashboardAssistant = () => {
   const { user } = useAuth();
   if (!user) return null;
-  return <SupportAssistant />;
+  return (
+    <>
+      <SupportAssistant />
+      <TicketApprovalDock />
+    </>
+  );
 };
 
 const ProtectedRoute = ({ children }) => {
@@ -118,6 +125,24 @@ const PublicHome = () => {
     );
   }
   return <LandingPage />;
+};
+
+const PlatformHome = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) navigateAfterAuth(user, navigate);
+  }, [user, navigate]);
+
+  if (user) {
+    return (
+      <div className="min-h-screen bg-[#0A0F1A] flex items-center justify-center text-cyan-400 animate-pulse">
+        Redirecting…
+      </div>
+    );
+  }
+  return <PlatformLanding />;
 };
 
 const HubFallback = () => {
@@ -213,6 +238,7 @@ export default function App() {
       <Router>
         <Routes>
           <Route path="/" element={<PublicHome />} />
+          <Route path="/platform" element={<PlatformHome />} />
           <Route path="/login" element={<AuthRoute />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/staff-setup" element={<StaffSetup />} />

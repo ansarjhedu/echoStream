@@ -2,7 +2,8 @@ import { useAuth } from "../context/AuthContext";
 import { useState, useEffect } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { UserIcon, Activity, StoreIcon, Users, LogOut, LifeBuoy, LayoutDashboard, Globe2, Bell, CreditCard } from "lucide-react";
-import logo from '../assets/logo-wordmark.jpg';
+import logo from '../assets/logo-wordmark.png';
+import mark from '../assets/logo-mark.png';
 import api from '../Api';
 import MobileDock from '../components/MobileDock';
 import MobileHeader from '../components/MobileHeader';
@@ -26,7 +27,7 @@ const Badge = ({ count, tone = 'info' }) => {
     info: 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40',
   };
   return (
-    <span className={`ml-auto text-[10px] font-bold min-w-[20px] h-5 px-1.5 rounded-full inline-flex items-center justify-center ${styles[tone] || styles.info}`}>
+    <span className={`echo-side-badge ml-auto text-[10px] font-bold min-w-[20px] h-5 px-1.5 rounded-full inline-flex items-center justify-center ${styles[tone] || styles.info}`}>
       {count > 99 ? '99+' : count}
     </span>
   );
@@ -37,6 +38,16 @@ const HubLayout = ({ children }) => {
   const [badges, setBadges] = useState({ openTickets: 0, unreadNotifications: 0 });
   const [workspaceMode, setWorkspaceMode] = useState(() => peekWorkspaceMode() || 'empty'); // commerce | presence | empty
   const location = useLocation();
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem('echo-sidebar-collapsed') === '1'; } catch { return false; }
+  });
+  const toggleCollapsed = () => {
+    setCollapsed((value) => {
+      const next = !value;
+      try { localStorage.setItem('echo-sidebar-collapsed', next ? '1' : '0'); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   const showAdminNav = canAccessAdminPortal(user);
   const master = isMasterAdmin(user);
@@ -163,13 +174,19 @@ const HubLayout = ({ children }) => {
         onLogout={logout}
       />
 
-      <aside className="hidden md:flex md:h-screen md:flex-col md:w-72 md:shrink-0 md:justify-between md:overflow-y-auto border-r border-white/10 bg-black/20 backdrop-blur-3xl">
-        <div>
-          <div className="p-8 pb-4">
-            <h2 className="mb-8 hidden md:block">
-              <img src={logo} alt="EchoStream" className="h-10 w-auto max-w-[220px] object-contain object-left" />
-            </h2>
-            <div className="flex items-center gap-4 bg-white/5 border border-white/10 p-4 rounded-2xl w-full">
+      <aside
+        data-collapsed={collapsed ? 'true' : 'false'}
+        className={`echo-sidebar hidden md:flex md:h-screen md:flex-col md:shrink-0 md:overflow-hidden border-r border-white/10 bg-black/20 backdrop-blur-3xl ${collapsed ? 'md:w-[4.5rem]' : 'md:w-72'}`}
+      >
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+          <div className="echo-side-pad px-4 pt-5 pb-4">
+            <div className="echo-side-brand mb-4">
+              <h2 className="echo-side-word min-w-0">
+                <img src={logo} alt="EchoStream" className="w-full h-auto" />
+              </h2>
+              <img src={mark} alt="" className="echo-side-mark w-10 h-auto mx-auto" />
+            </div>
+            <div className="echo-side-profile flex items-center gap-4 bg-white/5 border border-white/10 p-4 rounded-2xl w-full">
               {user?.profilePic ? (
                 <img src={user.profilePic} alt="Profile" className="w-12 h-12 rounded-full object-cover border border-cyan-500/50" />
               ) : (
@@ -177,7 +194,7 @@ const HubLayout = ({ children }) => {
                   <UserIcon className="text-cyan-400" size={24} />
                 </div>
               )}
-              <div className="overflow-hidden">
+              <div className="echo-side-extra overflow-hidden">
                 <p className="text-sm font-bold text-white truncate">Hello, {user?.userName}</p>
                 <p className={`text-xs capitalize ${master || platform ? 'text-red-400' : 'text-cyan-400'}`}>
                   {platform ? 'platform staff' : user?.role}
@@ -186,76 +203,88 @@ const HubLayout = ({ children }) => {
             </div>
           </div>
 
-          <nav className="px-4 space-y-2 mt-4">
+          <nav className="echo-side-pad px-3 space-y-2 mt-4">
             {showAdminNav ? (
               <>
                 {(master || hasPerm(user, 'analytics_platform') || hasPerm(user, 'stores_read')) && (
-                  <Link to="/hub/admin/overview" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/overview') ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
-                    <Activity size={20} className={location.pathname.includes('/overview') ? "text-red-400" : ""} /> Overview & Summary
+                  <Link to="/hub/admin/overview" title="Overview & Summary" className={`echo-side-link relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/overview') ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
+                    <Activity size={20} className={`shrink-0 ${location.pathname.includes('/overview') ? "text-red-400" : ""}`} />
+                    <span className="echo-side-label truncate">Overview & Summary</span>
                   </Link>
                 )}
                 {(master || hasPerm(user, 'stores_read') || hasPerm(user, 'moderation')) && (
-                  <Link to="/hub/admin/stores" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/admin/stores') || (location.pathname.includes('/stores') && location.pathname.includes('/admin')) ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
-                    <StoreIcon size={20} /> Platform Stores
+                  <Link to="/hub/admin/stores" title="Platform Stores" className={`echo-side-link relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/admin/stores') || (location.pathname.includes('/stores') && location.pathname.includes('/admin')) ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
+                    <StoreIcon size={20} className="shrink-0" />
+                    <span className="echo-side-label truncate">Platform Stores</span>
                   </Link>
                 )}
                 {(master || hasPerm(user, 'users_read') || hasPerm(user, 'analytics_platform')) && (
-                  <Link to="/hub/admin/subscriptions" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/subscriptions') ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
-                    <CreditCard size={20} className={location.pathname.includes('/subscriptions') ? "text-red-400" : ""} /> Subscriptions
+                  <Link to="/hub/admin/subscriptions" title="Subscriptions" className={`echo-side-link relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/subscriptions') ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
+                    <CreditCard size={20} className={`shrink-0 ${location.pathname.includes('/subscriptions') ? "text-red-400" : ""}`} />
+                    <span className="echo-side-label truncate">Subscriptions</span>
                   </Link>
                 )}
                 {(master || hasPerm(user, 'users_read')) && (
-                  <Link to="/hub/admin/users" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/users') ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
-                    <Users size={20} /> Registered Users
+                  <Link to="/hub/admin/users" title="Registered Users" className={`echo-side-link relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/users') ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
+                    <Users size={20} className="shrink-0" />
+                    <span className="echo-side-label truncate">Registered Users</span>
                   </Link>
                 )}
                 {(master || hasPerm(user, 'support_queue')) && (
-                  <Link to="/hub/admin/support" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/admin/support') || (location.pathname.includes('/support') && location.pathname.includes('/admin')) ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
-                    <LifeBuoy size={20} /> Support Queue
+                  <Link to="/hub/admin/support" title="Support Queue" className={`echo-side-link relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/admin/support') || (location.pathname.includes('/support') && location.pathname.includes('/admin')) ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
+                    <LifeBuoy size={20} className="shrink-0" />
+                    <span className="echo-side-label truncate">Support Queue</span>
                     <Badge count={badges.openTickets} tone="warn" />
                   </Link>
                 )}
                 {master && (
-                  <Link to="/hub/admin/team" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/admin/team') ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
-                    <Users size={20} className={location.pathname.includes('/admin/team') ? "text-red-400" : ""} /> Platform Team
+                  <Link to="/hub/admin/team" title="Platform Team" className={`echo-side-link relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/admin/team') ? 'bg-gradient-to-r from-red-500/20 to-transparent border-l-4 border-red-500 text-white' : 'text-gray-400 hover:text-white border-l-4 border-transparent hover:bg-white/5'}`}>
+                    <Users size={20} className={`shrink-0 ${location.pathname.includes('/admin/team') ? "text-red-400" : ""}`} />
+                    <span className="echo-side-label truncate">Platform Team</span>
                   </Link>
                 )}
               </>
             ) : showPresenceNav ? (
               <>
-                <Link to="/hub/presence" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/presence') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                  <LayoutDashboard size={20} className={location.pathname.includes('/hub/presence') ? 'text-emerald-400' : ''} /> Presence Home
+                <Link to="/hub/presence" title="Presence Home" className={`echo-side-link relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/presence') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                  <LayoutDashboard size={20} className={`shrink-0 ${location.pathname.includes('/hub/presence') ? 'text-emerald-400' : ''}`} />
+                  <span className="echo-side-label truncate">Presence Home</span>
                 </Link>
                 {user?.role === 'owner' && (
-                  <Link to="/hub/team" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/team') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                    <Users size={20} className={location.pathname.includes('/hub/team') ? 'text-cyan-400' : ''} /> Team
+                  <Link to="/hub/team" title="Team" className={`echo-side-link relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/team') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                    <Users size={20} className={`shrink-0 ${location.pathname.includes('/hub/team') ? 'text-cyan-400' : ''}`} />
+                    <span className="echo-side-label truncate">Team</span>
                   </Link>
                 )}
                 {hasPerm(user, 'tickets') && (
-                  <Link to="/hub/support" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/support') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                    <LifeBuoy size={20} className={location.pathname.includes('/hub/support') ? 'text-cyan-400' : ''} /> Help & Support
+                  <Link to="/hub/support" title="Help & Support" className={`echo-side-link relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/support') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                    <LifeBuoy size={20} className={`shrink-0 ${location.pathname.includes('/hub/support') ? 'text-cyan-400' : ''}`} />
+                    <span className="echo-side-label truncate">Help & Support</span>
                     <Badge count={badges.openTickets} tone="warn" />
                   </Link>
                 )}
-                <div className="px-4 py-2 text-[10px] uppercase tracking-widest text-gray-600 flex items-center gap-2">
+                <div className="echo-side-extra px-4 py-2 text-[10px] uppercase tracking-widest text-gray-600 flex items-center gap-2">
                   <Globe2 size={12} /> Portfolio / Blog mode
                 </div>
               </>
             ) : showCommerceNav ? (
               <>
                 {!isSupportOnly(user) && (
-                  <Link to="/hub/stores" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/stores') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                    <StoreIcon size={20} className={location.pathname.includes('/hub/stores') ? "text-cyan-400" : ""} /> My Stores
+                  <Link to="/hub/stores" title="My Stores" className={`echo-side-link relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/stores') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                    <StoreIcon size={20} className={`shrink-0 ${location.pathname.includes('/hub/stores') ? "text-cyan-400" : ""}`} />
+                    <span className="echo-side-label truncate">My Stores</span>
                   </Link>
                 )}
                 {user?.role === 'owner' && (
-                  <Link to="/hub/team" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/team') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                    <Users size={20} className={location.pathname.includes('/hub/team') ? "text-cyan-400" : ""} /> Team
+                  <Link to="/hub/team" title="Team" className={`echo-side-link relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/team') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                    <Users size={20} className={`shrink-0 ${location.pathname.includes('/hub/team') ? 'text-cyan-400' : ''}`} />
+                    <span className="echo-side-label truncate">Team</span>
                   </Link>
                 )}
                 {hasPerm(user, 'tickets') && (
-                  <Link to="/hub/support" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/support') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                    <LifeBuoy size={20} className={location.pathname.includes('/hub/support') ? "text-cyan-400" : ""} /> Help & Support
+                  <Link to="/hub/support" title="Help & Support" className={`echo-side-link relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/hub/support') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                    <LifeBuoy size={20} className={`shrink-0 ${location.pathname.includes('/hub/support') ? "text-cyan-400" : ""}`} />
+                    <span className="echo-side-label truncate">Help & Support</span>
                     <Badge count={badges.openTickets} tone="warn" />
                   </Link>
                 )}
@@ -263,31 +292,47 @@ const HubLayout = ({ children }) => {
             ) : null}
 
             {!showAdminNav && (
-              <Link to="/hub/notifications" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/notifications') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                <Bell size={20} className={location.pathname.includes('/notifications') ? 'text-cyan-400' : ''} /> Notifications
+              <Link to="/hub/notifications" title="Notifications" className={`echo-side-link relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/notifications') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                <Bell size={20} className={`shrink-0 ${location.pathname.includes('/notifications') ? 'text-cyan-400' : ''}`} />
+                <span className="echo-side-label truncate">Notifications</span>
                 <Badge count={badges.unreadNotifications} tone="info" />
               </Link>
             )}
 
-            <Link to="/hub/profile" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/profile') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-              <UserIcon size={20} className={location.pathname.includes('/profile') ? "text-purple-400" : ""} /> Profile Settings
+            <Link to="/hub/profile" title="Profile Settings" className={`echo-side-link relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/profile') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+              <UserIcon size={20} className={`shrink-0 ${location.pathname.includes('/profile') ? "text-purple-400" : ""}`} />
+              <span className="echo-side-label truncate">Profile Settings</span>
             </Link>
             {user?.role === 'owner' && (
-              <Link to="/hub/billing" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/billing') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                <CreditCard size={20} className={location.pathname.includes('/billing') ? 'text-cyan-400' : ''} /> Billing
+              <Link to="/hub/billing" title="Billing" className={`echo-side-link relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/billing') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                <CreditCard size={20} className={`shrink-0 ${location.pathname.includes('/billing') ? 'text-cyan-400' : ''}`} />
+                <span className="echo-side-label truncate">Billing</span>
               </Link>
             )}
           </nav>
         </div>
 
-        <div className="p-4 border-t border-white/10">
-          <button onClick={logout} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-red-400 hover:bg-red-400/10 rounded-xl transition-all font-bold">
-            <LogOut size={18} /> Logout
+        <div className="shrink-0 px-3 pt-3 pb-4">
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="echo-collapse"
+          >
+            <span className="echo-collapse-icon" aria-hidden>
+              <span className="echo-collapse-rail" />
+              <span className="echo-collapse-chevron" />
+            </span>
+          </button>
+          <button onClick={logout} title="Logout" className="echo-side-link relative w-full flex items-center justify-start gap-2 px-4 py-3 text-red-400 hover:bg-red-400/10 rounded-xl transition-all font-bold">
+            <LogOut size={18} className="shrink-0 -scale-x-100" />
+            <span className="echo-side-label">Logout</span>
           </button>
         </div>
       </aside>
 
-      <main className="echo-shell-main flex-1 overflow-y-auto relative z-0">
+      <main className="echo-shell-main flex-1 min-w-0 overflow-y-auto relative">
         {children}
       </main>
 

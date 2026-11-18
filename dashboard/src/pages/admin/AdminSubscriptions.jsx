@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { CreditCard, RefreshCw, Filter } from 'lucide-react';
 import { toast } from 'react-toastify';
 import api from '../../Api';
+import Fold from '../../components/Fold';
+import PaymentCardVisual from '../../components/ui/PaymentCardVisual';
 
 const PLAN_OPTIONS = [
   { value: 'all', label: 'All plans' },
@@ -157,7 +159,42 @@ export default function AdminSubscriptions() {
         ) : rows.length === 0 ? (
           <p className="p-6 text-sm text-gray-500">No owners match these filters.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="md:hidden divide-y divide-white/10">
+            {rows.map((o) => {
+              const badge = statusBadge(o);
+              return (
+                <article key={o._id} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-white truncate">{o.userName || 'Owner'}</p>
+                      <p className="text-sm capitalize text-gray-300 mt-1">{o.planLabel || o.plan || 'Free'}</p>
+                      <p className="text-xs text-gray-500 mt-1">Renews / ends {fmtDate(o.currentPeriodEnd)}</p>
+                    </div>
+                    <span className={`shrink-0 inline-flex text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-full border ${badge.className}`}>
+                      {badge.label}
+                    </span>
+                  </div>
+                  <Fold title="Billing details">
+                    <p className="text-xs text-gray-400 break-all">{o.email || '—'}</p>
+                    <p className="text-xs text-gray-400">Renews / ends: {fmtDate(o.currentPeriodEnd)}</p>
+                    <PaymentCardVisual
+                      brand={o.paymentMethodBrand}
+                      last4={o.paymentMethodLast4}
+                      expMonth={o.paymentMethodExpMonth}
+                      expYear={o.paymentMethodExpYear}
+                      holder={o.userName}
+                    />
+                    <p className="text-xs text-gray-500">Joined {fmtDate(o.createdAt)}</p>
+                    {o.renewingMonthly ? (
+                      <p className="text-xs text-emerald-400/80">Monthly renewal</p>
+                    ) : null}
+                  </Fold>
+                </article>
+              );
+            })}
+          </div>
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-[10px] uppercase tracking-wider text-gray-500 border-b border-white/10">
@@ -190,10 +227,16 @@ export default function AdminSubscriptions() {
                         ) : null}
                       </td>
                       <td className="px-4 py-3 text-gray-400 text-xs">{fmtDate(o.currentPeriodEnd)}</td>
-                      <td className="px-4 py-3 text-gray-400 text-xs">
-                        {o.paymentMethodLast4
-                          ? `${(o.paymentMethodBrand || 'card').toUpperCase()} ···· ${o.paymentMethodLast4}`
-                          : '—'}
+                      <td className="px-4 py-3">
+                        <div className="w-64">
+                          <PaymentCardVisual
+                            brand={o.paymentMethodBrand}
+                            last4={o.paymentMethodLast4}
+                            expMonth={o.paymentMethodExpMonth}
+                            expYear={o.paymentMethodExpYear}
+                            holder={o.userName}
+                          />
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-xs">{fmtDate(o.createdAt)}</td>
                     </tr>
@@ -202,6 +245,7 @@ export default function AdminSubscriptions() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
     </div>

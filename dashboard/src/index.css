@@ -1,13 +1,52 @@
 @import 'tailwindcss';
 /* src/index.css */
 
-/* Hide scrollbar completely but keep functionality */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
+/* One scrollbar for the whole app: thin, transparent track, cyan thumb. */
+html,
+body,
+*,
+.echo-scroll,
+.no-scrollbar,
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(34, 211, 238, 0.4) transparent;
 }
-.no-scrollbar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+*::-webkit-scrollbar,
+.echo-scroll::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar,
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track,
+*::-webkit-scrollbar-track,
+.echo-scroll::-webkit-scrollbar-track,
+.no-scrollbar::-webkit-scrollbar-track,
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb,
+*::-webkit-scrollbar-thumb,
+.echo-scroll::-webkit-scrollbar-thumb,
+.no-scrollbar::-webkit-scrollbar-thumb,
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(34, 211, 238, 0.35);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+html::-webkit-scrollbar-thumb:hover,
+body::-webkit-scrollbar-thumb:hover,
+*::-webkit-scrollbar-thumb:hover,
+.echo-scroll::-webkit-scrollbar-thumb:hover,
+.no-scrollbar::-webkit-scrollbar-thumb:hover,
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 211, 238, 0.6);
+  background-clip: padding-box;
 }
 
 /* Phone shell scrolls only the page. The bottom bar is fixed so narrow screens cannot push it off. */
@@ -42,9 +81,128 @@
 
 /* The More sheet uses the same corner as the support launcher. Hide the launcher while it is open. */
 @media (max-width: 767px) {
-  body[data-dock-more='open'] .echo-support {
+  body[data-dock-more='open'] .echo-support,
+  body[data-ticket-chat='open'] .echo-support {
     visibility: hidden;
   }
+}
+
+/* Wider screens: the sidebar can shrink to icons. Main stays in the leftover width. */
+.echo-sidebar {
+  transition: width 180ms ease;
+}
+.echo-side-mark {
+  display: none;
+}
+.echo-sidebar[data-collapsed='true'] .echo-side-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.echo-sidebar[data-collapsed='true'] .echo-side-extra,
+.echo-sidebar[data-collapsed='true'] .echo-side-word {
+  display: none;
+}
+.echo-sidebar[data-collapsed='true'] .echo-side-mark {
+  display: block;
+}
+.echo-sidebar[data-collapsed='true'] .echo-side-link {
+  justify-content: center;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  gap: 0;
+  border-left-width: 0 !important;
+}
+.echo-sidebar[data-collapsed='true'] .echo-side-badge {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  margin-left: 0;
+}
+.echo-sidebar[data-collapsed='true'] .echo-side-brand,
+.echo-sidebar[data-collapsed='true'] .echo-side-profile {
+  justify-content: center;
+}
+.echo-sidebar[data-collapsed='true'] .echo-side-profile {
+  padding: 0.35rem;
+}
+.echo-sidebar[data-collapsed='true'] .echo-side-profile > img,
+.echo-sidebar[data-collapsed='true'] .echo-side-profile > div {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+.echo-sidebar[data-collapsed='true'] .echo-side-pad {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+.echo-collapse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin: 0 0 1.75rem;
+  padding: 0.35rem 0.85rem 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+.echo-collapse:hover,
+.echo-collapse:focus,
+.echo-collapse:focus-visible,
+.echo-collapse:active {
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+}
+.echo-collapse-icon {
+  display: flex;
+  align-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0.18rem;
+  border-radius: 0.3rem;
+  border: 1.5px solid rgba(156, 163, 175, 0.55);
+  color: #9ca3af;
+  background: transparent;
+  box-shadow: none;
+  transition: width 180ms ease, color 180ms ease, border-color 180ms ease;
+}
+.echo-collapse-rail {
+  width: 0.22rem;
+  height: 100%;
+  border-radius: 1px;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.echo-collapse-chevron {
+  margin-left: auto;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(135deg);
+  flex-shrink: 0;
+}
+.echo-sidebar:not([data-collapsed='true']) .echo-collapse-icon {
+  width: 100%;
+  color: #22d3ee;
+  border-color: rgba(34, 211, 238, 0.85);
+  background: transparent;
+}
+.echo-sidebar[data-collapsed='true'] .echo-collapse {
+  margin-bottom: 1.35rem;
+  padding-left: 0;
+  padding-right: 0;
+}
+.echo-sidebar[data-collapsed='true'] .echo-collapse-chevron {
+  display: none;
 }
 
 /* Dark, readable native selects (symmetrical control height) */

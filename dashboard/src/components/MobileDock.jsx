@@ -117,15 +117,21 @@ export default function MobileDock({ left = [], right = [], center = null, more 
       className="flex flex-col items-center justify-center gap-1 min-w-0 flex-1 h-full px-1"
     >
       {raised ? (
-        <RaisedFace active={open || moreActive}>
-          <LayoutGrid size={24} strokeWidth={2.4} />
-        </RaisedFace>
+        open || moreActive ? (
+          <RaisedFace active>
+            <LayoutGrid size={24} strokeWidth={2.4} />
+          </RaisedFace>
+        ) : (
+          <span className="-mt-7 flex items-center justify-center w-14 h-14 rounded-full border-4 border-[#0B1220] bg-[#0B1220] text-gray-400">
+            <LayoutGrid size={24} strokeWidth={2} />
+          </span>
+        )
       ) : (
         <span className={`flex items-center justify-center w-10 h-8 rounded-2xl ${open || moreActive ? 'bg-cyan-400/15 text-cyan-300' : 'text-gray-500'}`}>
           <LayoutGrid size={20} strokeWidth={open || moreActive ? 2.4 : 2} />
         </span>
       )}
-      <span className={`echo-dock-label text-[10px] font-semibold ${raised ? 'font-bold text-emerald-300' : open || moreActive ? 'text-cyan-300' : 'text-gray-500'}`}>
+      <span className={`echo-dock-label text-[10px] font-semibold ${open || moreActive ? (raised ? 'font-bold text-emerald-300' : 'text-cyan-300') : 'text-gray-500'}`}>
         More
       </span>
     </button>

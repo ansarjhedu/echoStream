@@ -180,6 +180,18 @@ Return JSON only.`;
  * create a real ticket immediately, auto-assign to least-loaded platform support agent,
  * seed conversation with chatbot transcript + agent note.
  */
+function problemFromHistory(history, summary) {
+    const generic = /talk to (a )?human|human support|human agent|requested a human/i;
+    const lines = (Array.isArray(history) ? history : [])
+        .filter((message) => message.role === 'user')
+        .map((message) => String(message.content || '').trim())
+        .filter((line) => line && !generic.test(line));
+    if (lines.length) return lines.slice(-3).join(' · ').slice(0, 280);
+    const clean = String(summary || '').trim();
+    if (clean && !generic.test(clean)) return clean.slice(0, 280);
+    return 'Asked EchoBot for help, then asked to speak with a person.';
+}
+
 const escalateChatToHuman = async (req, res) => {
     try {
         if (isPlatformOperator(req.user)) {
@@ -202,12 +214,13 @@ const escalateChatToHuman = async (req, res) => {
             .slice(-20)
             .map((m) => `${m.role === 'user' ? 'User' : 'EchoBot'}: ${String(m.content || '')}`)
             .join('\n');
+        const problem = problemFromHistory(history, summary);
 
         const ticket = await Support.create({
             owner: ownerDoc._id,
             ownerName: ownerDoc.userName,
             ownerEmail: ownerDoc.email,
-            subject: summary?.slice(0, 120) || 'Chatbot escalation — human support requested',
+            subject: problem.slice(0, 120),
             source: 'chatbot',
             status: 'open',
             assignedTo: assignee?._id || null,
@@ -217,13 +230,13 @@ const escalateChatToHuman = async (req, res) => {
                     submittedBy: 'EchoBot',
                     content:
                         `Automated handoff from EchoBot.\n\n` +
-                        `Reason: ${summary || 'User requested a human agent.'}\n\n` +
+                        `Reason: ${problem}\n\n` +
                         `--- Chat transcript ---\n${transcript || '(empty)'}`,
                 },
                 {
                     sender: 'owner',
-                    submittedBy: req.user.userName,
-                    content: summary || 'I would like to speak with a human support agent.',
+                    submittedBy: ownerDoc.userName,
+                    content: problem,
                 },
             ],
         });

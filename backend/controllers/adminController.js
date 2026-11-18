@@ -329,6 +329,37 @@ const replyToTicket=async(req,res)=>{
     }
 }
 
+/** Decline an open approval request and close the ticket. */
+const rejectTicket = async (req, res) => {
+    try {
+        const ticket = await Support.findById(req.params.id);
+        if (!ticket) return res.status(404).json({ message: 'Support ticket not found' });
+        if (ticket.status === 'resolved') {
+            return res.status(400).json({ message: 'This ticket is already closed.' });
+        }
+        ticket.status = 'resolved';
+        ticket.conversation.push({
+            sender: 'admin',
+            submittedBy: req.user.userName,
+            content: `${req.user.userName} declined this request.`,
+        });
+        await ticket.save();
+        notifyUser({
+            userId: ticket.owner,
+            type: 'support_resolved',
+            title: 'Support request declined',
+            message: `Your request was declined by ${req.user.userName}.`,
+            link: `/hub/support?ticket=${ticket._id}`,
+            important: true,
+            meta: { ticketId: String(ticket._id) },
+        });
+        return res.status(200).json({ data: ticket, message: 'Request declined.' });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+};
+
 /** Claim / accept an open ticket (sets assignee + in_progress). */
 const claimTicket = async (req, res) => {
     try {
@@ -427,4 +458,4 @@ const listSubscriptions = async (req, res) => {
     }
 };
 
-export { listUsers, deleteUser, listStores, updateStore, getPlatformAnalytics, restoreStore,restoreUser, getTicketsFromUsers, replyToTicket, resolveTicket, claimTicket, listSubscriptions};
+export { listUsers, deleteUser, listStores, updateStore, getPlatformAnalytics, restoreStore,restoreUser, getTicketsFromUsers, replyToTicket, resolveTicket, claimTicket, rejectTicket, listSubscriptions};

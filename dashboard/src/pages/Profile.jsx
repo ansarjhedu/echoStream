@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../Api';
 import { toast } from 'react-toastify';
 import { User, Mail, Lock, Camera, Trash2 } from 'lucide-react';
+import PaymentCardVisual from '../components/ui/PaymentCardVisual';
 
 export default function Profile() {
   const { user, logout } = useAuth();
@@ -20,6 +21,20 @@ export default function Profile() {
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [subscription, setSubscription] = useState(null);
+
+  useEffect(() => {
+    if (user?.role !== 'owner') return undefined;
+    let cancelled = false;
+    api.get('/users/billing')
+      .then((res) => {
+        if (!cancelled) setSubscription(res.data?.data || null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.role]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -88,6 +103,33 @@ export default function Profile() {
         <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-500 tracking-tight">
           Profile Settings
         </h1>
+
+        {user?.role === 'owner' && (
+          <div className="rounded-[2rem] border border-white/10 bg-white/[0.02] p-6 md:p-8">
+            <div className="flex items-end justify-between gap-3 mb-4">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-cyan-300/80 font-bold">Subscription</p>
+                <p className="text-lg font-bold text-white mt-1 capitalize">
+                  {subscription?.entitlements?.catalog?.name || subscription?.billedPlanId || user?.plan || 'Free'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/hub/billing')}
+                className="min-h-10 px-3 rounded-xl border border-cyan-400/30 text-cyan-300 text-xs font-bold"
+              >
+                Manage billing
+              </button>
+            </div>
+            <PaymentCardVisual
+              brand={subscription?.paymentMethod?.brand || user?.paymentMethodBrand}
+              last4={subscription?.paymentMethod?.last4 || user?.paymentMethodLast4}
+              expMonth={subscription?.paymentMethod?.expMonth || user?.paymentMethodExpMonth}
+              expYear={subscription?.paymentMethod?.expYear || user?.paymentMethodExpYear}
+              holder={user?.userName}
+            />
+          </div>
+        )}
 
         <div className="bg-white/[0.02] border border-white/10 p-6 md:p-10 rounded-[2rem] backdrop-blur-xl shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-6">

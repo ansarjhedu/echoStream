@@ -192,6 +192,7 @@ export default function Billing() {
             last4={pm.last4}
             expMonth={pm.expMonth}
             expYear={pm.expYear}
+            holder={user?.userName}
           />
           {pm.last4 ? (
             <p className="text-xs text-gray-500 mt-2">

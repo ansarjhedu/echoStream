@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import { Store, Ban, CheckCircle, Clock, RefreshCcw, User, LayoutDashboard } from 'lucide-react';
 import { isMasterAdmin, hasPerm } from '../../utils/permissionHelpers';
+import Fold from '../../components/Fold';
 
 export default function AdminStores() {
   const [stores, setStores] = useState([]);
@@ -85,6 +86,64 @@ export default function AdminStores() {
     return s.status === storeFilter && !s.isDeleted;
   });
 
+  const statusNode = (store) => (
+    store.isDeleted ? (
+      <div className="flex flex-col gap-1 items-start">
+        <span className="px-3 py-1 text-xs font-bold rounded-full border bg-red-500/10 text-red-400 border-red-500/20">DELETED</span>
+        <span className="text-xs text-gray-500 flex items-center gap-1"><Clock size={12}/> {getDaysLeft(store.deletedAt)} days until purge</span>
+      </div>
+    ) : (
+      <span className={`px-3 py-1 text-xs font-bold rounded-full border uppercase tracking-wider ${
+        store.status === 'live' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+        store.status === 'suspended' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+        'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
+      }`}>
+        {store.status}
+      </span>
+    )
+  );
+
+  const actionNode = (store) => (
+    <div className="flex flex-wrap gap-2">
+      {store.isDeleted ? (
+        master ? (
+          <button
+            onClick={() => restoreStoreAction(store._id)}
+            className="p-2 px-4 bg-green-500/10 text-green-400 hover:bg-green-500/30 rounded-lg border border-green-500/30 transition-all inline-flex items-center gap-2 text-xs font-bold"
+          >
+            <RefreshCcw size={14} /> Restore Store
+          </button>
+        ) : (
+          <span className="text-xs text-gray-500 italic">Master restore only</span>
+        )
+      ) : (
+        <>
+          {canImpersonate && (
+            <button
+              onClick={() => handleImpersonateStore(store)}
+              className="px-4 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-2 transition-all bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/30"
+            >
+              <LayoutDashboard size={14}/> Access Workspace
+            </button>
+          )}
+          {master && (
+            <button
+              onClick={() => toggleStoreStatus(store._id, store.status)}
+              className={`px-4 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-2 transition-all ${
+                store.status === 'live'
+                  ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30'
+                  : 'bg-green-500/10 text-green-400 hover:bg-green-500/20 border border-green-500/30'
+              }`}
+            >
+              {store.status === 'live' ? <Ban size={14}/> : <CheckCircle size={14}/>}
+              {store.status === 'live' ? 'Suspend' : 'Activate'}
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+
   if (loading) return <div className="p-10 text-red-400 animate-pulse">Loading platform stores...</div>;
 
   return (
@@ -107,7 +166,33 @@ export default function AdminStores() {
         </select>
       </div>
 
-      <div className="bg-white/[0.02] border border-white/10 rounded-2xl overflow-x-auto shadow-2xl max-w-full custom-scrollbar">
+      <div className="md:hidden space-y-3">
+        {filteredStores.length === 0 ? (
+          <p className="p-6 text-center text-gray-500 italic rounded-2xl border border-white/10">No stores match this filter.</p>
+        ) : filteredStores.map((store) => (
+          <article key={store._id} className={`rounded-2xl border border-white/10 p-4 ${store.isDeleted ? 'bg-red-900/10' : 'bg-white/[0.02]'}`}>
+            <div className="flex items-start justify-between gap-3">
+              <p className={`font-bold text-base min-w-0 break-words ${store.isDeleted ? 'text-gray-500 line-through' : 'text-white'}`}>{store.storeName}</p>
+              {statusNode(store)}
+            </div>
+            <p className="mt-3 flex items-center gap-2 text-sm text-gray-300">
+              <User size={14} className="text-purple-400 shrink-0" />
+              <span className="truncate">{store.ownerName || 'Unknown owner'}</span>
+            </p>
+            <p className="mt-2 text-xs uppercase tracking-wider text-gray-500">{store.storeType || 'eCommerce'}</p>
+            <div className="mt-3">{actionNode(store)}</div>
+            <Fold title="Store details">
+              <p className="text-xs text-gray-500 font-mono break-all">ID: {store._id}</p>
+              <p className="text-xs text-gray-400">Owner: {store.ownerName || 'Unknown owner'}</p>
+              {store.isDeleted ? (
+                <p className="text-xs text-gray-500">{getDaysLeft(store.deletedAt)} days until purge</p>
+              ) : null}
+            </Fold>
+          </article>
+        ))}
+      </div>
+
+      <div className="hidden md:block bg-white/[0.02] border border-white/10 rounded-2xl overflow-x-auto shadow-2xl max-w-full custom-scrollbar">
         <table className="w-full text-left min-w-[800px]">
           <thead className="bg-black/40 border-b border-white/10 text-gray-400 text-xs uppercase tracking-wider">
             <tr>

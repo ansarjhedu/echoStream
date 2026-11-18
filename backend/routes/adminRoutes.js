@@ -3,7 +3,7 @@ import { authAdmin, requireMasterAdmin, checkPlatformPermission } from "../middl
 import {
   listUsers, listStores, deleteUser, updateStore, getPlatformAnalytics,
   restoreStore, restoreUser,
-  getTicketsFromUsers, replyToTicket, resolveTicket, claimTicket, listSubscriptions
+  getTicketsFromUsers, replyToTicket, resolveTicket, claimTicket, rejectTicket, listSubscriptions
 } from '../controllers/adminController.js';
 import {
   invitePlatformStaff, getPlatformStaff, resendPlatformInvite,
@@ -33,6 +33,7 @@ adminRouter.get('/analytics', authAdmin, checkPlatformPermission('analytics_plat
 adminRouter.get('/support/list', authAdmin, checkPlatformPermission('support_queue'), getTicketsFromUsers);
 adminRouter.post('/support/:id/reply', authAdmin, checkPlatformPermission('support_queue'), replyToTicket);
 adminRouter.patch('/support/:id/claim', authAdmin, checkPlatformPermission('support_queue'), claimTicket);
+adminRouter.patch('/support/:id/reject', authAdmin, checkPlatformPermission('support_queue'), rejectTicket);
 adminRouter.patch('/support/:id/resolve', authAdmin, checkPlatformPermission('support_queue'), resolveTicket);
 
 // Platform Team — Master Super Admin only

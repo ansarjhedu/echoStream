@@ -1,516 +1,223 @@
-import React from "react";
-import { Link } from "react-router-dom";
-import {
-  ArrowRight,
-  Store,
-  Globe2,
-  LayoutTemplate,
-  Palette,
-  Star,
-  ShieldCheck,
-  Sparkles,
-  ChevronRight,
-  Check,
-} from "lucide-react";
-import { setSignupIntent } from "../utils/permissionHelpers";
-import mark from '../assets/logo-mark.jpg';
-import wordmark from '../assets/logo-wordmark.jpg';
-import EchoWidgetEmbed from "../components/EchoWidgetEmbed";
-import { CatalogLayoutPreview, previewThemeStyle, WIDGET_CATALOG } from "../utils/widgetCatalog.jsx";
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Check, Store, Globe2 } from 'lucide-react';
+import { setSignupIntent } from '../utils/permissionHelpers';
+import SiteNav from '../components/landing/SiteNav';
+import EchoWidgetEmbed from '../components/EchoWidgetEmbed';
+import { CatalogLayoutPreview, previewThemeStyle, WIDGET_CATALOG } from '../utils/widgetCatalog.jsx';
 
-/** Optional live demo — set in dashboard .env, never commit real keys */
-const DEMO_WIDGET_API_KEY = import.meta.env.VITE_DEMO_WIDGET_API_KEY || "";
-const DEMO_WIDGET_HANDLE = import.meta.env.VITE_DEMO_WIDGET_HANDLE || "portfolio";
-const DEMO_WIDGET_TITLE = import.meta.env.VITE_DEMO_WIDGET_TITLE || "EchoStream";
+const DEMO_WIDGET_API_KEY = import.meta.env.VITE_DEMO_WIDGET_API_KEY || '';
+const DEMO_WIDGET_HANDLE = import.meta.env.VITE_DEMO_WIDGET_HANDLE || 'portfolio';
+const DEMO_WIDGET_TITLE = import.meta.env.VITE_DEMO_WIDGET_TITLE || 'EchoStream';
+const PROMPT_KEY = 'echo-owner-platform-prompt';
+
+const PAGE_TITLE = 'EchoStream | Product Review Widget for Stores';
+const PAGE_DESCRIPTION = 'EchoStream helps stores, portfolios, and blogs collect customer reviews, hide the ones that should stay off the storefront, import Google reviews, and embed a review widget.';
 
 const PRICING = [
+  { id: 'free', name: 'Free', price: '$0', blurb: 'One site, enough to publish the widget.', highlights: ['1 store or site', '2 team seats', '2 campaigns / month', 'Design Lab and widgets'] },
+  { id: 'growth', name: 'Growth', price: '$29', blurb: 'More stores, more seats, review request emails.', highlights: ['5 stores', '10 team seats', '20 campaigns / month', 'Thank-you emails and AI draft'], featured: true },
+  { id: 'pro', name: 'Pro', price: '$79', blurb: 'Unlimited workspaces for a growing brand.', highlights: ['Unlimited stores and seats', 'Unlimited campaigns', 'Priority support path', 'Everything in Growth'] },
+];
+
+const FEATURES = [
   {
-    id: "free",
-    name: "Free",
-    price: "$0",
-    blurb: "Launch one workspace and prove the embed.",
-    highlights: ["1 store / site", "2 team seats", "2 campaigns / month", "Design Lab + widgets"],
+    id: 'analytics',
+    title: 'See whether the reviews are working',
+    body: 'Average rating, review volume, verified buyers, and how many reviews stay on the storefront. The same screen shows widget impressions after you publish.',
+    src: '/marketing/owner-analytics.png',
+    alt: 'Full store analytics screen with a 5.0 average rating, four reviews, and a 100 percent approval rate',
   },
   {
-    id: "growth",
-    name: "Growth",
-    price: "$29",
-    blurb: "Multi-store teams, campaigns, and thank-you emails.",
-    highlights: ["5 stores", "10 team seats", "20 campaigns / month", "Thank-you emails + AI draft"],
-    featured: true,
+    id: 'reviews',
+    title: 'Keep the record when you hide a product',
+    body: 'Each product keeps its reviews. Hide one from the storefront without deleting the history, then show it again later. Import and export stay on the same page.',
+    src: '/marketing/owner-reviews.png',
+    alt: 'Full products screen listing reviewed dishes with star ratings and a hide control',
   },
   {
-    id: "pro",
-    name: "Pro",
-    price: "$79",
-    blurb: "Unlimited workspaces for scaling brands.",
-    highlights: ["Unlimited stores & seats", "Unlimited campaigns", "Priority support path", "Everything in Growth"],
+    id: 'widgets',
+    title: 'A review widget shoppers already understand',
+    body: 'Pick a layout in the catalog. The preview is the embed: stars, a write-a-review button, and the comments. Carousel layouts move. The others stay still until you open them.',
+    src: '/marketing/owner-widgets.png',
+    alt: 'Full widget catalog screen with a customer reviews preview and a button into Design Lab',
+  },
+  {
+    id: 'design',
+    title: 'Publish the snippet from Design Lab',
+    body: 'Set the accent, the surface, and the type. Save and publish when the live site is ready. Stores keep reviews grouped per product. A portfolio or blog uses one embed.',
+    src: '/marketing/owner-design-lab.png',
+    alt: 'Full Design Lab screen with Save and Publish, a glassmorphism layout, and brand color controls',
+  },
+  {
+    id: 'google',
+    title: 'Google reviews in the same widget',
+    body: 'Connect a Google Business Profile, bring the reviews in, filter by star rating, and publish them through the same catalog and Design Lab path.',
+    src: '/marketing/owner-google.png',
+    alt: 'Full Google Reviews screen for connecting a business profile and importing reviews',
   },
 ];
 
+function AudiencePrompt({ onStay, onPlatform }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/70">
+      <div role="dialog" aria-modal="true" aria-labelledby="audience-title" className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#10182a] p-6 shadow-2xl">
+        <p className="text-[11px] uppercase tracking-[0.18em] text-cyan-300 font-bold">Before you look around</p>
+        <h2 id="audience-title" className="text-2xl font-extrabold mt-2">Are you buying this for a store, or for a software team?</h2>
+        <p className="text-sm text-gray-400 mt-3 leading-relaxed">
+          This page is the service a store owner subscribes to: reviews, the widget, and Google imports. The platform page is the whole product — admin controls, subscriptions, support, and the stack it runs on.
+        </p>
+        <div className="mt-5 flex flex-col sm:flex-row gap-3">
+          <button type="button" onClick={onStay} className="min-h-11 px-4 rounded-xl border border-white/15 text-sm font-bold">
+            I run a store
+          </button>
+          <button type="button" onClick={onPlatform} className="min-h-11 px-4 rounded-xl bg-cyan-400 text-[#041018] text-sm font-bold">
+            Show me the platform
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function LandingPage() {
-  const goPresence = () => setSignupIntent("presence");
-  const goCommerce = () => setSignupIntent("commerce");
+  const navigate = useNavigate();
+  const [prompt, setPrompt] = useState(false);
+  const goCommerce = () => setSignupIntent('commerce');
+  const goPresence = () => setSignupIntent('presence');
+
+  useEffect(() => {
+    const previousTitle = document.title;
+    document.title = PAGE_TITLE;
+    const meta = document.querySelector('meta[name="description"]');
+    const previousDescription = meta?.getAttribute('content') || '';
+    if (meta) meta.setAttribute('content', PAGE_DESCRIPTION);
+    try {
+      if (sessionStorage.getItem(PROMPT_KEY) !== '1') setPrompt(true);
+    } catch { /* private mode */ }
+    return () => {
+      document.title = previousTitle;
+      if (meta) meta.setAttribute('content', previousDescription);
+    };
+  }, []);
+
+  const dismiss = () => {
+    try { sessionStorage.setItem(PROMPT_KEY, '1'); } catch { /* ignore */ }
+    setPrompt(false);
+  };
 
   return (
-    <div className="min-h-screen bg-[#070B14] text-white overflow-x-hidden selection:bg-cyan-500/30">
-      {/* Atmosphere */}
-      <div className="pointer-events-none fixed inset-0">
-        <div className="absolute -top-32 -left-24 w-[42rem] h-[42rem] rounded-full bg-cyan-500/15 blur-[140px] animate-pulse" />
-        <div className="absolute top-1/3 -right-20 w-[36rem] h-[36rem] rounded-full bg-emerald-500/10 blur-[120px]" />
-        <div className="absolute bottom-0 left-1/3 w-[28rem] h-[28rem] rounded-full bg-violet-600/10 blur-[100px]" />
-      </div>
-
-      <header className="relative z-20 flex items-center justify-between px-6 md:px-12 py-5 border-b border-white/5 backdrop-blur-md bg-[#070B14]/60">
-        <Link to="/" className="flex items-center gap-3">
-          <img src={mark} alt="" className="h-9 w-9 rounded-lg object-cover md:hidden" />
-          <img src={wordmark} alt="EchoStream" className="hidden md:block h-10 w-auto object-contain" />
-          <span className="font-black tracking-tighter text-lg md:hidden">EchoStream</span>
-        </Link>
-        <nav className="hidden md:flex items-center gap-8 text-sm text-gray-400">
-          <a href="#use-cases" className="hover:text-white transition-colors">
-            Use cases
-          </a>
-          <a href="#widgets" className="hover:text-white transition-colors">
-            Widgets
-          </a>
-          <a href="#design-lab" className="hover:text-white transition-colors">
-            Design Lab
-          </a>
-          <a href="#google" className="hover:text-white transition-colors">
-            Google Reviews
-          </a>
-        </nav>
-        <div className="flex items-center gap-3">
-          <Link
-            to="/login"
-            className="text-sm font-bold text-gray-300 hover:text-white px-3 py-2"
-          >
-            Log in
-          </Link>
-          <Link
-            to="/login?mode=signup&intent=presence"
-            onClick={goPresence}
-            className="hidden sm:inline-flex min-h-[44px] items-center gap-2 px-4 py-2 rounded-full font-bold text-sm bg-white/5 border border-white/10 hover:bg-white/10"
-          >
-            Get started <ArrowRight size={16} />
-          </Link>
-        </div>
-      </header>
-
-      {/* HERO */}
-      <section className="relative z-10 px-6 md:px-12 pt-16 md:pt-24 pb-20 max-w-6xl mx-auto">
-        <p className="text-cyan-400/90 text-xs font-bold uppercase tracking-[0.25em] mb-5 animate-[fadeInDown_0.6s_ease]">
-          Trust widgets for stores, portfolios & blogs
-        </p>
-        <h1 className="font-black tracking-tight text-4xl sm:text-5xl md:text-7xl leading-[1.05] max-w-4xl mb-6">
-          <span className="text-transparent bg-clip-text bg-gradient-to-br from-white via-cyan-100 to-emerald-300">
-            EchoStream
-          </span>
-          <span className="block text-white/90 mt-2 text-3xl sm:text-4xl md:text-5xl font-extrabold">
-            Social proof that ships in one snippet.
-          </span>
-        </h1>
-        <p className="text-gray-400 text-base md:text-lg max-w-2xl mb-10 leading-relaxed">
-          Design a review widget in the Lab, publish, and paste. Commerce sites
-          get product-aware embeds; portfolios and blogs get API-key-only embeds
-          — plus optional Google Business imports.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-          <Link
-            to="/login?mode=signup&intent=presence"
-            onClick={goPresence}
-            className="min-h-[48px] inline-flex items-center justify-center gap-2 px-7 py-3 rounded-2xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 text-[#070B14] shadow-[0_0_40px_rgba(34,211,238,0.25)] hover:opacity-95 transition-opacity"
-          >
-            <Globe2 size={20} /> Start with Portfolio / Blog
-          </Link>
-          <Link
-            to="/login?mode=signup&intent=commerce"
-            onClick={goCommerce}
-            className="min-h-[48px] inline-flex items-center justify-center gap-2 px-7 py-3 rounded-2xl font-bold border border-cyan-500/40 text-cyan-200 bg-cyan-500/10 hover:bg-cyan-500/20 transition-colors"
-          >
-            <Store size={20} /> Register a Store
-          </Link>
-        </div>
-      </section>
-
-      {/* USE CASES */}
-      <section
-        id="use-cases"
-        className="relative z-10 px-6 md:px-12 py-20 border-t border-white/5"
-      >
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-2xl md:text-3xl font-extrabold mb-3">
-            Built for three kinds of proof
-          </h2>
-          <p className="text-gray-500 mb-10 max-w-xl text-sm">
-            One platform. Workspace mode adapts the dashboard — not a separate
-            product login.
+    <div className="min-h-screen bg-[#070B14] text-white">
+      {prompt && (
+        <AudiencePrompt
+          onStay={dismiss}
+          onPlatform={() => {
+            dismiss();
+            navigate('/platform');
+          }}
+        />
+      )}
+      <SiteNav
+        links={[
+          { href: '#features', label: 'Features' },
+          { href: '#widgets', label: 'Widgets' },
+          { href: '#pricing', label: 'Pricing' },
+          { to: '/platform', label: 'For software teams' },
+        ]}
+        cta={{ to: '/login?mode=signup&intent=commerce', label: 'Start free', onClick: goCommerce }}
+      />
+      <main>
+        <section className="px-4 sm:px-6 pt-14 pb-8 max-w-6xl mx-auto">
+          <p className="text-cyan-300 text-xs font-bold uppercase tracking-[0.22em] mb-4">For store owners</p>
+          <h1 className="text-4xl sm:text-5xl font-black tracking-tight max-w-3xl leading-[1.05]">
+            Put customer reviews on the site, and keep control of which ones show.
+          </h1>
+          <p className="text-gray-400 text-base sm:text-lg max-w-2xl mt-5 leading-relaxed">
+            EchoStream is the review service a store, portfolio, or blog subscribes to. Collect reviews, ask for them by email, import Google reviews, and publish one embed.
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {[
-              {
-                icon: Store,
-                title: "eCommerce",
-                body: "Product reviews, hide controls, and rating insights your store needs.",
-                accent: "from-cyan-500/20 to-transparent border-cyan-500/20",
-              },
-              {
-                icon: Globe2,
-                title: "Portfolio",
-                body: "Client praise without a product catalog. Simple embed, Design Lab styling, and optional Google Reviews.",
-                accent:
-                  "from-emerald-500/20 to-transparent border-emerald-500/20",
-              },
-              {
-                icon: Sparkles,
-                title: "Blog / Content",
-                body: "Social proof next to your articles. Same widget styles — lighter dashboard for content sites.",
-                accent:
-                  "from-violet-500/20 to-transparent border-violet-500/20",
-              },
-            ].map((card) => (
-              <article
-                key={card.title}
-                className={`rounded-2xl border bg-gradient-to-b ${card.accent} p-6 backdrop-blur-sm hover:-translate-y-1 transition-transform duration-300`}
-              >
-                <card.icon className="text-white mb-4" size={28} />
-                <h3 className="text-xl font-bold mb-2">{card.title}</h3>
-                <p className="text-sm text-gray-400 leading-relaxed">
-                  {card.body}
-                </p>
-              </article>
-            ))}
+          <div className="mt-8 flex flex-col sm:flex-row gap-3">
+            <Link to="/login?mode=signup&intent=commerce" onClick={goCommerce} className="min-h-12 inline-flex items-center justify-center gap-2 px-6 rounded-2xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 text-[#070B14]">
+              <Store size={18} /> Register a store
+            </Link>
+            <Link to="/login?mode=signup&intent=presence" onClick={goPresence} className="min-h-12 inline-flex items-center justify-center gap-2 px-6 rounded-2xl font-bold border border-white/15">
+              <Globe2 size={18} /> Start a portfolio or blog
+            </Link>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* WIDGETS */}
-      <section
-        id="widgets"
-        className="relative z-10 px-6 md:px-12 py-20 bg-white/[0.015]"
-      >
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-end justify-between gap-4 mb-10">
-            <div>
-              <h2 className="text-2xl md:text-3xl font-extrabold mb-2 flex items-center gap-2">
-                <LayoutTemplate className="text-cyan-400" /> Widget catalog
-              </h2>
-              <p className="text-gray-500 text-sm">
-                Pick a layout card, then open Design Lab. Carousel previews move
-                — other cards stay still.
-              </p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {WIDGET_CATALOG.map((l, i) => (
-              <div
-                key={l.id}
-                className="group rounded-2xl border border-white/10 bg-[#0A0F1A] p-4 hover:border-cyan-500/40 transition-colors flex flex-col"
-                style={{ animationDelay: `${i * 60}ms` }}
-              >
-                <div
-                  className="h-40 mb-4 rounded-xl border border-white/10 overflow-hidden relative bg-[#050810]"
-                  style={previewThemeStyle({
-                    primaryColor: '#06b6d4',
-                    backgroundColor: '#0A0F1A',
-                    textColor: '#ffffff',
-                  })}
-                >
-                  <div className="absolute inset-0 scale-[0.55] origin-top-left w-[182%] h-[182%] pointer-events-none overflow-hidden">
-                    <CatalogLayoutPreview
-                      layoutId={l.id}
-                      carouselConfig={{
-                        carouselAutoplay: l.id === 'carousel',
-                        carouselIntervalMs: 2800,
-                        carouselShowArrows: true,
-                      }}
-                    />
+        <div id="features">
+          {FEATURES.map((feature) => (
+            <section key={feature.id} id={feature.id} className="px-4 sm:px-6 py-12 border-t border-white/5">
+              <div className="max-w-6xl mx-auto">
+                <h2 className="text-2xl sm:text-3xl font-extrabold max-w-2xl">{feature.title}</h2>
+                <p className="text-sm sm:text-base text-gray-400 mt-3 mb-6 max-w-2xl leading-relaxed">{feature.body}</p>
+                <img src={feature.src} alt={feature.alt} width="1440" height="900" className="w-full h-auto rounded-2xl border border-white/10" loading="lazy" />
+              </div>
+            </section>
+          ))}
+        </div>
+
+        <section id="widgets" className="px-4 sm:px-6 py-16 border-t border-white/5">
+          <div className="max-w-6xl mx-auto">
+            <h2 className="text-2xl sm:text-3xl font-extrabold mb-2">Six layouts for the embed</h2>
+            <p className="text-sm text-gray-500 mb-8 max-w-xl">These previews use sample reviews so you can judge the chrome before your own customers write in.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {WIDGET_CATALOG.map((layout) => (
+                <article key={layout.id} className="rounded-2xl border border-white/10 bg-[#0A0F1A] p-4 flex flex-col">
+                  <div className="h-40 mb-4 rounded-xl border border-white/10 overflow-hidden relative bg-[#050810]" style={previewThemeStyle({ primaryColor: '#06b6d4', backgroundColor: '#0A0F1A', textColor: '#ffffff' })}>
+                    <div className="absolute inset-0 scale-[0.55] origin-top-left w-[182%] h-[182%] pointer-events-none overflow-hidden">
+                      <CatalogLayoutPreview layoutId={layout.id} carouselConfig={{ carouselAutoplay: layout.id === 'carousel', carouselIntervalMs: 2800, carouselShowArrows: true }} />
+                    </div>
                   </div>
-                </div>
-                <h3 className="font-bold group-hover:text-cyan-300 transition-colors">
-                  {l.name}
-                </h3>
-                <p className="text-xs text-gray-500 mt-1 leading-relaxed flex-1">
-                  {l.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* DESIGN LAB */}
-      <section
-        id="design-lab"
-        className="relative z-10 px-6 md:px-12 py-20 border-t border-white/5"
-      >
-        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-          <div>
-            <h2 className="text-2xl md:text-3xl font-extrabold mb-3 flex items-center gap-2">
-              <Palette className="text-emerald-400" /> Design Lab
-            </h2>
-            <p className="text-gray-400 text-sm leading-relaxed mb-6">
-              Live preview of the layout you selected. Tune colors, typography,
-              card density, avatar visibility, and carousel controls — arrows,
-              speed, cards per view, hover pause — then Publish for a copy-ready
-              snippet.
-            </p>
-            <ul className="space-y-3 text-sm text-gray-300">
-              {[
-                "Portfolio and blog sites: one embed for your whole site",
-                "Online stores: reviews stay grouped per product page",
-                "Save a draft, then publish when you are ready for your live site",
-              ].map((t) => (
-                <li key={t} className="flex gap-2 items-start">
-                  <ChevronRight
-                    size={16}
-                    className="text-emerald-400 shrink-0 mt-0.5"
-                  />
-                  {t}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10 p-4 md:p-6 shadow-2xl">
-            <div className="rounded-2xl border border-white/10 bg-[#0A0F1A] overflow-hidden mb-4">
-              <div className="flex justify-between text-[10px] uppercase tracking-wider text-gray-500 px-4 pt-3">
-                <span>Design Lab preview</span>
-                <span className="text-emerald-400">Glassmorphism</span>
-              </div>
-              <div
-                className="h-56 overflow-hidden relative"
-                style={previewThemeStyle({
-                  primaryColor: '#34d399',
-                  backgroundColor: '#0A0F1A',
-                  textColor: '#ffffff',
-                })}
-              >
-                <div className="absolute inset-0 scale-[0.62] origin-top-left w-[161%] h-[161%] pointer-events-none">
-                  <CatalogLayoutPreview layoutId="glassmorphism" />
-                </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {["Primary", "Surface", "Type"].map((label) => (
-                <div
-                  key={label}
-                  className="rounded-xl border border-white/10 p-3 text-center bg-[#0A0F1A]"
-                >
-                  <div className="w-8 h-8 rounded-full mx-auto mb-2 bg-gradient-to-br from-cyan-400 to-emerald-400" />
-                  <p className="text-[10px] text-gray-500">{label}</p>
-                </div>
+                  <h3 className="font-bold">{layout.name}</h3>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed flex-1">{layout.description}</p>
+                </article>
               ))}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* PRICING */}
-      <section id="pricing" className="relative z-10 px-6 md:px-12 py-20 border-t border-white/5">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-10">
-            <h2 className="text-2xl md:text-3xl font-extrabold mb-2">Plans that match how stores grow</h2>
-            <p className="text-gray-500 text-sm max-w-xl mx-auto">
-              Start on Free — upgrade when you need more stores, seats, or campaigns.
-              Subscribe with Lemon Squeezy (Visa / Mastercard / Google Pay). Only account owners manage billing.
-            </p>
+        <section id="pricing" className="px-4 sm:px-6 py-16 border-t border-white/5">
+          <div className="max-w-6xl mx-auto">
+            <h2 className="text-2xl sm:text-3xl font-extrabold mb-2">Plans for the account that pays</h2>
+            <p className="text-sm text-gray-500 mb-8 max-w-xl">Start on Free. Upgrade when you need more stores, seats, or review-request campaigns. Only the account owner manages billing.</p>
+            <div className="grid md:grid-cols-3 gap-4">
+              {PRICING.map((plan) => (
+                <article key={plan.id} className={`rounded-2xl border p-6 flex flex-col ${plan.featured ? 'border-cyan-500/50 bg-cyan-500/10' : 'border-white/10 bg-[#0A0F1A]'}`}>
+                  <h3 className="font-bold text-lg">{plan.name}</h3>
+                  <p className="text-3xl font-extrabold mt-2">{plan.price}<span className="text-sm text-gray-500 font-medium"> / mo</span></p>
+                  <p className="text-xs text-gray-500 mt-2 mb-4">{plan.blurb}</p>
+                  <ul className="text-sm text-gray-300 space-y-2 flex-1 mb-6">
+                    {plan.highlights.map((item) => (
+                      <li key={item} className="flex gap-2"><Check size={14} className="text-cyan-400 shrink-0 mt-0.5" />{item}</li>
+                    ))}
+                  </ul>
+                  <Link to="/login?mode=signup&intent=commerce" onClick={goCommerce} className={`min-h-11 rounded-xl font-bold text-sm inline-flex items-center justify-center ${plan.featured ? 'bg-cyan-400 text-[#041018]' : 'bg-white/10 border border-white/10'}`}>
+                    Get started free
+                  </Link>
+                </article>
+              ))}
+            </div>
           </div>
-          <div className="grid md:grid-cols-3 gap-4">
-            {PRICING.map((p) => (
-              <div
-                key={p.id}
-                className={`rounded-2xl border p-6 flex flex-col min-h-[300px] ${
-                  p.featured
-                    ? 'border-cyan-500/50 bg-cyan-500/10'
-                    : 'border-white/10 bg-[#0A0F1A]'
-                }`}
-              >
-                <p className="font-bold text-white text-lg">{p.name}</p>
-                <p className="text-3xl font-extrabold text-white mt-2">
-                  {p.price}
-                  <span className="text-sm text-gray-500 font-medium"> / mo</span>
-                </p>
-                <p className="text-xs text-gray-500 mt-2 mb-4">{p.blurb}</p>
-                <ul className="text-sm text-gray-300 space-y-2 flex-1 mb-6">
-                  {p.highlights.map((h) => (
-                    <li key={h} className="flex gap-2 items-start">
-                      <Check size={14} className="text-cyan-400 shrink-0 mt-0.5" /> {h}
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  to="/login?mode=signup&intent=commerce"
-                  onClick={goCommerce}
-                  className={`min-h-[44px] rounded-xl font-bold text-sm inline-flex items-center justify-center ${
-                    p.featured
-                      ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-black'
-                      : 'bg-white/10 text-white border border-white/10'
-                  }`}
-                >
-                  Get started free
-                </Link>
+        </section>
+
+        <section className="px-4 sm:px-6 py-16 border-t border-white/5">
+          <div className="max-w-6xl mx-auto">
+            <h2 className="text-2xl font-extrabold mb-3">The embed, on a page</h2>
+            <p className="text-sm text-gray-400 mb-6 max-w-xl">This is the same widget a store pastes into its site.</p>
+            {DEMO_WIDGET_API_KEY ? (
+              <EchoWidgetEmbed apiKey={DEMO_WIDGET_API_KEY} productHandle={DEMO_WIDGET_HANDLE} productTitle={DEMO_WIDGET_TITLE} />
+            ) : (
+              <div className="rounded-2xl border border-white/10 overflow-hidden p-4 md:p-6" style={previewThemeStyle({ backgroundColor: '#0A0F1A', textColor: '#ffffff', primaryColor: '#06b6d4' })}>
+                <CatalogLayoutPreview layoutId="glassmorphism" />
               </div>
-            ))}
+            )}
           </div>
-        </div>
-      </section>
-
-      {/* GOOGLE */}
-      <section
-        id="google"
-        className="relative z-10 px-6 md:px-12 py-20 bg-white/[0.015]"
-      >
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-8 md:items-center">
-          <div className="flex-1">
-            <h2 className="text-2xl md:text-3xl font-extrabold mb-3">
-              Google Reviews
-            </h2>
-            <p className="text-gray-400 text-sm leading-relaxed mb-4">
-              Connect Google Business Profile, import reviews, keep or hide by
-              rating, then drop them into the same Widget Catalog → Design Lab →
-              Publish path. One embed runtime — native and Google sources
-              together.
-            </p>
-          </div>
-          <div className="flex-1 rounded-2xl border border-white/10 p-6 bg-[#0A0F1A]/80">
-            <ol className="space-y-4 text-sm">
-              {[
-                "Connect your Business Profile",
-                "Filter by star rating",
-                "Choose a layout & theme in Design Lab",
-                "Copy the snippet to your site",
-              ].map((step, i) => (
-                <li key={step} className="flex gap-3 items-center">
-                  <span className="w-8 h-8 rounded-full bg-cyan-500/15 text-cyan-300 font-bold text-xs flex items-center justify-center border border-cyan-500/30">
-                    {i + 1}
-                  </span>
-                  {step}
-                </li>
-              ))}
-            </ol>
-          </div>
-        </div>
-      </section>
-
-      {/* HOW IT WORKS + TRUST */}
-      <section className="relative z-10 px-6 md:px-12 py-20 border-t border-white/5">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12">
-          <div>
-            <h2 className="text-2xl font-extrabold mb-6">How it works</h2>
-            <ol className="space-y-5">
-              {[
-                {
-                  t: "Create",
-                  d: "Presence site or commerce store — two clear CTAs from day one.",
-                },
-                {
-                  t: "Design",
-                  d: "Catalog → Design Lab. Tune every visual control that matters.",
-                },
-                {
-                  t: "Publish",
-                  d: "Copy the embed code and paste it on your website. Stores use a unique product name on each page.",
-                },
-                {
-                  t: "Prove",
-                  d: "Analytics, tickets, and optional Google sync stay in one Hub.",
-                },
-              ].map((s, i) => (
-                <li key={s.t} className="flex gap-4">
-                  <span className="text-3xl font-black text-white/10 leading-none">
-                    {i + 1}
-                  </span>
-                  <div>
-                    <p className="font-bold">{s.t}</p>
-                    <p className="text-sm text-gray-500">{s.d}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </div>
-          <div className="rounded-3xl border border-white/10 p-8 bg-gradient-to-br from-white/[0.04] to-transparent">
-            <ShieldCheck className="text-cyan-400 mb-4" size={32} />
-            <h3 className="text-xl font-bold mb-2">
-              Trust without the theater
-            </h3>
-            <p className="text-sm text-gray-400 leading-relaxed mb-6">
-              Paste the embed on your site and start collecting reviews. Hide poor
-              reviews from your storefront when needed — EchoStream keeps them in
-              your records so you can unhide later.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Link
-                to="/login?mode=signup&intent=presence"
-                onClick={goPresence}
-                className="min-h-[44px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm bg-emerald-400 text-[#070B14]"
-              >
-                Start free — Presence
-              </Link>
-              <Link
-                to="/login?mode=signup&intent=commerce"
-                onClick={goCommerce}
-                className="min-h-[44px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm border border-white/15 hover:bg-white/5"
-              >
-                Register a Store
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-      {/* TESTIMONIALS */}
-      <section
-        id="testimonials"
-        className="relative z-10 px-6 md:px-12 py-20 border-t border-white/5"
-      >
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-2xl md:text-3xl font-extrabold mb-3">
-            Testimonials
-          </h2>
-          <p className="text-gray-400 text-sm mb-6 max-w-xl">
-            Live social proof from an EchoStream Presence widget — the same embed your customers paste into their site.
-          </p>
-          {DEMO_WIDGET_API_KEY ? (
-            <EchoWidgetEmbed
-              apiKey={DEMO_WIDGET_API_KEY}
-              productHandle={DEMO_WIDGET_HANDLE}
-              productTitle={DEMO_WIDGET_TITLE}
-            />
-          ) : (
-            <div
-              className="rounded-2xl border border-white/10 overflow-hidden p-4 md:p-6"
-              style={previewThemeStyle({
-                backgroundColor: "#0A0F1A",
-                textColor: "#ffffff",
-                primaryColor: "#06b6d4",
-                fontFamily: "system-ui, sans-serif",
-              })}
-            >
-              <CatalogLayoutPreview layoutId="glassmorphism" />
-            </div>
-          )}
-        </div>
-      </section>
-
-      <footer className="relative z-10 px-6 md:px-12 py-10 border-t border-white/5 text-center text-xs text-gray-600">
-        <p>
-          © {new Date().getFullYear()} EchoStream ·{" "}
-          <Link to="/login" className="text-gray-400 hover:text-white">
-            Log in
-          </Link>
-        </p>
+        </section>
+      </main>
+      <footer className="px-4 sm:px-6 py-8 border-t border-white/5 text-center text-xs text-gray-500">
+        <p>© {new Date().getFullYear()} EchoStream · <Link to="/platform" className="text-gray-300 hover:text-white">Platform for software teams</Link> · <Link to="/login" className="text-gray-300 hover:text-white">Log in</Link></p>
       </footer>
-
-      <style>{`
-        @keyframes marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-40%); }
-        }
-        @keyframes fadeInDown {
-          from { opacity: 0; transform: translateY(-12px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   );
 }

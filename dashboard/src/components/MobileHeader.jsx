@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Bell, LogOut } from 'lucide-react';
 import api from '../Api';
-import mark from '../assets/logo-mark.jpg';
+import mark from '../assets/logo-mark.png';
 
 function trimStoreName(name) {
   const clean = String(name || '').replace(/\s+/g, ' ').trim();
@@ -36,19 +36,19 @@ export default function MobileHeader({ store, alertCount, onLogout, onLeave, hom
         <Link to={homeTo} onClick={onLeave} className="flex items-center gap-2 min-w-0 flex-1">
           {store ? (
             storeIcon ? (
-              <img src={storeIcon} alt="" className="h-8 w-8 rounded-lg object-cover shrink-0 border border-white/10" />
+              <img src={storeIcon} alt="" className="h-10 w-10 rounded-lg object-cover shrink-0 border border-white/10" />
             ) : (
-              <span className="h-8 w-8 rounded-lg shrink-0 bg-cyan-400/15 border border-cyan-300/30 text-cyan-200 text-sm font-black flex items-center justify-center">
+              <span className="h-10 w-10 rounded-lg shrink-0 bg-cyan-400/15 border border-cyan-300/30 text-cyan-200 text-base font-black flex items-center justify-center">
                 {(storeName || 'S').trim().charAt(0).toUpperCase()}
               </span>
             )
           ) : (
-            <img src={mark} alt="EchoStream" className="h-8 w-8 rounded-lg object-cover shrink-0" />
+            <img src={mark} alt="EchoStream" className="h-11 w-auto shrink-0" />
           )}
           {storeName ? (
-            <span className="text-sm font-bold text-white truncate">{trimStoreName(storeName)}</span>
+            <span className="text-base font-bold text-white truncate">{trimStoreName(storeName)}</span>
           ) : (
-            <span className="text-base font-black tracking-tighter text-white truncate">EchoStream</span>
+            <span className="text-lg font-black tracking-tight text-white truncate">EchoStream</span>
           )}
         </Link>
 

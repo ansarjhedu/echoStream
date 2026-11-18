@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import api from '../Api';
 import { LifeBuoy, Send, CheckCircle, Image as ImageIcon, Plus, ArrowLeft, X, MessageSquare } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { isGenericLine, isHandoffMessage, ticketTitle, userProblem } from '../utils/ticketChat';
+import TicketEchoSummary from '../components/TicketEchoSummary';
 
 const FILTERS = [
   { key: 'all', label: 'All' },
@@ -38,6 +40,15 @@ export default function Support() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeTicketId, tickets]);
+
+  useEffect(() => {
+    if (!activeTicketId) {
+      delete document.body.dataset.ticketChat;
+      return undefined;
+    }
+    document.body.dataset.ticketChat = 'open';
+    return () => { delete document.body.dataset.ticketChat; };
+  }, [activeTicketId]);
 
   useEffect(() => {
     if (!activeTicketId || loading) return;
@@ -158,10 +169,10 @@ export default function Support() {
       {loading ? (
         <div className="text-cyan-400 animate-pulse py-10">Loading Support Desk...</div>
       ) : (
-        <div className="flex flex-1 min-h-0 overflow-hidden bg-white/[0.02] border border-white/10 rounded-2xl backdrop-blur-xl shadow-2xl">
+        <div className="flex flex-1 min-h-0 overflow-hidden bg-white/[0.02] border border-white/10 rounded-2xl shadow-2xl">
           <div className={`w-full md:w-1/3 flex flex-col border-r border-white/10 ${activeTicketId ? 'hidden md:flex' : 'flex'}`}>
             <div className="p-4 border-b border-white/10 bg-black/20 font-bold text-gray-300">Your Conversations</div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
+            <div className="flex-1 overflow-y-auto echo-scroll">
               {tickets.length === 0 ? (
                 <p className="p-6 text-center text-gray-500 italic">No tickets match this filter.</p>
               ) : (
@@ -176,7 +187,7 @@ export default function Support() {
                     }`}
                   >
                     <div className="flex justify-between items-start mb-1">
-                      <h3 className="font-bold text-white truncate pr-2">{ticket.subject}</h3>
+                      <h3 className="font-bold text-white truncate pr-2">{ticketTitle(ticket)}</h3>
                       <span
                         className={`px-3 py-1 text-[10px] md:text-xs font-bold uppercase tracking-wider rounded-full border shrink-0 ${
                           ticket.status === 'in_progress'
@@ -190,9 +201,11 @@ export default function Support() {
                       </span>
                     </div>
                     <p className="text-xs text-gray-400 truncate">
-                      {ticket.conversation?.length
-                        ? ticket.conversation[ticket.conversation.length - 1].content
-                        : 'No messages yet'}
+                      {ticket.source === 'chatbot'
+                        ? userProblem(ticket)
+                        : (ticket.conversation?.length
+                          ? ticket.conversation[ticket.conversation.length - 1].content
+                          : 'No messages yet')}
                     </p>
                     <p className="text-[10px] text-gray-600 mt-2 uppercase tracking-widest">
                       {new Date(ticket.updatedAt).toLocaleDateString()}
@@ -203,7 +216,7 @@ export default function Support() {
             </div>
           </div>
 
-          <div className={`flex-1 flex flex-col bg-black/20 relative ${!activeTicketId ? 'hidden md:flex' : 'flex'}`}>
+          <div className={`${!activeTicketId ? 'hidden md:flex' : 'flex fixed inset-0 z-[90] md:static md:z-auto'} md:flex-1 min-h-0 flex-col bg-[#0A0F1A] md:bg-black/20 pt-[env(safe-area-inset-top,0px)] md:pt-0`}>
             {!activeTicket ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-500">
                 <MessageSquare size={48} className="mb-4 opacity-50" />
@@ -211,18 +224,36 @@ export default function Support() {
               </div>
             ) : (
               <>
-                <div className="p-4 border-b border-white/10 bg-black/40 flex items-center gap-4">
-                  <button onClick={() => setActiveTicketId(null)} className="md:hidden text-gray-400 hover:text-white">
+                <div className="px-3 py-3 md:px-4 border-b border-white/10 bg-[#0A0F1A] md:bg-black/40 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTicketId(null)}
+                    aria-label="Back to tickets"
+                    className="md:hidden shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-gray-200 hover:text-white hover:bg-white/5"
+                  >
                     <ArrowLeft size={20} />
                   </button>
-                  <div>
-                    <h3 className="font-bold text-white text-lg">{activeTicket.subject}</h3>
-                    <p className="text-xs font-mono text-gray-500">Ticket ID: {activeTicket._id.substring(0, 8)}</p>
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-white text-base truncate">{ticketTitle(activeTicket)}</h3>
+                    <p className="text-xs text-gray-400 truncate">
+                      {activeTicket.source === 'chatbot' ? userProblem(activeTicket) : `Ticket ${activeTicket._id.substring(0, 8)}`}
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 custom-scrollbar">
-                  {activeTicket.conversation?.map((msg, index) => (
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 echo-scroll">
+                  {activeTicket.conversation?.map((msg, index) => {
+                    if (isHandoffMessage(msg)) {
+                      return <TicketEchoSummary key={index} ticket={activeTicket} />;
+                    }
+                    if (
+                      msg.sender === 'owner'
+                      && activeTicket.source === 'chatbot'
+                      && (isGenericLine(msg.content) || msg.content === userProblem(activeTicket))
+                    ) {
+                      return null;
+                    }
+                    return (
                     <div key={index} className={`flex flex-col ${msg.sender === 'owner' ? 'items-end' : 'items-start'}`}>
                       <span className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 px-1">
                         {msg.sender === 'owner'
@@ -254,7 +285,8 @@ export default function Support() {
                         </div>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                   <div ref={messagesEndRef} />
                 </div>
 

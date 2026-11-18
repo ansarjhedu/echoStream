@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useLocation, Link, Navigate } from "react-router-dom";
 import { BarChart3, Package, ArrowLeft, User, LayoutTemplate, Palette, Globe2, MessageSquare, Mail } from "lucide-react";
-import logo from '../assets/logo-wordmark.jpg';
+import logo from '../assets/logo-wordmark.png';
+import mark from '../assets/logo-mark.png';
 import { hasPerm, isSupportOnly, getPostLoginPath, canAccessAdminPortal, canManageWidgets, isPresenceType } from '../utils/permissionHelpers';
 import MobileDock from '../components/MobileDock';
 import MobileHeader from '../components/MobileHeader';
@@ -10,6 +12,16 @@ import { packDock } from '../utils/packDock';
 const StoreLayout = ({ children }) => {
   const { activeStore, setActiveStore, user, logout } = useAuth();
   const location = useLocation();
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem('echo-sidebar-collapsed') === '1'; } catch { return false; }
+  });
+  const toggleCollapsed = () => {
+    setCollapsed((value) => {
+      const next = !value;
+      try { localStorage.setItem('echo-sidebar-collapsed', next ? '1' : '0'); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   const isPresence = isPresenceType(activeStore?.storeType);
   const isAnalyticsActive = location.pathname.includes('/analytics');
@@ -71,36 +83,44 @@ const StoreLayout = ({ children }) => {
         onLeave={() => setActiveStore(null)}
       />
 
-      <aside className="hidden md:flex md:h-screen md:flex-col md:w-72 md:shrink-0 md:justify-between md:overflow-y-auto border-r border-white/10 bg-black/20 backdrop-blur-3xl">
-        <div>
-          <div className="p-8 hidden md:block">
-            <h2 className="mb-6">
-              <img src={logo} alt="EchoStream" className="h-10 w-auto max-w-[220px] object-contain object-left" />
-            </h2>
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-              <p className="text-xs text-gray-500 mb-1">{isPresence ? 'Site' : 'Workspace'}</p>
-              <p className="text-cyan-400 font-bold truncate">{activeStore.storeName}</p>
-              {isPresence && (
-                <p className="text-[10px] uppercase tracking-wider text-emerald-400/80 mt-1 capitalize">
-                  {activeStore.storeType}
-                </p>
-              )}
+      <aside
+        data-collapsed={collapsed ? 'true' : 'false'}
+        className={`echo-sidebar hidden md:flex md:h-screen md:flex-col md:shrink-0 md:overflow-hidden border-r border-white/10 bg-black/20 backdrop-blur-3xl ${collapsed ? 'md:w-[4.5rem]' : 'md:w-72'}`}
+      >
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+          <div className="echo-side-pad px-4 pt-5 hidden md:block">
+            <div className="echo-side-brand mb-4">
+              <h2 className="echo-side-word min-w-0">
+                <img src={logo} alt="EchoStream" className="w-full h-auto" />
+              </h2>
+              <img src={mark} alt="" className="echo-side-mark w-10 h-auto mx-auto" />
+            </div>
+            <div className="echo-side-profile bg-white/5 border border-white/10 rounded-xl p-4" title={activeStore.storeName}>
+              <p className="echo-side-mark text-center text-sm font-black text-cyan-300">{(activeStore.storeName || 'S').trim().charAt(0).toUpperCase()}</p>
+              <div className="echo-side-extra">
+                <p className="text-xs text-gray-500 mb-1">{isPresence ? 'Site' : 'Workspace'}</p>
+                <p className="text-cyan-400 font-bold truncate">{activeStore.storeName}</p>
+                {isPresence && (
+                  <p className="text-[10px] uppercase tracking-wider text-emerald-400/80 mt-1 capitalize">
+                    {activeStore.storeType}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
-          <nav className="px-4 space-y-2 mt-4">
+          <nav className="echo-side-pad px-3 space-y-2 mt-4">
             {showAnalytics && (
               <div className="space-y-1">
                 <Link
                   to="/workspace/analytics/overview"
-                  className={`w-full flex items-center px-4 py-3 rounded-xl transition-all ${isAnalyticsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                  title="Analytics"
+                  className={`echo-side-link relative w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isAnalyticsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                 >
-                  <div className="flex items-center gap-3">
-                    <BarChart3 size={20} className={isAnalyticsActive ? "text-cyan-400" : ""} />
-                    Analytics
-                  </div>
+                  <BarChart3 size={20} className={`shrink-0 ${isAnalyticsActive ? "text-cyan-400" : ""}`} />
+                  <span className="echo-side-label truncate">Analytics</span>
                 </Link>
-                <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isAnalyticsActive ? 'max-h-40 opacity-100 mt-1 mb-2' : 'max-h-0 opacity-0'}`}>
+                <div className={`echo-side-extra overflow-hidden transition-all duration-300 ease-in-out ${isAnalyticsActive ? 'max-h-40 opacity-100 mt-1 mb-2' : 'max-h-0 opacity-0'}`}>
                   <div className="flex flex-col gap-1 pr-2">
                     <Link to="/workspace/analytics/overview" className={`px-4 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${location.pathname.includes('/analytics/overview') ? 'text-cyan-400 bg-white/5 font-bold shadow-sm' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.02]'}`}>
                       Overview
@@ -114,27 +134,28 @@ const StoreLayout = ({ children }) => {
             )}
 
             {showModeration && (
-              <Link to="/workspace/reviews" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isReviewsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                <Package size={20} className={isReviewsActive ? "text-cyan-400" : ""} /> Products
+              <Link to="/workspace/reviews" title="Products" className={`echo-side-link relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isReviewsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                <Package size={20} className={`shrink-0 ${isReviewsActive ? "text-cyan-400" : ""}`} />
+                <span className="echo-side-label truncate">Products</span>
               </Link>
             )}
             {showPresenceReviews && (
-              <Link to="/workspace/reviews" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isReviewsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                <MessageSquare size={20} className={isReviewsActive ? "text-cyan-400" : ""} /> Reviews
+              <Link to="/workspace/reviews" title="Reviews" className={`echo-side-link relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isReviewsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                <MessageSquare size={20} className={`shrink-0 ${isReviewsActive ? "text-cyan-400" : ""}`} />
+                <span className="echo-side-label truncate">Reviews</span>
               </Link>
             )}
             {showCampaigns && (
               <div className="space-y-1">
                 <Link
                   to="/workspace/campaigns/request"
-                  className={`w-full flex items-center px-4 py-3 rounded-xl transition-all ${isCampaignsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                  title="Email Campaigns"
+                  className={`echo-side-link relative w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isCampaignsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                 >
-                  <div className="flex items-center gap-3">
-                    <Mail size={20} className={isCampaignsActive ? 'text-cyan-400' : ''} />
-                    Email Campaigns
-                  </div>
+                  <Mail size={20} className={`shrink-0 ${isCampaignsActive ? 'text-cyan-400' : ''}`} />
+                  <span className="echo-side-label truncate">Email Campaigns</span>
                 </Link>
-                <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isCampaignsActive ? 'max-h-40 opacity-100 mt-1 mb-2' : 'max-h-0 opacity-0'}`}>
+                <div className={`echo-side-extra overflow-hidden transition-all duration-300 ease-in-out ${isCampaignsActive ? 'max-h-40 opacity-100 mt-1 mb-2' : 'max-h-0 opacity-0'}`}>
                   <div className="flex flex-col gap-1 pr-2">
                     <Link
                       to="/workspace/campaigns/request"
@@ -153,41 +174,59 @@ const StoreLayout = ({ children }) => {
               </div>
             )}
             {showWidgets && (
-              <Link to="/workspace/widgets" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isWidgetsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                <LayoutTemplate size={20} className={isWidgetsActive ? "text-cyan-400" : ""} /> Widgets
+              <Link to="/workspace/widgets" title="Widgets" className={`echo-side-link relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isWidgetsActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                <LayoutTemplate size={20} className={`shrink-0 ${isWidgetsActive ? "text-cyan-400" : ""}`} />
+                <span className="echo-side-label truncate">Widgets</span>
               </Link>
             )}
             {showWidgets && (
-              <Link to="/workspace/design-lab" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isDesignLabActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                <Palette size={20} className={isDesignLabActive ? "text-purple-400" : ""} /> Design Lab
+              <Link to="/workspace/design-lab" title="Design Lab" className={`echo-side-link relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isDesignLabActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                <Palette size={20} className={`shrink-0 ${isDesignLabActive ? "text-purple-400" : ""}`} />
+                <span className="echo-side-label truncate">Design Lab</span>
               </Link>
             )}
             {showWidgets && (
-              <Link to="/workspace/google-reviews" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/google-reviews') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                <Globe2 size={20} className={location.pathname.includes('/google-reviews') ? "text-emerald-400" : ""} /> Google Reviews
+              <Link to="/workspace/google-reviews" title="Google Reviews" className={`echo-side-link relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/google-reviews') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                <Globe2 size={20} className={`shrink-0 ${location.pathname.includes('/google-reviews') ? "text-emerald-400" : ""}`} />
+                <span className="echo-side-label truncate">Google Reviews</span>
               </Link>
             )}
           </nav>
         </div>
 
-        <div className="p-4 border-t border-white/10 space-y-2">
+        <div className="shrink-0 px-3 pt-3 pb-4">
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="echo-collapse"
+          >
+            <span className="echo-collapse-icon" aria-hidden>
+              <span className="echo-collapse-rail" />
+              <span className="echo-collapse-chevron" />
+            </span>
+          </button>
           {canAccessAdminPortal(user) ? (
-            <Link to={getPostLoginPath(user)} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-gray-400 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold">
-              <User size={18} /> Admin Hub
+            <Link to={getPostLoginPath(user)} title="Admin Hub" className="echo-side-link relative w-full flex items-center justify-start gap-2 px-4 py-3 text-gray-400 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold">
+              <User size={18} className="shrink-0" />
+              <span className="echo-side-label">Admin Hub</span>
             </Link>
           ) : (
             <Link
               to={isPresence ? '/hub/presence' : getPostLoginPath(user)}
               onClick={() => setActiveStore(null)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 text-gray-400 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold"
+              title="Back to Hub"
+              className="echo-side-link relative w-full flex items-center justify-start gap-2 px-4 py-3 text-gray-400 hover:bg-white/5 hover:text-white rounded-xl transition-all font-bold"
             >
-              <ArrowLeft size={18} /> Back to Hub
+              <ArrowLeft size={18} className="shrink-0" />
+              <span className="echo-side-label">Back to Hub</span>
             </Link>
           )}
         </div>
       </aside>
 
-      <main className="echo-shell-main flex-1 overflow-y-auto relative z-0 custom-scrollbar">
+      <main className="echo-shell-main flex-1 min-w-0 overflow-y-auto relative custom-scrollbar">
         {children}
       </main>
 
