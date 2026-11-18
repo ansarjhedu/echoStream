@@ -95,6 +95,8 @@ export default function GoogleReviews() {
         googleReviewCount: (prev?.googleReviewCount || 0) + (data.imported || 0),
         productHandle: data.productHandle,
       }));
+      setPlaceId(data.googleReviews?.placeId || '');
+      setBusinessName(data.googleReviews?.businessName || '');
       setActiveStore({ ...activeStore, googleReviews: data.googleReviews });
       toast.success(res.data.message);
     } catch (err) {
@@ -141,8 +143,9 @@ export default function GoogleReviews() {
 
         {!status?.placesApiConfigured && (
           <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90">
-            Google sync is temporarily unavailable on this workspace. You can still save your Place ID and filters —
-            contact support if sync does not turn on soon.
+            Live Google sync needs a billed Places API key, which Google charges to turn on. Preview sync runs the
+            same import, star filter, and widget path with sample reviews so you can confirm it works. Each sample
+            comment starts with [Preview].
           </div>
         )}
 
@@ -218,11 +221,15 @@ export default function GoogleReviews() {
           <button
             type="button"
             onClick={handleSync}
-            disabled={syncing || !connected}
+            disabled={syncing || (status?.placesApiConfigured && !connected)}
             className="flex-1 min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl font-bold text-sm bg-emerald-500/90 text-[#0A0F1A] disabled:opacity-40"
           >
             <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
-            {syncing ? 'Syncing…' : 'Sync from Google'}
+            {syncing
+              ? 'Syncing…'
+              : status?.placesApiConfigured
+                ? 'Sync from Google'
+                : 'Preview sync'}
           </button>
           <button
             type="button"

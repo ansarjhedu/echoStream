@@ -101,8 +101,40 @@ const disconnectGoogleReviews = async (req, res) => {
   }
 };
 
+/** Stable sample set. Same shape as Places API reviews so import, dedupe, and the rating filter run unchanged. */
+const PREVIEW_REVIEWS = [
+  {
+    author_name: 'Maya Chen',
+    rating: 5,
+    text: '[Preview] Shipping was fast and the reviews widget matches our site.',
+    time: 1710000001,
+  },
+  {
+    author_name: 'Jordan Blake',
+    rating: 5,
+    text: '[Preview] We embedded the widget and shoppers started mentioning these reviews.',
+    time: 1710000002,
+  },
+  {
+    author_name: 'Sam Okonkwo',
+    rating: 4,
+    text: '[Preview] Solid experience. A 4-star review still imports when the minimum is 4 or lower.',
+    time: 1710000003,
+  },
+  {
+    author_name: 'Alex Rivera',
+    rating: 2,
+    text: '[Preview] This 2-star review is skipped when the minimum rating is 3 or higher.',
+    time: 1710000004,
+  },
+];
+
+function placesApiConfigured() {
+  return Boolean((process.env.GOOGLE_PLACES_API_KEY || '').trim());
+}
+
 async function fetchGooglePlaceReviews(placeId) {
-  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  const apiKey = (process.env.GOOGLE_PLACES_API_KEY || '').trim();
   if (!apiKey) {
     const err = new Error(
       'GOOGLE_PLACES_API_KEY is not configured on the server. Add it to enable live Google sync.'
@@ -129,11 +161,27 @@ async function fetchGooglePlaceReviews(placeId) {
 const syncGoogleReviews = async (req, res) => {
   try {
     const store = req.store;
-    if (!store.googleReviews?.connected || !store.googleReviews?.placeId) {
+    const live = placesApiConfigured();
+
+    // Without a billed Places key, run the same pipeline on sample reviews.
+    if (!live) {
+      store.googleReviews = {
+        ...(store.googleReviews?.toObject?.() || store.googleReviews || {}),
+        placeId: store.googleReviews?.placeId || 'preview',
+        businessName: store.googleReviews?.businessName || store.storeName || 'Preview listing',
+        minRating: store.googleReviews?.minRating || 1,
+        connected: true,
+      };
+    } else if (!store.googleReviews?.connected || !store.googleReviews?.placeId) {
       return res.status(400).json({ message: 'Connect a Google Place ID before syncing.' });
     }
 
-    const place = await fetchGooglePlaceReviews(store.googleReviews.placeId);
+    const place = live
+      ? await fetchGooglePlaceReviews(store.googleReviews.placeId)
+      : {
+          name: store.googleReviews.businessName || store.storeName || 'Preview listing',
+          reviews: PREVIEW_REVIEWS,
+        };
     const product = await ensureGoogleProduct(store);
     const minRating = store.googleReviews.minRating || 1;
     const reviews = Array.isArray(place.reviews) ? place.reviews : [];
@@ -167,7 +215,7 @@ const syncGoogleReviews = async (req, res) => {
         rating,
         comment: gr.text || '(No written review)',
         status: 'approved',
-        isVerifiedBuyer: true,
+        isVerifiedBuyer: live,
         source: 'google',
         externalId,
         createdAt: gr.time ? new Date(gr.time * 1000) : undefined,
@@ -190,10 +238,14 @@ const syncGoogleReviews = async (req, res) => {
         skipped,
         availableFromGoogle: reviews.length,
       },
-      message:
-        imported > 0
+      preview: !live,
+      message: !live
+        ? (imported > 0
+          ? `Preview sync imported ${imported} sample review(s). These are not from Google.`
+          : 'Preview sync complete — sample reviews are already imported. Open Design Lab to see them.')
+        : (imported > 0
           ? `Imported ${imported} Google review(s).`
-          : 'Sync complete — no new reviews matched your filters.',
+          : 'Sync complete — no new reviews matched your filters.'),
     });
   } catch (error) {
     console.log(error);
@@ -216,7 +268,8 @@ const getGoogleReviewsStatus = async (req, res) => {
         googleReviews: store.googleReviews || {},
         productHandle,
         googleReviewCount: googleCount,
-        placesApiConfigured: Boolean(process.env.GOOGLE_PLACES_API_KEY),
+        placesApiConfigured: placesApiConfigured(),
+        syncMode: placesApiConfigured() ? 'live' : 'preview',
       },
       message: 'Google Reviews status',
     });
