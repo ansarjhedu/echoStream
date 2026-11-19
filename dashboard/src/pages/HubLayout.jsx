@@ -171,7 +171,7 @@ const HubLayout = ({ children }) => {
   return (
     <div className="echo-shell bg-[#0A0F1A] text-white flex flex-col md:flex-row font-sans selection:bg-cyan-500/30 overflow-hidden">
       <MobileHeader
-        alertCount={showAdminNav ? undefined : badges.unreadNotifications}
+        alertCount={badges.unreadNotifications}
         onLogout={logout}
       />
 

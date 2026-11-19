@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import api from '../Api';
 import { useAuth } from '../context/AuthContext';
@@ -36,7 +35,6 @@ function canReviewTickets(user) {
  */
 export default function TicketApprovalDock() {
   const { user } = useAuth();
-  const location = useLocation();
   const [queue, setQueue] = useState([]);
   const [index, setIndex] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -66,7 +64,7 @@ export default function TicketApprovalDock() {
       clearInterval(timer);
       window.removeEventListener('echo:refresh-admin-badges', onRefresh);
     };
-  }, [enabled, load, location.pathname]);
+  }, [enabled, load]);
 
   if (!enabled || !queue.length) return null;
   const ticket = queue[index] || queue[0];

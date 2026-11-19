@@ -12,11 +12,11 @@ export default function AdminOverview() {
   const [stores, setStores] = useState([]);
   const [users, setUsers] = useState([]);
   const [tickets, setTickets] = useState([]); 
-  const [loading, setLoading] = useState(true);
   const[chartTimeframe, setChartTimeframe] = useState('7d'); 
   const [pieView, setPieView] = useState('hosting'); 
 
   useEffect(() => {
+    let cancelled = false;
     const fetchData = async () => {
       try {
         const settled = await Promise.allSettled([
@@ -25,6 +25,7 @@ export default function AdminOverview() {
           api.get('/admin/user/list'),
           api.get('/admin/support/list')
         ]);
+        if (cancelled) return;
         const [statRes, storeRes, userRes, ticketRes] = settled;
 
         if (statRes.status === 'fulfilled') {
@@ -40,12 +41,11 @@ export default function AdminOverview() {
           toast.error("Admin fetch failed");
         }
       } catch (error) {
-        toast.error("Admin fetch failed");
-      } finally {
-        setLoading(false);
+        if (!cancelled) toast.error("Admin fetch failed");
       }
     };
     fetchData();
+    return () => { cancelled = true; };
   },[]);
 
   // ... (Keep the growthData7d and growthData30d exactly as they were) ...
@@ -151,8 +151,6 @@ export default function AdminOverview() {
     return null;
   };
 
-  if (loading) return <div className="p-12 text-red-400 animate-pulse flex gap-2"><Activity/> Gathering Platform Telemetry...</div>;
-  // Open Support Tickets: status !== resolved
   const openTicketsCount = tickets.filter((t) => t.status !== 'resolved').length;
 
   return (
