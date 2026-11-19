@@ -13,6 +13,12 @@
   background-size: contain;
 }
 
+/* Keep wheel and trackpad scrolling inside the app. The browser must not reload the page at the edges. */
+html,
+body {
+  overscroll-behavior-y: none;
+}
+
 /* One scrollbar for the whole app: thin, transparent track, cyan thumb. */
 html,
 body,
@@ -65,11 +71,13 @@ body::-webkit-scrollbar-thumb:hover,
 .echo-shell {
   height: 100svh;
   max-height: 100svh;
+  overscroll-behavior: none;
 }
 .echo-shell-main {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding-bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px));
 }
 .echo-mobile-dock {

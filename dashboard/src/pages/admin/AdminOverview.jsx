@@ -156,7 +156,7 @@ export default function AdminOverview() {
   const openTicketsCount = tickets.filter((t) => t.status !== 'resolved').length;
 
   return (
-    <div className="p-4 md:p-10 relative overflow-y-auto h-full z-10 w-full overflow-x-hidden no-scrollbar">
+    <div className="p-4 md:p-10 relative z-10 w-full overflow-x-hidden">
       <div className="absolute top-[-10%] right-[-10%] w-96 h-96 bg-red-600/10 blur-[120px] rounded-full pointer-events-none -z-10"></div>
 
       <div className="mb-10">
@@ -194,8 +194,8 @@ export default function AdminOverview() {
               <button onClick={() => setChartTimeframe('30d')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${chartTimeframe === '30d' ? 'bg-red-500/20 text-red-400 shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}>30 Days</button>
             </div>
           </div>
-          <div className="flex-1 min-h-[250px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-[260px] w-full">
+            <ResponsiveContainer width="100%" height={260}>
               <AreaChart data={activeChartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorStores" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/><stop offset="95%" stopColor="#f97316" stopOpacity={0}/></linearGradient>
@@ -220,9 +220,9 @@ export default function AdminOverview() {
               <button onClick={() => setPieView('tickets')} className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1 ${pieView === 'tickets' ? 'bg-red-500/20 text-red-400' : 'text-gray-500 hover:text-gray-300'}`}><LifeBuoy size={12}/> Tickets</button>
             </div>
           </div>
-          <div className="flex-1 min-h-[200px] w-full relative flex items-center justify-center">
+          <div className="h-[220px] w-full relative flex items-center justify-center">
             {activePieData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
                   <Pie data={activePieData} cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={5} dataKey="value" stroke="none">
                     {activePieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
