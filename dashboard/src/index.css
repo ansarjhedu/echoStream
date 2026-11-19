@@ -13,10 +13,17 @@
   background-size: contain;
 }
 
-/* Keep wheel and trackpad scrolling inside the app. The browser must not reload the page at the edges. */
+/* The phone browser paints white and reloads if the document itself can scroll.
+   Lock the document and paint it the same dark color as the app. */
 html,
-body {
-  overscroll-behavior-y: none;
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: #0A0F1A;
+  color-scheme: dark;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 /* One scrollbar for the whole app: thin, transparent track, cyan thumb. */
@@ -69,8 +76,8 @@ body::-webkit-scrollbar-thumb:hover,
 
 /* Phone shell scrolls only the page. The bottom bar is fixed so narrow screens cannot push it off. */
 .echo-shell {
-  height: 100svh;
-  max-height: 100svh;
+  height: 100dvh;
+  max-height: 100dvh;
   overscroll-behavior: none;
 }
 .echo-shell-main {

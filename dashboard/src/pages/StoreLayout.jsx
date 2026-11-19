@@ -75,7 +75,7 @@ const StoreLayout = ({ children }) => {
   );
 
   return (
-    <div className="echo-shell h-dvh bg-[#0A0F1A] text-white flex flex-col md:flex-row font-sans selection:bg-cyan-500/30 overflow-hidden">
+    <div className="echo-shell bg-[#0A0F1A] text-white flex flex-col md:flex-row font-sans selection:bg-cyan-500/30 overflow-hidden">
       <MobileHeader
         store={activeStore}
         homeTo={isPresence ? '/hub/presence' : '/hub/stores'}
