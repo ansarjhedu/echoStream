@@ -154,8 +154,7 @@ export default function AdminOverview() {
   const openTicketsCount = tickets.filter((t) => t.status !== 'resolved').length;
 
   return (
-    <div className="p-4 md:p-10 relative z-10 w-full overflow-x-hidden">
-      <div className="absolute top-[-10%] right-[-10%] w-96 h-96 bg-red-600/10 blur-[120px] rounded-full pointer-events-none -z-10"></div>
+    <div className="p-4 md:p-10 relative z-10 w-full overflow-x-clip">
 
       <div className="mb-10">
         <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-orange-500 tracking-tight flex items-center gap-3">
@@ -192,7 +191,7 @@ export default function AdminOverview() {
               <button onClick={() => setChartTimeframe('30d')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${chartTimeframe === '30d' ? 'bg-red-500/20 text-red-400 shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}>30 Days</button>
             </div>
           </div>
-          <div className="h-[260px] w-full">
+          <div className="h-[260px] w-full min-w-0 overflow-hidden">
             <ResponsiveContainer width="100%" height={260}>
               <AreaChart data={activeChartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                 <defs>
@@ -218,7 +217,7 @@ export default function AdminOverview() {
               <button onClick={() => setPieView('tickets')} className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1 ${pieView === 'tickets' ? 'bg-red-500/20 text-red-400' : 'text-gray-500 hover:text-gray-300'}`}><LifeBuoy size={12}/> Tickets</button>
             </div>
           </div>
-          <div className="h-[220px] w-full relative flex items-center justify-center">
+          <div className="h-[220px] w-full min-w-0 overflow-hidden relative flex items-center justify-center">
             {activePieData.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
@@ -286,7 +285,7 @@ export default function AdminOverview() {
 }
 
 const StatCard = ({ title, value, color = "text-white" }) => (
-  <div className="bg-white/[0.02] border border-white/10 p-5 rounded-2xl backdrop-blur-xl shadow-lg relative overflow-hidden group hover:border-white/20 transition-all flex flex-col justify-between">
+  <div className="bg-[#121826] border border-white/10 p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-white/20 transition-all flex flex-col justify-between">
     <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/5 rounded-full blur-2xl group-hover:bg-white/10 transition-all"></div>
     <p className="text-gray-400 font-bold mb-1 text-xs md:text-sm z-10 relative">{title}</p>
     <h3 className={`text-2xl md:text-3xl font-black z-10 relative ${color}`}>{value || 0}</h3>

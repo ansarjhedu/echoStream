@@ -74,7 +74,9 @@ body::-webkit-scrollbar-thumb:hover,
   background-clip: padding-box;
 }
 
-/* Phone shell scrolls only the page. The bottom bar is fixed so narrow screens cannot push it off. */
+/* Phone shell scrolls only the page. The bottom bar is fixed so narrow screens cannot push it off.
+   100dvh grows past the visible screen when the address bar moves, and that extra height is what
+   the phone reloads as a pull-to-refresh. Pin the shell to the visible screen instead. */
 .echo-shell {
   height: 100dvh;
   max-height: 100dvh;
@@ -84,8 +86,18 @@ body::-webkit-scrollbar-thumb:hover,
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow-anchor: none;
+  overscroll-behavior: none;
   padding-bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px));
+}
+@media (max-width: 767px) {
+  .echo-shell {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: auto;
+    max-height: none;
+  }
 }
 .echo-mobile-dock {
   min-height: 4.75rem;
