@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Star, ExternalLink, Shield } from 'lucide-react';
+import { resolveBackendBase } from '../backendBase';
 
-const backendBase = (import.meta.env.VITE_BACKEND_URL || '/api')
-  .trim()
-  .replace(/^['"]|['"]$/g, '')
-  .replace(/\/$/, '');
+const backendBase = resolveBackendBase();
 
 function Stars({ rating }) {
   const n = Math.round(Number(rating) || 0);

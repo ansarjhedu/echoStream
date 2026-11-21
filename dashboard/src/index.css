@@ -13,17 +13,32 @@
   background-size: contain;
 }
 
-/* The phone browser paints white and reloads if the document itself can scroll.
-   Lock the document and paint it the same dark color as the app. */
+/* Public pages scroll the document. The signed-in shell is the only view that locks it,
+   so a phone pull at the top of the dashboard cannot reload the page. */
 html,
 body,
 #root {
-  height: 100%;
   margin: 0;
   background: #0A0F1A;
   color-scheme: dark;
+}
+html:has(.echo-shell),
+html:has(.echo-shell) body,
+html:has(.echo-shell) #root,
+html:has(.echo-public),
+html:has(.echo-public) body,
+html:has(.echo-public) #root {
+  height: 100%;
   overflow: hidden;
   overscroll-behavior: none;
+}
+/* Marketing pages scroll inside this pane, even when the document itself is locked. */
+.echo-public {
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* One scrollbar for the whole app: thin, transparent track, cyan thumb. */

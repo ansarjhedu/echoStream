@@ -6,6 +6,8 @@ import { toast } from 'react-toastify';
 import { User, Mail, Lock, Camera, Trash2 } from 'lucide-react';
 import PaymentCardVisual from '../components/ui/PaymentCardVisual';
 import UserAvatar from '../components/UserAvatar';
+import { personNameError } from '../utils/personName';
+import { passwordError } from '../utils/passwordRule';
 
 export default function Profile() {
   const { user, setUser, logout } = useAuth();
@@ -47,6 +49,12 @@ export default function Profile() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const nameError = personNameError(formData.userName);
+    if (nameError) return toast.error(nameError);
+    if (formData.password) {
+      const weakPassword = passwordError(formData.password);
+      if (weakPassword) return toast.error(weakPassword);
+    }
     if (formData.password && formData.password !== formData.confirmPassword) {
       return toast.error('Passwords do not match!');
     }

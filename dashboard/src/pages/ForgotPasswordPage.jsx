@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import api from '../Api';
 import PasswordInput from '../components/PasswordInput';
 import mark from '../assets/logo-mark.png';
+import { passwordError } from '../utils/passwordRule';
 
 /**
  * Forgot password — email → OTP → new password + confirm.
@@ -40,6 +41,8 @@ export default function ForgotPasswordPage() {
 
   const submitReset = async (e) => {
     e.preventDefault();
+    const weakPassword = passwordError(password);
+    if (weakPassword) return toast.error(weakPassword);
     if (password !== confirmPassword) {
       toast.error('Passwords do not match.');
       return;

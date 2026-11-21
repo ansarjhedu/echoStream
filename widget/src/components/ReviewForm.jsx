@@ -39,6 +39,10 @@ export default function ReviewForm() {
       setStatus({ loading: false, message: 'Name and email are required.', error: true });
       return;
     }
+    if (/\d/.test(name) || !/^[\p{L}][\p{L}\s.'-]*$/u.test(name) || name.length < 2) {
+      setStatus({ loading: false, message: 'Name can use letters only.', error: true });
+      return;
+    }
 
     const formData = new FormData();
     formData.append('rating', formState.rating);

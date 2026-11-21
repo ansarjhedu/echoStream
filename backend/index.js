@@ -95,8 +95,8 @@ connectDB().then(() => {
 
     // Start local server ONLY if we are not on Vercel
     if (process.env.NODE_ENV !== 'production') {
-        app.listen(port, () => {
-            console.log(`🚀 Local Server running on http://localhost:${port}`);
+        app.listen(port, '127.0.0.1', () => {
+            console.log(`Local API running on http://127.0.0.1:${port}`);
         });
     }
 }).catch(err => {

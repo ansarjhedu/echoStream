@@ -9,6 +9,7 @@ import User from "../models/User.js";
 import { getEntitlements } from "../utils/plans.js";
 import { recordWidgetImpression } from "../utils/widgetImpressions.js";
 import { logActivity } from "../utils/activityLog.js";
+import { personNameError } from "../utils/personName.js";
 
 const createReview=async(req,res)=>{
 
@@ -18,6 +19,8 @@ const createReview=async(req,res)=>{
         if(!productHandle || !productTitle || !customerName || !customerEmail || !rating || !comment){
             return res.status(400).json({ message: "All fields are required" });
         }
+        const nameError = personNameError(customerName);
+        if (nameError) return res.status(400).json({ message: nameError });
 
         if(["fuck", "shit", "damn"].includes(comment.toLowerCase())){
             return res.status(400).json({ message: "Inappropriate language used in comment" });

@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Star, Send } from 'lucide-react';
+import { resolveBackendBase } from '../backendBase';
+import { personNameError } from '../utils/personName';
 
-const backendBase = (import.meta.env.VITE_BACKEND_URL || '/api')
-  .trim()
-  .replace(/^['"]|['"]$/g, '')
-  .replace(/\/$/, '');
+const backendBase = resolveBackendBase();
 
 /**
  * Hosted review form — shoppers land here from review-request emails.
@@ -31,6 +30,11 @@ export default function PublicReviewForm() {
 
   const submit = async (e) => {
     e.preventDefault();
+    const nameError = personNameError(customerName);
+    if (nameError) {
+      setError(nameError);
+      return;
+    }
     setError('');
     setBusy(true);
     try {

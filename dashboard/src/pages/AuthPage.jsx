@@ -8,6 +8,8 @@ import { navigateAfterAuth } from '../utils/navigateAfterAuth';
 import PasswordInput from '../components/PasswordInput';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import mark from '../assets/logo-mark.png';
+import { personNameError } from '../utils/personName';
+import { passwordError, passwordStrength as measurePassword } from '../utils/passwordRule';
 
 export default function AuthPage() {
   const [step, setStep] = useState('auth'); // 'auth' | 'otp' | 'login-otp'
@@ -34,32 +36,34 @@ export default function AuthPage() {
     }
   }, [searchParams]);
 
-  const checkPasswordStrength = (password) => {
-    if (!password) return { level: '', width: 0, color: '' };
-    const hasLetters = /[a-zA-Z]/.test(password);
-    const hasNumbers = /\d/.test(password);
-    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-    const length = password.length;
-
-    if (length >= 8 && hasLetters && hasNumbers && hasSpecial) return { level: 'Strong', width: 100, color: 'bg-green-500' };
-    if (length >= 6 && hasLetters && hasNumbers) return { level: 'Medium', width: 66, color: 'bg-yellow-500' };
-    return { level: 'Weak', width: 33, color: 'bg-red-500' };
-  };
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
-    if (name === 'password') setPasswordStrength(checkPasswordStrength(value));
+    if (name === 'password') setPasswordStrength(measurePassword(value));
   };
 
   const handleAuthSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
-    if (!isLogin && formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
-      setLoading(false);
-      return;
+    if (!isLogin) {
+      const nameError = personNameError(formData.userName);
+      if (nameError) {
+        toast.error(nameError);
+        setLoading(false);
+        return;
+      }
+      const weakPassword = passwordError(formData.password);
+      if (weakPassword) {
+        toast.error(weakPassword);
+        setLoading(false);
+        return;
+      }
+      if (formData.password !== formData.confirmPassword) {
+        toast.error('Passwords do not match');
+        setLoading(false);
+        return;
+      }
     }
 
     try {
@@ -242,6 +246,9 @@ export default function AuthPage() {
                     >
                       Security: {passwordStrength.level}
                     </p>
+                    {passwordStrength.level === 'Weak' && (
+                      <p className="text-xs mt-1 text-red-300">Use at least 8 characters with a letter and a number.</p>
+                    )}
                   </div>
                 )}
               </div>

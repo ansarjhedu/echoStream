@@ -1,9 +1,7 @@
 import axios from 'axios';
+import { resolveBackendBase } from './backendBase';
 
-const backendBase = (import.meta.env.VITE_BACKEND_URL || '/api')
-  .trim()
-  .replace(/^['"]|['"]$/g, '')
-  .replace(/\/$/, '');
+const backendBase = resolveBackendBase();
 
 const api = axios.create({
   baseURL: backendBase,

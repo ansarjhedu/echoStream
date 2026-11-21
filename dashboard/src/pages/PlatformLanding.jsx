@@ -67,7 +67,7 @@ export default function PlatformLanding() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#070B14] text-white">
+    <div className="echo-public bg-[#070B14] text-white">
       <SiteNav
         links={[
           { href: '#controls', label: 'Controls' },

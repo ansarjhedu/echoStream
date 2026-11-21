@@ -107,7 +107,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070B14] text-white">
+    <div className="echo-public bg-[#070B14] text-white">
       {prompt && (
         <AudiencePrompt
           onStay={dismiss}

@@ -13,6 +13,8 @@ import { OAuth2Client } from "google-auth-library";
 import sendEmail, { isEmailTransportError } from "../utils/sendEmail.js";
 import { getPlanLimits, isWithinLimit, resolvePlanId, getEntitlements } from "../utils/plans.js";
 import Campaign from "../models/Campaign.js";
+import { personNameError } from "../utils/personName.js";
+import { passwordError } from "../utils/passwordRule.js";
 
 const googleClient = () => {
   const clientId = (process.env.GOOGLE_CLIENT_ID || '').trim().replace(/^['"]|['"]$/g, '');
@@ -99,6 +101,10 @@ const registerUser = async (req, res) => {
     if (!email || !password || !userName) {
       return res.status(400).json({ message: "Please provide all required fields" });
     }
+    const nameError = personNameError(userName);
+    if (nameError) return res.status(400).json({ message: nameError });
+    const weakPassword = passwordError(password);
+    if (weakPassword) return res.status(400).json({ message: weakPassword });
 
     let user = await User.findOne({ email });
 
@@ -406,7 +412,11 @@ const logoutUser = async (req, res) => {
         }
 
         user.email=req.body.email || user.email;
-        user.userName=req.body.userName || user.userName;
+        if (req.body.userName) {
+          const nameError = personNameError(req.body.userName);
+          if (nameError) return res.status(400).json({ message: nameError });
+          user.userName = String(req.body.userName).trim().replace(/\s+/g, ' ');
+        }
         if (req.file) {
           const nextPic = req.file.path || req.file.secure_url;
           if (!nextPic) {
@@ -417,6 +427,8 @@ const logoutUser = async (req, res) => {
 
 
         if(req.body.password){
+            const weakPassword = passwordError(req.body.password);
+            if (weakPassword) return res.status(400).json({ message: weakPassword });
             user.password=req.body.password;
           }
         await user.save();
@@ -645,6 +657,8 @@ const inviteStaff = async (req, res) => {
     if (!email || !userName) {
       return res.status(400).json({ message: "Email and userName are required" });
     }
+    const nameError = personNameError(userName);
+    if (nameError) return res.status(400).json({ message: nameError });
 
     const safeStoreRole = ALLOWED_STORE_ROLES.includes(storeRole) ? storeRole : 'support';
     let resolvedPermissions;
@@ -792,9 +806,8 @@ const acceptInvite = async (req, res) => {
       return res.status(400).json({ message: "Passwords do not match" });
     }
 
-    if (password.length < 8) {
-      return res.status(400).json({ message: "Password must be at least 8 characters" });
-    }
+    const weakPassword = passwordError(password);
+    if (weakPassword) return res.status(400).json({ message: weakPassword });
 
     const user = await User.findOne({ email }).select('+inviteToken +inviteTokenExpire');
 
@@ -811,7 +824,11 @@ const acceptInvite = async (req, res) => {
       return res.status(400).json({ message: "Invitation has expired. Please ask the owner to resend." });
     }
 
-    if (userName) user.userName = userName;
+    if (userName) {
+      const nameError = personNameError(userName);
+      if (nameError) return res.status(400).json({ message: nameError });
+      user.userName = String(userName).trim().replace(/\s+/g, ' ');
+    }
     user.password = password;
     user.isVerified = true;
     user.isActive = true;
@@ -1108,9 +1125,8 @@ const resetPasswordWithOtp = async (req, res) => {
         if (password !== confirmPassword) {
             return res.status(400).json({ message: "Passwords do not match." });
         }
-        if (password.length < 6) {
-            return res.status(400).json({ message: "Password must be at least 6 characters." });
-        }
+        const weakPassword = passwordError(password);
+        if (weakPassword) return res.status(400).json({ message: weakPassword });
 
         const user = await User.findOne({ email }).select("+otp +otpExpire +otpPurpose +password");
         if (!user || !user.isVerified) {

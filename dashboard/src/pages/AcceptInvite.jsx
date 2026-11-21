@@ -4,6 +4,8 @@ import { Mail, Lock, User, UserCheck, ArrowRight } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import { getPostLoginPath } from '../utils/permissionHelpers';
+import { personNameError } from '../utils/personName';
+import { passwordError } from '../utils/passwordRule';
 
 export default function AcceptInvite() {
   const [searchParams] = useSearchParams();
@@ -37,14 +39,12 @@ export default function AcceptInvite() {
     if (!isValidInvite) {
       return toast.error('Invalid invitation link. Missing email or token.');
     }
-    if (!formData.userName.trim()) {
-      return toast.error('Please enter your name');
-    }
+    const nameError = personNameError(formData.userName);
+    if (nameError) return toast.error(nameError);
+    const weakPassword = passwordError(formData.password);
+    if (weakPassword) return toast.error(weakPassword);
     if (formData.password !== formData.confirmPassword) {
       return toast.error('Passwords do not match');
-    }
-    if (formData.password.length < 8) {
-      return toast.error('Password must be at least 8 characters');
     }
 
     setLoading(true);

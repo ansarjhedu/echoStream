@@ -16,6 +16,7 @@ import {
   isMasterAdmin,
 } from '../utils/permissionHelpers';
 import { redirectIfPlanError } from '../utils/planGates';
+import { personNameError } from '../utils/personName';
 
 const STORE_ROLE_OPTIONS = [
   { value: 'administrator', label: 'Administrator' },
@@ -99,7 +100,9 @@ export default function TeamManagement({ variant = 'store' }) {
 
   const handleInvite = async (e) => {
     e.preventDefault();
-    if (!formData.userName || !formData.email) return toast.error('Name and email are required');
+    const nameError = personNameError(formData.userName);
+    if (nameError) return toast.error(nameError);
+    if (!formData.email) return toast.error('Email is required');
     if (formData.storeRole === 'custom' && formData.permissions.length === 0) {
       return toast.error('Select at least one permission for Custom role');
     }

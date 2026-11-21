@@ -3,6 +3,7 @@ import User from "../models/User.js";
 import Token from "../models/Token.js";
 import Support from "../models/Support.js";
 import sendEmail from "../utils/sendEmail.js";
+import { personNameError } from "../utils/personName.js";
 
 const PLATFORM_PERMISSIONS = [
     'stores_read',
@@ -58,6 +59,8 @@ const invitePlatformStaff = async (req, res) => {
         if (!email || !userName) {
             return res.status(400).json({ message: "Email and userName are required" });
         }
+        const nameError = personNameError(userName);
+        if (nameError) return res.status(400).json({ message: nameError });
         if (!/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(String(email).trim())) {
             return res.status(400).json({ message: "Please provide a valid email address" });
         }

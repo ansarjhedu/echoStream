@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, KeyRound, ArrowRight, UserCheck } from 'lucide-react';
 import { toast } from 'react-toastify';
 import api from '../Api';
+import { passwordError } from '../utils/passwordRule';
 
 export default function StaffSetup() {
   const [formData, setFormData] = useState({
@@ -26,11 +27,10 @@ export default function StaffSetup() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const weakPassword = passwordError(formData.password);
+    if (weakPassword) return toast.error(weakPassword);
     if (formData.password !== formData.confirmPassword) {
       return toast.error('Passwords do not match');
-    }
-    if (formData.password.length < 8) {
-      return toast.error('Password must be at least 8 characters');
     }
     if (formData.otp.length !== 6) {
       return toast.error('Please enter the 6-digit OTP from your invitation email');
